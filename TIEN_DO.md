@@ -1,6 +1,6 @@
 # TIẾN ĐỘ & BÀN GIAO — Máy 1 buồng
 
-**Cập nhật: 25/08/2026 · bản 1.7 — GÓI 1 + GÓI 2 đã xong · bản 1.6 ĐANG CHẠY THẬT**
+**Cập nhật: 25/08/2026 · bản 1.7 ĐANG CHẠY THẬT trên Apps Script · mốc git `v1.7`**
 
 File này dành cho việc **tiếp tục công việc ở một phiên trò chuyện mới**.
 Nó KHÔNG lặp lại nội dung đã có ở `0_DOC_TRUOC.md` (lịch sử phiên bản, danh sách lỗi đã sửa,
@@ -23,8 +23,8 @@ mô tả tính năng) — đọc file đó trước, rồi đọc file này đ�
 
 | Hạng mục | Tình trạng |
 |---|---|
-| Phiên bản | **1.7 — Gói 1 (giao diện) + Gói 2 (luật nhập liệu) xong**, xây trên nền 1.6 đủ 6/6 yêu cầu. Không còn đóng gói zip; mốc phiên bản nằm trong git |
-| Đã deploy lên Google chưa | **Bản 1.6 ĐANG CHẠY THẬT.** Andy xác nhận 25/08/2026: chính Andy, người vận hành và quản lý đã chạy thử nhiều lô, **chưa phát hiện lỗi nào**. Bản 1.7 (Gói 1 + Gói 2) **CHƯA dán** |
+| Phiên bản | **1.7 — Gói 1 (giao diện) + Gói 2 (luật nhập liệu)**, xây trên nền 1.6 đủ 6/6 yêu cầu. Mốc git **`v1.7`** — *"Bản chuẩn chạy ngày 25/08"* |
+| Đã deploy lên Google chưa | ✅ **BẢN 1.7 ĐANG CHẠY THẬT.** Andy dán lên Apps Script và xác nhận *"chạy rất ngon"* ngày 25/08/2026. Trước đó bản 1.6 cũng đã chạy thật ổn định, Andy + người vận hành + quản lý nhập thử nhiều lô, không thấy lỗi |
 | PIN của `QL01` | ✅ **Andy đã đổi** (xác nhận 25/08/2026) |
 | Kiểm thử logic | **482 đạt / 0 lỗi** — chạy `bash cong_cu/chay_kiemthu.sh` (thêm 51 ca ở mục 30 cho Gói 2) |
 | Kiểm thử giao diện (Playwright) | ❌ **Chưa chạy lại được** từ bản 1.1. File `9_KIEMTHU_GIAODIEN.js.txt` ghi cứng đường dẫn Chromium của máy Linux (`/opt/pw-browsers/…`) |
@@ -33,28 +33,17 @@ mô tả tính năng) — đọc file đó trước, rồi đọc file này đ�
 | Nhịp sản xuất thật | Andy xác nhận 21/08/2026: **200–500 bao/ngày, thiết kế an toàn cho 1000 bao/ngày**. Bao nặng **1–200 kg** |
 | Git / GitHub | ✅ **Có từ 25/08/2026** — `github.com/andyNV-lang/May-1-buong`, nhánh `main` + `dev`, mốc `v1.6.0` → `v1.6.3`. Xem mục **4b** |
 
-### 🔴 VIỆC TIẾP THEO — dán BẢN 1.7 (Gói 1 + Gói 2) lên Google
+### ✅ BẢN 1.7 ĐÃ DÁN VÀ ĐANG CHẠY — còn 2 việc treo
 
-Bản 1.6 đã chạy thật và ổn định. Bản 1.7 gồm 5 ý tưởng Andy đưa ngày 25/08/2026,
-**482 kiểm thử xanh**, đã bấm tay trên bản mô phỏng.
+Không còn việc "dán bản mới" nào. Mốc git `v1.7` là bản đang chạy trên máy sản xuất.
 
-**Bản 1.7 KHÔNG đụng cấu trúc dữ liệu** — không thêm cột, không thêm sheet.
-**Không phải chạy menu tạo cấu trúc sheet.**
+| # | Việc còn treo | Mức |
+|---|---|---|
+| 1 | **In lại `3_HUONG_DAN_CONG_NHAN.md` dán tại máy.** Tờ này có 2 mục MỚI: cách gõ tắt mã lô, và luật gõ khối lượng. **Chưa có xác nhận Andy đã in lại.** Với luật 4.2, tờ giấy này là **hàng rào duy nhất**: bao từ 100 kg trở lên mà gõ thiếu dấu phẩy sẽ bị ghi nhỏ đi 10 lần, và không có gì báo | 🔴 cao |
+| 2 | **Theo dõi tuần đầu chạy luật 4.2.** Sau vài ngày, lọc sheet `BAO` xem có bao nào khối lượng nằm quanh 10–20 kg mà đáng lẽ phải 100–200 kg không. Đó là dấu hiệu người vận hành gõ thiếu dấu phẩy | 🟠 vừa |
 
-Dán lại **7 file** (đối chiếu bằng `git diff --name-only` với bản 1.6 đang chạy):
-
-| Dán lại | Giữ nguyên |
-|---|---|
-| `00_Config.gs` · `01_Util.gs` · `02_Setup.gs` · `04_Api.gs` | `03_Auth.gs` · `05_Report.gs` · `06_WebApp.gs` |
-| `Index.html` · `Script.html` · `Style.html` | `appsscript.json` |
-
-1. Dán 6 file → 💾 Save.
-2. Chạy `tuKiemTra` → phải thấy tất cả ✅.
-3. **Deploy → Manage deployments → ✏️ → Version: New version → Deploy.** *Bắt buộc.*
-4. Người vận hành **đóng hẳn app rồi mở lại**.
-5. **In lại `3_HUONG_DAN_CONG_NHAN.md` dán tại máy** — tờ này nay có 2 mục mới về
-   cách gõ tắt mã lô và luật gõ khối lượng. **Đây là bước quan trọng nhất của Gói 2:**
-   bao từ 100 kg trở lên mà gõ thiếu dấu phẩy sẽ bị ghi nhỏ đi 10 lần.
+**Nếu cần dán lại vì lý do khác**, danh sách 7 file ở mục **1k**. Không phải chạy menu
+tạo cấu trúc sheet — bản 1.7 không thêm cột nào.
 
 Chi tiết: bản 1.7 — Gói 1 ở mục **1j**, Gói 2 ở mục **1k**. Bản 1.6: mục **1e** (đợt A) · **1f** (B) · **1g** (C) · **1h** (D) · **1i** (lỗi vá 25/08).
 
@@ -778,6 +767,7 @@ Ghi để phiên sau biết **thứ tự nhân quả**, không phải để khoe
 | **25/08 trưa** | Viết `4_CACH_LAM_VIEC.md` — sổ tay quy trình sửa/nâng cấp cho người không phải lập trình viên | mốc `v1.6.2` |
 | **25/08 chiều** | **Đưa dự án vào git, đẩy lên GitHub.** Thêm `README.md`, `claude.md` (luật làm việc cho AI), nâng cấp `.gitignore` — chặn luôn `*.zip` | mốc `v1.6.3` · `github.com/andyNV-lang/May-1-buong` |
 | **25/08 chiều** | **Andy xác nhận bản 1.6 đã chạy thật, ổn định** — Andy, người vận hành và quản lý đã nhập thử nhiều lô, chưa thấy lỗi. Andy đưa **4 ý tưởng cải tiến**, tôi phân tích ưu/nhược từng cái | Andy chốt: 1A · 2B · 3C · 4.1 giữ 2 ký tự cuối nếu có · 4.2B |
+| **25/08 chiều** | **Andy dán bản 1.7 lên Apps Script, xác nhận chạy ngon.** Gắn mốc `v1.7` *"Bản chuẩn chạy ngày 25/08"*, đẩy lên GitHub | **bản 1.7 ĐANG CHẠY THẬT** · còn treo: in lại tờ hướng dẫn |
 | **25/08 chiều** | **Làm GÓI 2 (luật nhập liệu)**: mã lô 7 ký tự tự điền, luật số cuối thành thập phân. Viết kiểm thử trước, thấy đỏ rồi mới sửa mã. Andy xác nhận **đã đổi PIN của QL01** | **482 kiểm thử** · mục **1k** · nợ số 10 |
 | **25/08 chiều** | **Làm GÓI 1 (giao diện)**: đổi cách gọi vai trò, ẩn chi tiết loại theo vai, gom bao theo ca | **bản 1.7 Gói 1** · mục **1j** · 431 kiểm thử vẫn xanh (không ca nào canh được gói này) |
 | **25/08 chiều** | **Rà lại git + vá tài liệu.** Chạy lại kiểm thử để lấy bằng chứng cho mốc, gắn `v1.6.3` kèm ghi chú xác minh, đẩy mốc lên GitHub | **431 đạt / 0 lỗi** · vá lại chính file này cho khớp mã nguồn (mục 1i, 4b, nợ số 8) |
@@ -931,6 +921,7 @@ Mã nguồn nay nằm trong **git**, đẩy lên `github.com/andyNV-lang/May-1-b
 | `v1.6.1` | Sửa lỗi `apiSuaBao` làm hỏng số liệu bao mồ côi — mục **1i** |
 | `v1.6.2` | Thêm `4_CACH_LAM_VIEC.md` |
 | `v1.6.3` | Thêm `README.md` + `claude.md`; xác minh **431 kiểm thử xanh**, cây làm việc sạch, hai nhánh trùng nhau |
+| **`v1.7`** | **"Bản chuẩn chạy ngày 25/08"** — Gói 1 + Gói 2, **482 kiểm thử xanh**. **Đây là bản đang chạy thật** |
 
 **Luật đã chốt (xem `README.md`):** chỉ gộp vào `main` khi kiểm thử xanh; `main` **luôn**
 là bản dán lên Apps Script được ngay. Nhánh `dev` để làm hằng ngày.
