@@ -1,9 +1,32 @@
-# Rác của macOS
+# ── macOS ──────────────────────────────────────────────
 .DS_Store
+.AppleDouble
+.LSOverride
 
-# Rác của Python (cong_cu/*.py)
+# ── IDE / Editor ────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ── Editor backup / swap ────────────────────────────────
+*~
+*.swp
+*.swo
+
+# ── Môi trường & bí mật ─────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python (cong_cu/*.py) ────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
 
-# Bản nén đóng gói thủ công — mốc phiên bản đã nằm trong git rồi
+# ── Logs ────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Bản nén thủ công — mốc phiên bản đã nằm trong git ──
 *.zip
