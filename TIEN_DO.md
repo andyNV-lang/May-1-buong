@@ -1,6 +1,6 @@
 # TIẾN ĐỘ & BÀN GIAO — Máy 1 buồng
 
-**Cập nhật: 25/08/2026 · bản 1.7 — GÓI 1 (giao diện) đã xong · bản 1.6 ĐANG CHẠY THẬT**
+**Cập nhật: 25/08/2026 · bản 1.7 — GÓI 1 + GÓI 2 đã xong · bản 1.6 ĐANG CHẠY THẬT**
 
 File này dành cho việc **tiếp tục công việc ở một phiên trò chuyện mới**.
 Nó KHÔNG lặp lại nội dung đã có ở `0_DOC_TRUOC.md` (lịch sử phiên bản, danh sách lỗi đã sửa,
@@ -23,42 +23,40 @@ mô tả tính năng) — đọc file đó trước, rồi đọc file này đ�
 
 | Hạng mục | Tình trạng |
 |---|---|
-| Phiên bản | **1.7 — Gói 1 (giao diện) xong**, xây trên nền 1.6 đủ 6/6 yêu cầu. Không còn đóng gói zip; mốc phiên bản nằm trong git |
-| Đã deploy lên Google chưa | **Bản 1.6 ĐANG CHẠY THẬT.** Andy xác nhận 25/08/2026: chính Andy, người vận hành và quản lý đã chạy thử nhiều lô, **chưa phát hiện lỗi nào**. Gói 1 của bản 1.7 **CHƯA dán** |
-| Kiểm thử logic | **431 đạt / 0 lỗi** — chạy `bash cong_cu/chay_kiemthu.sh` |
+| Phiên bản | **1.7 — Gói 1 (giao diện) + Gói 2 (luật nhập liệu) xong**, xây trên nền 1.6 đủ 6/6 yêu cầu. Không còn đóng gói zip; mốc phiên bản nằm trong git |
+| Đã deploy lên Google chưa | **Bản 1.6 ĐANG CHẠY THẬT.** Andy xác nhận 25/08/2026: chính Andy, người vận hành và quản lý đã chạy thử nhiều lô, **chưa phát hiện lỗi nào**. Bản 1.7 (Gói 1 + Gói 2) **CHƯA dán** |
+| PIN của `QL01` | ✅ **Andy đã đổi** (xác nhận 25/08/2026) |
+| Kiểm thử logic | **482 đạt / 0 lỗi** — chạy `bash cong_cu/chay_kiemthu.sh` (thêm 51 ca ở mục 30 cho Gói 2) |
 | Kiểm thử giao diện (Playwright) | ❌ **Chưa chạy lại được** từ bản 1.1. File `9_KIEMTHU_GIAODIEN.js.txt` ghi cứng đường dẫn Chromium của máy Linux (`/opt/pw-browsers/…`) |
 | Thử tay giao diện | ✅ **Đã bấm tay qua trình duyệt** — 12 luồng bản 1.5 (mục 1d), các luồng của từng đợt 1.6 (mục 1e–1h), và 8 luồng của Gói 1 bản 1.7 (mục 1j) |
 | Số file đã đổi ở bản 1.6 | **9/11** — chỉ `03_Auth.gs` và `appsscript.json` giữ nguyên |
 | Nhịp sản xuất thật | Andy xác nhận 21/08/2026: **200–500 bao/ngày, thiết kế an toàn cho 1000 bao/ngày**. Bao nặng **1–200 kg** |
 | Git / GitHub | ✅ **Có từ 25/08/2026** — `github.com/andyNV-lang/May-1-buong`, nhánh `main` + `dev`, mốc `v1.6.0` → `v1.6.3`. Xem mục **4b** |
 
-### 🔴 VIỆC TIẾP THEO — dán GÓI 1 của bản 1.7 lên Google
+### 🔴 VIỆC TIẾP THEO — dán BẢN 1.7 (Gói 1 + Gói 2) lên Google
 
-Bản 1.6 đã chạy thật và ổn định. Gói 1 của bản 1.7 (ý tưởng 1 + 2 + 3 Andy đưa ngày
-25/08/2026) đã xong, 431 kiểm thử vẫn xanh, đã bấm tay 8 luồng trên bản mô phỏng.
+Bản 1.6 đã chạy thật và ổn định. Bản 1.7 gồm 5 ý tưởng Andy đưa ngày 25/08/2026,
+**482 kiểm thử xanh**, đã bấm tay trên bản mô phỏng.
 
-**Gói 1 KHÔNG đụng cấu trúc dữ liệu** — không thêm cột, không thêm sheet.
-Vì vậy **không phải chạy menu tạo cấu trúc sheet**, không phải điền lại gì cả.
+**Bản 1.7 KHÔNG đụng cấu trúc dữ liệu** — không thêm cột, không thêm sheet.
+**Không phải chạy menu tạo cấu trúc sheet.**
 
-Dán lại **5 file**:
+Dán lại **6 file**:
 
 | Dán lại | Giữ nguyên |
 |---|---|
-| `02_Setup.gs` · `04_Api.gs` | `00_Config.gs` · `01_Util.gs` · `03_Auth.gs` · `05_Report.gs` · `06_WebApp.gs` |
+| `00_Config.gs` · `01_Util.gs` · `02_Setup.gs` · `04_Api.gs` | `03_Auth.gs` · `05_Report.gs` · `06_WebApp.gs` |
 | `Index.html` · `Script.html` · `Style.html` | `appsscript.json` |
 
-1. Dán 5 file → 💾 Save.
+1. Dán 6 file → 💾 Save.
 2. Chạy `tuKiemTra` → phải thấy tất cả ✅.
 3. **Deploy → Manage deployments → ✏️ → Version: New version → Deploy.** *Bắt buộc.*
 4. Người vận hành **đóng hẳn app rồi mở lại**.
+5. **In lại `3_HUONG_DAN_CONG_NHAN.md` dán tại máy** — tờ này nay có 2 mục mới về
+   cách gõ tắt mã lô và luật gõ khối lượng. **Đây là bước quan trọng nhất của Gói 2:**
+   bao từ 100 kg trở lên mà gõ thiếu dấu phẩy sẽ bị ghi nhỏ đi 10 lần.
 
-⚠️ **VIỆC CÒN TREO TỪ BẢN 1.6, CHƯA XÁC NHẬN XONG:** đổi mã PIN của `QL01`
-(Bùi Thế Hiếu). Bản 1.6 cho vai `QUAN_LY` **xoá được số liệu đã chốt**, mà PIN 4 số
-cũ đã lộ trong một ảnh chụp gửi qua mạng — nay bản 1.6 đã chạy thật nên việc này
-**quá hạn**, không còn là việc "trước khi dán". Cũng xem lại `CN02`, `CN03`, `TK01`
-đang để PIN `0000`. *(Phiên 25/08 chưa hỏi lại Andy xem đã đổi chưa.)*
-
-Chi tiết: bản 1.7 Gói 1 ở mục **1j**. Bản 1.6: mục **1e** (đợt A) · **1f** (B) · **1g** (C) · **1h** (D) · **1i** (lỗi vá 25/08).
+Chi tiết: bản 1.7 — Gói 1 ở mục **1j**, Gói 2 ở mục **1k**. Bản 1.6: mục **1e** (đợt A) · **1f** (B) · **1g** (C) · **1h** (D) · **1i** (lỗi vá 25/08).
 
 ---
 
@@ -76,6 +74,7 @@ không phải tự phát hiện lại, và để Andy biết mình đang chấp 
 | 5 | **Menu "Điền 6 cột xem nhanh" chưa thử ở quy mô thật.** Đường chia mẻ + mốc nhớ viết cho 250.000 dòng nhưng chỉ chạy trên vài chục dòng — nhánh "hết giờ, lưu mốc, chạy lại" **chưa từng thực sự xảy ra** | 🟡 thấp |
 | 6 | **Bảng tổng hợp 19 cột trên điện thoại: cuộn sang phải là mất cột "Mã lô"** (tiêu đề dính, cột đầu chưa dính). Ghim cột đầu là ~10 dòng CSS | 🟡 thấp |
 | 7 | ~~**Nút CHỐT CA bị đẩy xuống sâu hơn** ở bản 1.6~~ → **đỡ một phần ở bản 1.7**: bảng tỉ lệ với người vận hành rút từ 6 dòng còn 3, nút CHỐT CA lên cao hơn. Với Thống kê / Quản lý thì vẫn như cũ (họ cần bảng đầy đủ) | 🟢 đã đỡ — Andy bấm thử rồi nói tiếp |
+| 10 | **Luật đọc khối lượng và luật mã lô nay tồn tại ở HAI NƠI, hai ngôn ngữ**: `klBaoTu_`/`chuanMaLo7_` (`01_Util.gs`) và `klBaoTu`/`chuanMaLo7` (`Script.html`). Cùng loại nợ với số 2 — sửa một bên quên bên kia thì màn hình nói một đằng, sheet ghi một nẻo | 🟠 vừa |
 | 9 | **Gom bao theo ca dựa vào cặp (`phien`, `trang_thai`), không có mã ca thật.** Chốt ca HAI LẦN trong cùng một lần đăng nhập, cùng một lô → hai khối gộp làm một. Chữa gốc là ghi mốc thời gian chốt lên từng bao, tức thêm cột ở sheet `BAO`. Xem mục **1j** | 🟡 thấp |
 | 8 | **Lỗi `apiSuaBao` sửa ngày 25/08 KHÔNG có ca kiểm thử nào canh.** Sửa đúng 1 dòng mã, không ca nào tái hiện được lỗi cũ — ai viết lại chỗ đó là lỗi quay về lặng lẽ, mà đường lỗi này **không để lại dấu vết trong nhật ký**. Xem mục **1i** | 🟠 vừa |
 
@@ -493,6 +492,102 @@ Dán lại **9 file**:
 
 ---
 
+## 1k. BẢN 1.7 — GÓI 2: LUẬT NHẬP LIỆU (làm ngày 25/08/2026)
+
+Hai ý tưởng 4.1 và 4.2 của Andy. Khác Gói 1 ở chỗ đây là **luật ở máy chủ**, nên làm
+theo đúng lối cũ: **viết kiểm thử trước, chạy thấy đỏ, rồi mới sửa mã**.
+
+### 4.1 — Mã lô luôn 7 ký tự
+
+`[T hoặc D] + 4 chữ số + 2 chữ cái`. Người nhập được gõ tắt, máy điền nốt:
+
+| Gõ | Máy ghi | |
+|---|---|---|
+| `T0753LA` | `T0753LA` | đủ thì giữ nguyên |
+| `T753` | `T0753LA` | thiếu số → thêm `0` ở đầu · thiếu 2 chữ → thêm `LA` |
+| `T753HC` | `T0753HC` | **có gõ 2 chữ cuối thì GIỮ NGUYÊN chữ đó** |
+| `T77`, `X0753LA`, `T0753L2` | ✕ | sai khuôn → từ chối, bắt sửa. **Không đoán** |
+
+Hậu tố `LA` nằm ở `CAU_HINH` → **`MA_LO_HAU_TO`**, đổi được không cần dán code.
+`cfg()` nạp mặc định từ `CAU_HINH_MAC_DINH` trước rồi mới ghi đè bằng sheet, nên
+**sheet cũ thiếu dòng này vẫn chạy đúng** — không phải chạy menu tạo cấu trúc.
+
+⚠️ **`chuanMaLo7_` CHỈ dùng ở đường GHI** (`apiTaoLo`, `apiSuaMaLo`). Tuyệt đối không
+dùng để TRA CỨU lô: dữ liệu cũ có thể mang mã không đúng khuôn này, chuẩn hoá lúc tra
+cứu là tra trượt. Lô cũ vẫn mở/nhập/đóng bình thường; chỉ khi quản lý **sửa** mã lô
+thì mã mới mới phải theo khuôn.
+
+Áp cho **cả hai** đường ghi là cố ý — chỉ áp một bên thì cùng một sheet sẽ có hai kiểu mã.
+
+### 4.2 — Số cuối thành thập phân
+
+| Người gõ | Máy ghi | |
+|---|---|---|
+| `49,8` · `49.8` | 49.8 | có dấu → giữ nguyên |
+| `498` | 49.8 | không dấu, ≥ 100 → số cuối thành thập phân |
+| `1508` | 150.8 | |
+| `99` | 99 | < 100 → giữ nguyên |
+| **`150`** | **15** | ← xem cảnh báo bên dưới |
+
+🔴 **CẢNH BÁO ĐÃ NÊU, ANDY ĐÃ QUYẾT — đừng tự sửa lại ở phiên sau.**
+Bao thật nặng tới 200 kg (chính Andy xác nhận 21/08). Với luật này, bao 150 kg gõ
+`150` sẽ được ghi **15 kg** — mà 15 là con số hợp lý nên **không lưới an toàn nào bắt
+được**, và nó sai đúng 10 lần ở tử số của tỉ lệ thu hồi. Tôi đã nêu rủi ro này **hai
+lần** và đề xuất phương án chỉ tự sửa số vượt ngoài khoảng 1–200. **Andy tái khẳng
+định ngày 25/08/2026: làm đúng nguyên văn, ngưỡng 100.** Hàng rào duy nhất là **hướng
+dẫn người vận hành gõ `150,0`** cho bao từ 100 kg trở lên.
+
+**Ba việc đã làm để giảm rủi ro** (Andy không yêu cầu, tôi thêm):
+1. Dòng **"✓ Máy hiểu: … kg"** màu xanh hiện ngay dưới ô kg, **chỉ khi máy ĐỔI số vừa
+   gõ**. Gõ `49,8` thì im lặng; gõ `150` thì nói ra. Im lặng khi không có gì đổi là cố
+   ý — cảnh báo hiện suốt thì người ta thôi nhìn nó.
+2. Tờ `3_HUONG_DAN_CONG_NHAN.md` có mục mới in đậm: *"bao từ 100 kg trở lên phải gõ có
+   dấu phẩy"*.
+3. Luật **không nới khoảng cho phép**: đọc xong vẫn phải nằm trong `KL_MIN`–`KL_MAX`.
+   `2005` đọc ra 200.5 kg và **vẫn bị chặn** vì vượt 200.
+
+### Chỗ nguy hiểm nhất của gói này
+
+**Luật chỉ được áp ĐÚNG MỘT LẦN.** Điện thoại đọc chuỗi rồi gửi lên **một con số**;
+nếu máy chủ đọc lại lần nữa thì 150 kg thành 1,5 kg. Vì vậy `klBaoTu_` **nhận số thì
+trả nguyên số đó**, chỉ áp luật cho chuỗi — đúng lối `soTu_` vẫn làm. Có ca kiểm thử
+riêng canh đúng chuyện này.
+
+Và `soTu_` **không được đụng tới**: nó còn dùng cho **số bao**, mà bao số 150 thì phải
+là 150. Có ca kiểm thử canh cả điều đó.
+
+### Kiểm thử
+
+**482 đạt / 0 lỗi** (thêm 51 ca ở mục 30). Viết kiểm thử TRƯỚC — lần chạy đầu đỏ vì
+`chuanMaLo7_` chưa tồn tại.
+
+Một ca đỏ trong lúc làm là **kiểm thử của tôi sai, không phải mã sai**: tôi viết
+`"2005" → 200.5 kg` qua `apiSuaBao`, quên rằng 200.5 vượt `KL_MAX = 200`. Đã đổi ca đó
+sang `1508 → 150.8` và **thêm một ca mới** khẳng định `2005` vẫn bị chặn.
+
+### Thử tay trên bản mô phỏng — đã làm
+
+| Thử gì | Kết quả |
+|---|---|
+| Xem trước mã lô: `T753`, `T0753`, `T753HC`, `t753hc`, `D753` → hiện mã đầy đủ đúng | ✅ |
+| `T77` → chữ đỏ *"phải là 7 ký tự…"* kèm ví dụ | ✅ |
+| Tạo lô bằng cách gõ `T753` → lô lưu thành **T0753LA**, ký hiệu A | ✅ |
+| Xem trước khi **sửa** mã lô, `D760` vẫn kèm cảnh báo *"ĐỔI từ A sang B"* | ✅ |
+| Gõ `498` → dòng xanh *"✓ Máy hiểu: 49.8 kg"*; lưu ra đúng 49.8 kg | ✅ |
+| Gõ `49,8` / `49.8` / `99` → **không hiện dòng nào** (máy không đổi gì) | ✅ |
+| Gõ `150` → *"✓ Máy hiểu: 15 kg"* — đúng luật Andy chốt | ✅ |
+| Sửa bao: `1508` → 150.8 kg | ✅ |
+
+### Dán lên Google
+
+Cộng cả Gói 1 + Gói 2, dán lại **6 file**: `00_Config.gs`, `01_Util.gs`, `02_Setup.gs`,
+`04_Api.gs`, `Index.html`, `Script.html`, `Style.html`.
+**Không cần** chạy menu tạo cấu trúc sheet. Vẫn phải **Deploy → New version**.
+
+**Và in lại tờ hướng dẫn dán tại máy** — đây là hàng rào duy nhất cho luật 4.2.
+
+---
+
 ## 1j. BẢN 1.7 — GÓI 1: GIAO DIỆN (làm ngày 25/08/2026)
 
 Ba ý tưởng Andy đưa ngày 25/08 sau khi bản 1.6 đã chạy thật ổn định. Gộp một gói vì
@@ -683,6 +778,7 @@ Ghi để phiên sau biết **thứ tự nhân quả**, không phải để khoe
 | **25/08 trưa** | Viết `4_CACH_LAM_VIEC.md` — sổ tay quy trình sửa/nâng cấp cho người không phải lập trình viên | mốc `v1.6.2` |
 | **25/08 chiều** | **Đưa dự án vào git, đẩy lên GitHub.** Thêm `README.md`, `claude.md` (luật làm việc cho AI), nâng cấp `.gitignore` — chặn luôn `*.zip` | mốc `v1.6.3` · `github.com/andyNV-lang/May-1-buong` |
 | **25/08 chiều** | **Andy xác nhận bản 1.6 đã chạy thật, ổn định** — Andy, người vận hành và quản lý đã nhập thử nhiều lô, chưa thấy lỗi. Andy đưa **4 ý tưởng cải tiến**, tôi phân tích ưu/nhược từng cái | Andy chốt: 1A · 2B · 3C · 4.1 giữ 2 ký tự cuối nếu có · 4.2B |
+| **25/08 chiều** | **Làm GÓI 2 (luật nhập liệu)**: mã lô 7 ký tự tự điền, luật số cuối thành thập phân. Viết kiểm thử trước, thấy đỏ rồi mới sửa mã. Andy xác nhận **đã đổi PIN của QL01** | **482 kiểm thử** · mục **1k** · nợ số 10 |
 | **25/08 chiều** | **Làm GÓI 1 (giao diện)**: đổi cách gọi vai trò, ẩn chi tiết loại theo vai, gom bao theo ca | **bản 1.7 Gói 1** · mục **1j** · 431 kiểm thử vẫn xanh (không ca nào canh được gói này) |
 | **25/08 chiều** | **Rà lại git + vá tài liệu.** Chạy lại kiểm thử để lấy bằng chứng cho mốc, gắn `v1.6.3` kèm ghi chú xác minh, đẩy mốc lên GitHub | **431 đạt / 0 lỗi** · vá lại chính file này cho khớp mã nguồn (mục 1i, 4b, nợ số 8) |
 

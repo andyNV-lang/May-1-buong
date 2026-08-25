@@ -321,7 +321,7 @@ input[type=number]{-moz-appearance:textfield;}
 .dau-bang-nhap .nhan{margin:0;}
 
 .dong-nhap{
-  display:flex;align-items:center;gap:8px;margin-bottom:8px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px;
   background:#fff;border:1px solid var(--xam-vien);border-radius:10px;padding:7px 8px;
   border-left:6px solid var(--mau-loai,var(--xam-vien));
 }
@@ -336,6 +336,12 @@ input[type=number]{-moz-appearance:textfield;}
 }
 .dong-nhap input:focus{outline:none;border-color:var(--xanh-dam);}
 .dong-nhap input.sai{border-color:var(--do);background:#fce8e6;}
+
+/* "✓ Máy hiểu: … kg" dưới ô kg (bản 1.7). Chỉ hiện khi máy ĐỔI số vừa gõ —
+   gõ "498" thì nói, gõ "49,8" thì im. Chiếm trọn một hàng nhờ flex-basis 100%. */
+.echo-kl{flex-basis:100%;font-size:14px;font-weight:700;color:var(--xanh-la);
+  padding:2px 0 0 34px;display:none;}
+.echo-kl.hien{display:block;}
 .dong-nhap .bo-dong{
   flex:0 0 44px;height:44px;border:0;background:#f1f3f4;color:var(--xam-chu);
   border-radius:9px;font-size:19px;cursor:pointer;font-family:inherit;
@@ -1155,6 +1161,7 @@ var CAU_HINH_MAC_DINH = [
   ['SO_BAO_MOI_LAN',    20,    'Số bao tối đa nhập được trong cùng một lần lưu'],
   ['TIEN_TO_A',         'T',   'Ký tự đầu mã lô ứng với ký hiệu A'],
   ['TIEN_TO_B',         'D',   'Ký tự đầu mã lô ứng với ký hiệu B'],
+  ['MA_LO_HAU_TO',      'LA',  'Hai chữ cuối mã lô, tự điền khi người nhập bỏ trống'],
   ['TONG_HOP_PHUT',     15,    'Bao lâu tự cập nhật bảng tổng hợp 1 lần (phút: 1/5/10/15/30)'],
   ['TEN_MAY',           'MÁY 1 BUỒNG', 'Tên hiển thị trên đầu màn hình']
 ];
@@ -1684,6 +1691,80 @@ function kyHieuTuMaLo_(maLo) {
   if (c === String(cfg('TIEN_TO_A')).toUpperCase()) return 'A';
   if (c === String(cfg('TIEN_TO_B')).toUpperCase()) return 'B';
   return '';
+}
+
+/*
+ * Khuôn mã lô của bản 1.7 — Andy chốt 25/08/2026.
+ *
+ * Mã lô LUÔN 7 ký tự:  [T hoặc D] + 4 chữ số + 2 chữ cái.
+ * Người nhập được phép gõ tắt, máy điền nốt:
+ *   - gõ 3 chữ số        -> thêm "0" vào ĐẦU cụm số   (T753   -> T0753…)
+ *   - không gõ 2 chữ cuối -> thêm MA_LO_HAU_TO ("LA")  (T0753  -> T0753LA)
+ *   - CÓ gõ 2 chữ cuối    -> GIỮ NGUYÊN chữ đó          (T753HC -> T0753HC)
+ * Gõ ngoài khuôn trên thì TỪ CHỐI, bắt sửa — không đoán.
+ *
+ * ⚠️ Chỉ dùng ở đường GHI (tạo lô, sửa mã lô). KHÔNG dùng để TRA CỨU lô: dữ liệu
+ * cũ có thể mang mã không đúng khuôn này, chuẩn hoá lúc tra cứu là tra trượt.
+ */
+var MAU_MA_LO_7 = /^([A-Z])([0-9]{3,4})([A-Z]{2})?$/;
+
+/** @return {string} mã lô đã đủ 7 ký tự, hoặc '' nếu không đúng khuôn. */
+function chuanMaLo7_(maLoRaw) {
+  var s = chuanHoaMaLo_(maLoRaw);
+  if (!s) return '';
+  var m = MAU_MA_LO_7.exec(s);
+  if (!m) return '';
+
+  var dau = m[1];
+  var tienToA = String(cfg('TIEN_TO_A')).trim().toUpperCase();
+  var tienToB = String(cfg('TIEN_TO_B')).trim().toUpperCase();
+  if (dau !== tienToA && dau !== tienToB) return '';
+
+  var so = (m[2].length === 3) ? ('0' + m[2]) : m[2];
+  var chu = m[3] || String(cfg('MA_LO_HAU_TO')).trim().toUpperCase();
+  return dau + so + chu;
+}
+
+/** Câu báo lỗi mã lô — gom một chỗ để tạo lô và sửa mã lô nói giống hệt nhau. */
+function loiMaLo_(ma) {
+  var hauTo = String(cfg('MA_LO_HAU_TO')).trim().toUpperCase();
+  return 'Mã lô "' + ma + '" không đúng khuôn.\n\n' +
+         'Mã lô phải có 7 ký tự: "' + cfg('TIEN_TO_A') + '" hoặc "' + cfg('TIEN_TO_B') +
+         '" + 4 chữ số + 2 chữ cái.\n' +
+         'Gõ 3 chữ số thì máy tự thêm 0 vào đầu; bỏ trống 2 chữ cuối thì máy tự thêm "' +
+         hauTo + '".\n\n' +
+         'Ví dụ: T753 → T0753' + hauTo + ' · T753HC → T0753HC';
+}
+
+/*
+ * Đọc KHỐI LƯỢNG 1 BAO — luật bản 1.7, Andy chốt 25/08/2026.
+ *
+ *   - có dấu "," hoặc "."        -> giữ nguyên số người gõ   ("49,8" = 49.8)
+ *   - không dấu, giá trị  < 100  -> giữ nguyên                ("99"   = 99)
+ *   - không dấu, giá trị >= 100  -> số cuối thành thập phân   ("498"  = 49.8)
+ *
+ * ⚠️ ANDY BIẾT VÀ CHẤP NHẬN hệ quả: bao thật 150 kg mà gõ "150" sẽ được ghi là 15 kg.
+ * Muốn ghi đúng 150 kg thì phải gõ "150,0". Tôi đã nêu rủi ro này hai lần và Andy tái
+ * khẳng định ngày 25/08/2026. ĐÂY LÀ LỰA CHỌN CỦA CHỦ DỰ ÁN — đừng "sửa lại cho đúng"
+ * ở phiên sau, hãy hỏi Andy trước.
+ *
+ * ⚠️ Luật này CHỈ áp cho CHUỖI. Nhận vào một SỐ thì trả nguyên số đó, vì điện thoại đã
+ * đọc một lần trước khi gửi lên — đọc lại lần nữa thì 150 kg thành 1,5 kg.
+ *
+ * Tách riêng khỏi soTu_ theo đúng lối đã làm với soLonTu_: soTu_ còn dùng cho SỐ BAO,
+ * mà số bao 150 thì phải là 150.
+ */
+function klBaoTu_(v) {
+  if (typeof v === 'number') return v;
+  var s = String(v === null || v === undefined ? '' : v).trim().replace(/\s/g, '');
+  if (s === '') return NaN;
+
+  var coDauLe = (s.indexOf(',') >= 0 || s.indexOf('.') >= 0);
+  var n = soTu_(s);
+  if (isNaN(n)) return NaN;
+  if (coDauLe) return n;
+  if (n < 100) return n;
+  return n / 10;
 }
 
 /** Chuẩn hoá mã lô: bỏ khoảng trắng thừa, viết hoa. */
@@ -2555,6 +2636,7 @@ function apiTrangChu(ve) {
         SO_BAO_MOI_LAN: Number(cfg('SO_BAO_MOI_LAN')),
         TIEN_TO_A: String(cfg('TIEN_TO_A')),
         TIEN_TO_B: String(cfg('TIEN_TO_B')),
+        MA_LO_HAU_TO: String(cfg('MA_LO_HAU_TO')),
         TEN_MAY: String(cfg('TEN_MAY'))
       },
       ds_lo: layDanhSachLoDangChay_()
@@ -2683,13 +2765,12 @@ function apiLoDaDong(ve, tuNgay, denNgay) {
 function apiTaoLo(ve, maLoRaw, soBaoVao, ghiChu, klVao) {
   try {
     var nd = xacThuc_(ve);
-    var maLo = chuanHoaMaLo_(maLoRaw);
+    var maGo = chuanHoaMaLo_(maLoRaw);
+    if (!maGo) return loi_('Chưa nhập mã lô.');
 
-    if (!maLo) return loi_('Chưa nhập mã lô.');
-    if (!MAU_MA_LO.test(maLo)) {
-      return loi_('Mã lô "' + maLo + '" không hợp lệ.\n' +
-                  'Chỉ được dùng chữ cái, chữ số và dấu gạch ngang, dài 3–20 ký tự.');
-    }
+    // Bản 1.7: mã lô luôn 7 ký tự, máy điền nốt phần gõ tắt. Xem chuanMaLo7_.
+    var maLo = chuanMaLo7_(maGo);
+    if (!maLo) return loi_(loiMaLo_(maGo));
 
     var kyHieu = kyHieuTuMaLo_(maLo);
     if (!kyHieu) {
@@ -2910,7 +2991,7 @@ function apiLuuBao(ve, duLieu) {
       return loi_('Số thứ tự bao phải là số nguyên dương.');
     }
 
-    var klNum = soTu_(kl);
+    var klNum = klBaoTu_(kl);          // bản 1.7: "498" -> 49.8. Xem klBaoTu_.
     var klMin = Number(cfg('KL_MIN')), klMax = Number(cfg('KL_MAX'));
     if (isNaN(klNum)) return loi_('Chưa nhập khối lượng (hoặc gõ sai định dạng số).');
     if (klNum < klMin || klNum > klMax) {
@@ -3077,7 +3158,7 @@ function apiLuuNhieuBao(ve, duLieu) {
       if (isNaN(stt) || stt <= 0 || stt !== Math.floor(stt)) {
         return loi_(nhan + ': số thứ tự bao phải là số nguyên dương.', 'LOI_DONG');
       }
-      var kl = soTu_(d.khoi_luong);
+      var kl = klBaoTu_(d.khoi_luong);   // bản 1.7 — xem klBaoTu_
       if (isNaN(kl)) {
         return loi_(nhan + ' (bao ' + stt + '): chưa nhập khối lượng.', 'LOI_DONG');
       }
@@ -3326,7 +3407,7 @@ function apiSuaBao(ve, id, sttBaoMoi, klMoi, lyDo) {
     if (isNaN(sttNum) || sttNum <= 0 || sttNum !== Math.floor(sttNum)) {
       return loi_('Số thứ tự bao phải là số nguyên dương.');
     }
-    var klNum = soTu_(klMoi);
+    var klNum = klBaoTu_(klMoi);       // bản 1.7 — xem klBaoTu_
     var klMin = Number(cfg('KL_MIN')), klMax = Number(cfg('KL_MAX'));
     if (isNaN(klNum) || klNum < klMin || klNum > klMax) {
       return loi_('Khối lượng phải trong khoảng ' + klMin + '–' + klMax + ' kg.');
@@ -3721,14 +3802,14 @@ function apiSuaMaLo(ve, maLoCuRaw, maLoMoiRaw, lyDo) {
   try {
     var nd = xacThuc_(ve);
     var maCu = chuanHoaMaLo_(maLoCuRaw);
-    var maMoi = chuanHoaMaLo_(maLoMoiRaw);
+    var maMoiGo = chuanHoaMaLo_(maLoMoiRaw);
+    if (!maMoiGo) return loi_('Chưa nhập mã lô mới.');
 
-    if (!maMoi) return loi_('Chưa nhập mã lô mới.');
+    // Bản 1.7: mã mới phải theo đúng khuôn 7 ký tự như lúc tạo lô — nếu không, hai
+    // đường ghi sẽ đẻ ra hai kiểu mã lô khác nhau trên cùng một sheet.
+    var maMoi = chuanMaLo7_(maMoiGo);
+    if (!maMoi) return loi_(loiMaLo_(maMoiGo));
     if (maMoi === maCu) return loi_('Mã lô mới trùng mã cũ, không có gì để sửa.');
-    if (!MAU_MA_LO.test(maMoi)) {
-      return loi_('Mã lô "' + maMoi + '" không hợp lệ.\n' +
-                  'Chỉ được dùng chữ cái, chữ số và dấu gạch ngang, dài 3–20 ký tự.');
-    }
     var kyHieuMoi = kyHieuTuMaLo_(maMoi);
     if (!kyHieuMoi) {
       return loi_('Mã lô "' + maMoi + '" không hợp lệ.\n' +
@@ -4521,6 +4602,7 @@ var S = {
   nguoiDung: null,
   phien: null,
   cauHinh: { KL_MIN: 1, KL_MAX: 100, SO_LE: 1, TIEN_TO_A: 'T', TIEN_TO_B: 'D',
+             MA_LO_HAU_TO: 'LA',
              SO_BAO_MOI_LAN: 20, HAO_HUT_MIN: 20, HAO_HUT_MAX: 30 },
   dsNguoiDung: [],
   maNvDangChon: null,
@@ -5094,6 +5176,65 @@ function moFormTaoLo() {
   setTimeout(function () { $('inMaLo').focus(); }, 100);
 }
 
+/*
+ * Bản khách của chuanMaLo7_ và klBaoTu_ trên máy chủ (bản 1.7).
+ *
+ * ⚠️ HAI BẢN NÀY PHẢI GIỐNG HỆT NHAU. Máy chủ mới là nơi quyết định; bản này chỉ để
+ * hiện ngay cho người vận hành thấy máy sẽ hiểu thế nào TRƯỚC KHI bấm lưu. Sửa một
+ * bên mà quên bên kia thì màn hình nói một đằng, sheet ghi một nẻo — xem nợ kỹ thuật
+ * số 2 trong TIEN_DO.md, đúng loại lỗi đó đã xảy ra một lần với công thức tỉ lệ.
+ */
+function chuanMaLo7(raw) {
+  var s = String(raw || '').trim().toUpperCase().replace(/\s+/g, '');
+  var m = /^([A-Z])([0-9]{3,4})([A-Z]{2})?$/.exec(s);
+  if (!m) return '';
+  var a = String(S.cauHinh.TIEN_TO_A).toUpperCase();
+  var b = String(S.cauHinh.TIEN_TO_B).toUpperCase();
+  if (m[1] !== a && m[1] !== b) return '';
+  var so = (m[2].length === 3) ? ('0' + m[2]) : m[2];
+  var chu = m[3] || String(S.cauHinh.MA_LO_HAU_TO || 'LA').toUpperCase();
+  return m[1] + so + chu;
+}
+
+/*
+ * Khối lượng 1 BAO — luật Andy chốt 25/08/2026:
+ *   có "," hoặc "."  -> giữ nguyên  ·  không dấu & < 100 -> giữ nguyên
+ *   không dấu & >= 100 -> số cuối thành thập phân ("498" -> 49.8)
+ * Andy biết và chấp nhận: bao 150 kg gõ "150" sẽ thành 15 kg. Xem klBaoTu_ ở 01_Util.gs.
+ */
+function klBaoTu(v) {
+  if (typeof v === 'number') return v;
+  var s = String(v === null || v === undefined ? '' : v).trim().replace(/\s/g, '');
+  if (s === '') return NaN;
+  var coDauLe = (s.indexOf(',') >= 0 || s.indexOf('.') >= 0);
+  var n = soTu(s);
+  if (isNaN(n)) return NaN;
+  if (coDauLe) return n;
+  if (n < 100) return n;
+  return n / 10;
+}
+
+/*
+ * Hiện "✓ Máy hiểu: … kg" ngay dưới ô kg — CHỈ khi máy ĐỔI số người vừa gõ.
+ * Gõ "49,8" thì im lặng; gõ "498" hay "150" thì nói ra, vì đó đúng là lúc người gõ
+ * cần biết máy hiểu khác cái họ nghĩ.
+ */
+function echoKlBao(o) {
+  var hang = o.parentNode;
+  var e = hang.querySelector('.echo-kl');
+  if (!e) {
+    e = document.createElement('div');
+    e.className = 'echo-kl';
+    hang.appendChild(e);
+  }
+  var v = String(o.value || '').trim();
+  var n = klBaoTu(v);
+  var tho = soTu(v);
+  if (v === '' || isNaN(n) || n === tho) { e.textContent = ''; e.classList.remove('hien'); return; }
+  e.textContent = '✓ Máy hiểu: ' + n + ' kg';
+  e.classList.add('hien');
+}
+
 function xemTruocKyHieu() {
   var v = ($('inMaLo').value || '').trim().toUpperCase();
   $('inMaLo').value = v;
@@ -5103,17 +5244,18 @@ function xemTruocKyHieu() {
     o.textContent = 'Ký hiệu sẽ là: —';
     return;
   }
-  var c = v.charAt(0);
-  if (c === String(S.cauHinh.TIEN_TO_A).toUpperCase()) {
+  // Bản 1.7: hiện thẳng mã ĐẦY ĐỦ máy sẽ ghi, không chỉ ký hiệu A/B.
+  var day = chuanMaLo7(v);
+  if (day) {
+    var kh = (day.charAt(0) === String(S.cauHinh.TIEN_TO_A).toUpperCase()) ? 'A' : 'B';
     o.className = 'xem-ky-hieu dung';
-    o.textContent = '✓ Ký hiệu: A  (vì mã lô bắt đầu bằng "' + S.cauHinh.TIEN_TO_A + '")';
-  } else if (c === String(S.cauHinh.TIEN_TO_B).toUpperCase()) {
-    o.className = 'xem-ky-hieu dung';
-    o.textContent = '✓ Ký hiệu: B  (vì mã lô bắt đầu bằng "' + S.cauHinh.TIEN_TO_B + '")';
+    o.textContent = (day === v ? '✓ Ký hiệu: ' + kh
+                               : '✓ Máy hiểu: ' + day + '  ·  ký hiệu ' + kh);
   } else {
     o.className = 'xem-ky-hieu sai';
-    o.textContent = '✕ Mã lô phải bắt đầu bằng "' + S.cauHinh.TIEN_TO_A +
-                    '" hoặc "' + S.cauHinh.TIEN_TO_B + '"';
+    o.textContent = '✕ Mã lô phải là 7 ký tự: "' + S.cauHinh.TIEN_TO_A + '" hoặc "' +
+                    S.cauHinh.TIEN_TO_B + '" + 4 số + 2 chữ. VD ' +
+                    S.cauHinh.TIEN_TO_A + '0753' + (S.cauHinh.MA_LO_HAU_TO || 'LA');
   }
 }
 
@@ -5196,6 +5338,7 @@ function htmlDongNhap(i, stt, kl) {
              'autocomplete="off" placeholder="Số bao" value="' +
              (stt === undefined || stt === null ? '' : stt) + '">' +
            '<input class="o-kl" type="text" inputmode="decimal" ' +
+             'oninput="echoKlBao(this)" ' +
              'autocomplete="off" placeholder="kg" value="' +
              (kl === undefined || kl === null ? '' : kl) + '">' +
            '<button class="bo-dong" onclick="boDongNhap(this)" aria-label="Bỏ dòng">✕</button>' +
@@ -5547,7 +5690,7 @@ function luuBao() {
       loi = 'Dòng ' + (i + 1) + ': số bao phải là số nguyên dương.';
       break;
     }
-    var klN = soTu(vK);
+    var klN = klBaoTu(vK);          // bản 1.7 — xem klBaoTu
     if (isNaN(klN)) {
       oK.classList.add('sai');
       loi = 'Dòng ' + (i + 1) + ' (bao ' + sttN + '): chưa nhập khối lượng.';
@@ -5718,7 +5861,7 @@ function luuSuaBao() {
   if (!S.baoDangSua) return;
   anLoi('loiSua');
   var sttN = soTu($('suaStt').value);
-  var klN = soTu($('suaKl').value);
+  var klN = klBaoTu($('suaKl').value);   // bản 1.7 — xem klBaoTu
 
   if (isNaN(sttN) || sttN <= 0 || sttN !== Math.floor(sttN)) {
     hienLoi('loiSua', 'Số bao phải là số nguyên dương.');
@@ -6538,17 +6681,18 @@ function xemTruocKyHieuSua() {
   var b = String(S.cauHinh.TIEN_TO_B).toUpperCase();
   var c = v.charAt(0);
   if (!v) { o.className = 'xem-ky-hieu'; o.textContent = 'Ký hiệu sẽ là: —'; return; }
-  if (c === a || c === b) {
-    var kh = (c === a) ? 'A' : 'B';
+  var day = chuanMaLo7(v);
+  if (day) {
+    var kh = (day.charAt(0) === a) ? 'A' : 'B';
     o.className = 'xem-ky-hieu dung';
-    o.textContent = '✓ Ký hiệu: ' + kh +
+    o.textContent = (day === v ? '✓ Ký hiệu: ' + kh : '✓ Máy hiểu: ' + day + '  ·  ký hiệu ' + kh) +
       (S.lo && kh !== S.lo.ky_hieu
         ? '  ⚠️ ĐỔI từ ' + S.lo.ky_hieu + ' sang ' + kh + ' — cả lô sang nhóm số bao khác'
         : '');
   } else {
     o.className = 'xem-ky-hieu sai';
-    o.textContent = '✕ Mã lô phải bắt đầu bằng "' + S.cauHinh.TIEN_TO_A +
-                    '" hoặc "' + S.cauHinh.TIEN_TO_B + '"';
+    o.textContent = '✕ Mã lô phải là 7 ký tự: "' + S.cauHinh.TIEN_TO_A + '" hoặc "' +
+                    S.cauHinh.TIEN_TO_B + '" + 4 số + 2 chữ.';
   }
 }
 
@@ -6685,7 +6829,7 @@ function _oBaoLoi(i) {
   if (!the) return null;
   var oS = the.querySelector('.kl-stt'), oK = the.querySelector('.kl-kg');
   if (!oS || !oK) return null;
-  return { stt: soTu(oS.value), kl: soTu(oK.value) };
+  return { stt: soTu(oS.value), kl: klBaoTu(oK.value) };   // bản 1.7 — xem klBaoTu
 }
 
 function guiLaiBaoLoi(i) {

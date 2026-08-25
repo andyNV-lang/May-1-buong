@@ -21,7 +21,7 @@ Hệ thống tự tạo **7 sheet** (bản 1.5 thêm `CHI_SO`). **Không đổi 
 
 | Cột | Ý nghĩa |
 |---|---|
-| `ma_lo` | Mã lô, VD `T0748LA`. Ký tự đầu **T** → ký hiệu A, **D** → ký hiệu B |
+| `ma_lo` | Mã lô, VD `T0748LA`. Ký tự đầu **T** → ký hiệu A, **D** → ký hiệu B. **Từ bản 1.7 luôn đúng 7 ký tự** (T/D + 4 số + 2 chữ); app tự thêm số `0` ở đầu và hậu tố `LA` khi người nhập gõ tắt. Hậu tố đổi được ở `CAU_HINH` → `MA_LO_HAU_TO` |
 | `ky_hieu` | `A` hoặc `B`. **Máy tự suy ra**, không nhập tay |
 | `so_bao_vao` | Tổng số bao đầu vào. Được phép để trống |
 | `kl_vao` | **Tổng khối lượng đầu vào (kg)** — người vận hành tự nhập. Là MẪU SỐ để tính tỉ lệ thu hồi. Nhập lúc tạo lô, hoặc bổ sung sau ở màn hình "Xem trước kết quả". Cột này nằm ở **cuối bảng** vì được thêm sau khi đã có dữ liệu thật |

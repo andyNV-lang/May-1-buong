@@ -315,7 +315,7 @@ input[type=number]{-moz-appearance:textfield;}
 .dau-bang-nhap .nhan{margin:0;}
 
 .dong-nhap{
-  display:flex;align-items:center;gap:8px;margin-bottom:8px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px;
   background:#fff;border:1px solid var(--xam-vien);border-radius:10px;padding:7px 8px;
   border-left:6px solid var(--mau-loai,var(--xam-vien));
 }
@@ -330,6 +330,12 @@ input[type=number]{-moz-appearance:textfield;}
 }
 .dong-nhap input:focus{outline:none;border-color:var(--xanh-dam);}
 .dong-nhap input.sai{border-color:var(--do);background:#fce8e6;}
+
+/* "✓ Máy hiểu: … kg" dưới ô kg (bản 1.7). Chỉ hiện khi máy ĐỔI số vừa gõ —
+   gõ "498" thì nói, gõ "49,8" thì im. Chiếm trọn một hàng nhờ flex-basis 100%. */
+.echo-kl{flex-basis:100%;font-size:14px;font-weight:700;color:var(--xanh-la);
+  padding:2px 0 0 34px;display:none;}
+.echo-kl.hien{display:block;}
 .dong-nhap .bo-dong{
   flex:0 0 44px;height:44px;border:0;background:#f1f3f4;color:var(--xam-chu);
   border-radius:9px;font-size:19px;cursor:pointer;font-family:inherit;

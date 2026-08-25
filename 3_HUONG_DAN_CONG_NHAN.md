@@ -18,6 +18,17 @@ Chọn **tên của mình** → nhập **4 số PIN**.
 - Lô đang chạy hiện sẵn trong danh sách → **bấm vào lô của mình**.
 - Lô mới chưa có → bấm **＋ TẠO LÔ MỚI**, gõ mã lô, gõ **tổng khối lượng đầu vào (kg)** rồi bấm **TẠO LÔ**.
 
+> ⌨️ **GÕ MÃ LÔ NHANH — máy tự điền nốt.** Mã lô luôn **7 ký tự**: `T` hoặc `D` + **4 số** + **2 chữ**.
+>
+> | Bạn gõ | Máy ghi | |
+> |---|---|---|
+> | `T0753LA` | `T0753LA` | gõ đủ thì giữ nguyên |
+> | `T753` | `T0753LA` | thiếu số → máy thêm **0** ở đầu · thiếu 2 chữ → máy thêm **LA** |
+> | `T753HC` | `T0753HC` | **có gõ 2 chữ cuối thì máy GIỮ ĐÚNG chữ đó** |
+>
+> 👉 Gõ xong **nhìn dòng chữ xanh ngay dưới ô**: *✓ Máy hiểu: T0753LA*.
+> Chữ đỏ ✕ nghĩa là mã sai khuôn — sửa lại rồi mới tạo được lô.
+
 > ⚖️ **Khối lượng đầu vào** là số cân cả lô trước khi chạy máy. Chưa biết thì để trống,
 > nhập bổ sung sau ở màn hình **XEM TRƯỚC KẾT QUẢ**. Không có số này thì máy **không tính
 > được tỉ lệ thu hồi**.
@@ -62,6 +73,25 @@ Chọn **tên của mình** → nhập **4 số PIN**.
 - Gõ nhầm dòng nào thì bấm **✕** ở cuối dòng đó để bỏ.
 - **Nếu một dòng sai thì KHÔNG dòng nào được lưu** — máy chỉ rõ sai ở dòng thứ mấy,
   sửa dòng đó rồi bấm LƯU lại. Không bao giờ có chuyện lưu được nửa chừng.
+
+### ⚖️ GÕ KHỐI LƯỢNG — ĐỌC KỸ MỤC NÀY
+
+**Không gõ dấu phẩy thì máy hiểu số cuối là số lẻ**, miễn là số đó từ 100 trở lên:
+
+| Bạn gõ | Máy ghi | |
+|---|---|---|
+| `49,8` hoặc `49.8` | **49,8 kg** | có dấu → máy giữ nguyên |
+| `498` | **49,8 kg** | không dấu, từ 100 trở lên → số cuối thành số lẻ |
+| `1508` | **150,8 kg** | |
+| `99` | **99 kg** | dưới 100 → giữ nguyên |
+
+> 🔴 **BAO NẶNG TỪ 100 KG TRỞ LÊN PHẢI GÕ CÓ DẤU PHẨY.**
+> Bao **150 kg** mà gõ `150` thì máy ghi **15 kg** — sai 10 lần.
+> Bao 150 kg đúng phải gõ **`150,0`**. Bao 120 kg gõ **`120,0`**.
+
+👉 **Mỗi lần máy đổi số bạn vừa gõ, nó hiện dòng chữ xanh ngay dưới ô:**
+*✓ Máy hiểu: 49.8 kg*. **Nhìn dòng đó trước khi bấm LƯU.**
+Không thấy dòng chữ xanh nghĩa là máy ghi đúng y số bạn gõ.
 
 **Chỉ bấm lại nút LOẠI khi chuyển sang loại khác.**
 

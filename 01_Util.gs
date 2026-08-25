@@ -484,6 +484,80 @@ function kyHieuTuMaLo_(maLo) {
   return '';
 }
 
+/*
+ * Khuôn mã lô của bản 1.7 — Andy chốt 25/08/2026.
+ *
+ * Mã lô LUÔN 7 ký tự:  [T hoặc D] + 4 chữ số + 2 chữ cái.
+ * Người nhập được phép gõ tắt, máy điền nốt:
+ *   - gõ 3 chữ số        -> thêm "0" vào ĐẦU cụm số   (T753   -> T0753…)
+ *   - không gõ 2 chữ cuối -> thêm MA_LO_HAU_TO ("LA")  (T0753  -> T0753LA)
+ *   - CÓ gõ 2 chữ cuối    -> GIỮ NGUYÊN chữ đó          (T753HC -> T0753HC)
+ * Gõ ngoài khuôn trên thì TỪ CHỐI, bắt sửa — không đoán.
+ *
+ * ⚠️ Chỉ dùng ở đường GHI (tạo lô, sửa mã lô). KHÔNG dùng để TRA CỨU lô: dữ liệu
+ * cũ có thể mang mã không đúng khuôn này, chuẩn hoá lúc tra cứu là tra trượt.
+ */
+var MAU_MA_LO_7 = /^([A-Z])([0-9]{3,4})([A-Z]{2})?$/;
+
+/** @return {string} mã lô đã đủ 7 ký tự, hoặc '' nếu không đúng khuôn. */
+function chuanMaLo7_(maLoRaw) {
+  var s = chuanHoaMaLo_(maLoRaw);
+  if (!s) return '';
+  var m = MAU_MA_LO_7.exec(s);
+  if (!m) return '';
+
+  var dau = m[1];
+  var tienToA = String(cfg('TIEN_TO_A')).trim().toUpperCase();
+  var tienToB = String(cfg('TIEN_TO_B')).trim().toUpperCase();
+  if (dau !== tienToA && dau !== tienToB) return '';
+
+  var so = (m[2].length === 3) ? ('0' + m[2]) : m[2];
+  var chu = m[3] || String(cfg('MA_LO_HAU_TO')).trim().toUpperCase();
+  return dau + so + chu;
+}
+
+/** Câu báo lỗi mã lô — gom một chỗ để tạo lô và sửa mã lô nói giống hệt nhau. */
+function loiMaLo_(ma) {
+  var hauTo = String(cfg('MA_LO_HAU_TO')).trim().toUpperCase();
+  return 'Mã lô "' + ma + '" không đúng khuôn.\n\n' +
+         'Mã lô phải có 7 ký tự: "' + cfg('TIEN_TO_A') + '" hoặc "' + cfg('TIEN_TO_B') +
+         '" + 4 chữ số + 2 chữ cái.\n' +
+         'Gõ 3 chữ số thì máy tự thêm 0 vào đầu; bỏ trống 2 chữ cuối thì máy tự thêm "' +
+         hauTo + '".\n\n' +
+         'Ví dụ: T753 → T0753' + hauTo + ' · T753HC → T0753HC';
+}
+
+/*
+ * Đọc KHỐI LƯỢNG 1 BAO — luật bản 1.7, Andy chốt 25/08/2026.
+ *
+ *   - có dấu "," hoặc "."        -> giữ nguyên số người gõ   ("49,8" = 49.8)
+ *   - không dấu, giá trị  < 100  -> giữ nguyên                ("99"   = 99)
+ *   - không dấu, giá trị >= 100  -> số cuối thành thập phân   ("498"  = 49.8)
+ *
+ * ⚠️ ANDY BIẾT VÀ CHẤP NHẬN hệ quả: bao thật 150 kg mà gõ "150" sẽ được ghi là 15 kg.
+ * Muốn ghi đúng 150 kg thì phải gõ "150,0". Tôi đã nêu rủi ro này hai lần và Andy tái
+ * khẳng định ngày 25/08/2026. ĐÂY LÀ LỰA CHỌN CỦA CHỦ DỰ ÁN — đừng "sửa lại cho đúng"
+ * ở phiên sau, hãy hỏi Andy trước.
+ *
+ * ⚠️ Luật này CHỈ áp cho CHUỖI. Nhận vào một SỐ thì trả nguyên số đó, vì điện thoại đã
+ * đọc một lần trước khi gửi lên — đọc lại lần nữa thì 150 kg thành 1,5 kg.
+ *
+ * Tách riêng khỏi soTu_ theo đúng lối đã làm với soLonTu_: soTu_ còn dùng cho SỐ BAO,
+ * mà số bao 150 thì phải là 150.
+ */
+function klBaoTu_(v) {
+  if (typeof v === 'number') return v;
+  var s = String(v === null || v === undefined ? '' : v).trim().replace(/\s/g, '');
+  if (s === '') return NaN;
+
+  var coDauLe = (s.indexOf(',') >= 0 || s.indexOf('.') >= 0);
+  var n = soTu_(s);
+  if (isNaN(n)) return NaN;
+  if (coDauLe) return n;
+  if (n < 100) return n;
+  return n / 10;
+}
+
 /** Chuẩn hoá mã lô: bỏ khoảng trắng thừa, viết hoa. */
 function chuanHoaMaLo_(maLo) {
   return String(maLo || '').trim().toUpperCase().replace(/\s+/g, '');

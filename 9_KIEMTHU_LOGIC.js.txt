@@ -1928,6 +1928,166 @@ console.log('\n=== 29. BẢN 1.6 ĐỢT D — 6 CỘT XEM NHANH P–U TRÊN SHEE
     kq.filter(x => x.indexOf('❌') === 0));
 })();
 
+console.log('\n=== 30. BẢN 1.7 GÓI 2 — CHUẨN HOÁ MÃ LÔ & LUẬT ĐỌC KHỐI LƯỢNG BAO ===');
+(function () {
+  /*
+   * Hai luật Andy chốt ngày 25/08/2026.
+   *
+   * (A) MÃ LÔ luôn 7 ký tự: [T|D] + 4 số + 2 chữ cái.
+   *     Gõ 3 số  -> thêm "0" vào đầu.      Không gõ 2 chữ cuối -> thêm "LA".
+   *     Gõ đủ 2 chữ cuối -> GIỮ NGUYÊN chữ đó.   Sai khuôn -> báo lỗi, bắt sửa.
+   *
+   * (B) KHỐI LƯỢNG 1 BAO:
+   *     - có dấu "," hoặc "."          -> giữ nguyên số người gõ
+   *     - không dấu, giá trị  < 100    -> giữ nguyên
+   *     - không dấu, giá trị >= 100    -> số cuối thành phần thập phân (498 -> 49.8)
+   *
+   *     ⚠️ Andy BIẾT và CHẤP NHẬN: bao thật 150 kg gõ "150" sẽ thành 15 kg.
+   *     Muốn ghi đúng 150 thì phải gõ "150,0". Đã cảnh báo 2 lần, Andy tái khẳng định
+   *     ngày 25/08/2026. ĐỪNG "sửa lại cho đúng" ở phiên sau — đó là lựa chọn của Andy.
+   *
+   *     Luật (B) CHỈ áp cho CHUỖI. Số đã đọc sẵn thì trả nguyên — nếu không, điện thoại
+   *     đọc một lần rồi máy chủ đọc lần nữa là 150 kg thành 1.5 kg.
+   */
+
+  // ══════ 30.1 chuanMaLo7_ — đúng 7 ví dụ Andy đưa ══════
+  const M = [
+    ['T0753LA', 'T0753LA', 'gõ đủ 7 ký tự thì giữ nguyên'],
+    ['T0753HC', 'T0753HC', 'gõ đủ 2 chữ cuối KHÁC "LA" thì giữ nguyên chữ đó'],
+    ['T753LA',  'T0753LA', 'thiếu 1 số -> thêm 0 vào đầu'],
+    ['T0753',   'T0753LA', 'thiếu 2 chữ cuối -> thêm LA'],
+    ['T753',    'T0753LA', 'thiếu cả số lẫn chữ -> thêm cả hai'],
+    ['T753HC',  'T0753HC', 'thiếu số nhưng có chữ -> thêm 0, giữ chữ'],
+    ['t753hc',  'T0753HC', 'gõ chữ thường vẫn nhận'],
+    [' T753 ',  'T0753LA', 'thừa khoảng trắng vẫn nhận'],
+    ['D753',    'D0753LA', 'tiền tố D (ký hiệu B) cũng theo luật đó']
+  ];
+  M.forEach(function (x) {
+    T('mã lô "' + x[0] + '" -> ' + x[1] + ' (' + x[2] + ')',
+      chuanMaLo7_(x[0]) === x[1], chuanMaLo7_(x[0]));
+  });
+
+  const SAI = [
+    ['T77',       '2 số thì không đủ'],
+    ['T77015',    '5 số thì thừa'],
+    ['T7701L',    'chỉ 1 chữ cuối'],
+    ['T7701LAB',  '3 chữ cuối'],
+    ['X7701LA',   'ký tự đầu không phải T/D'],
+    ['T7701L2',   'chữ cuối lẫn chữ số'],
+    ['7701LA',    'thiếu hẳn ký tự đầu'],
+    ['TLA',       'không có số nào'],
+    ['',          'để trống']
+  ];
+  SAI.forEach(function (x) {
+    T('mã lô "' + x[0] + '" bị từ chối (' + x[1] + ')',
+      chuanMaLo7_(x[0]) === '', chuanMaLo7_(x[0]));
+  });
+
+  // ══════ 30.2 apiTaoLo dùng mã ĐÃ CHUẨN HOÁ ══════
+  let r = apiTaoLo(VE1, 'T771', 10, 'lô thử gói 2');
+  T('tạo lô "T771" -> lưu thành T0771LA', r.ok === true && r.data.ma_lo === 'T0771LA',
+    r.ok ? r.data.ma_lo : r.error);
+
+  r = apiTaoLo(VE1, 'T772HC', 10, '');
+  T('tạo lô "T772HC" -> lưu thành T0772HC', r.ok === true && r.data.ma_lo === 'T0772HC',
+    r.ok ? r.data.ma_lo : r.error);
+
+  r = apiTaoLo(VE1, 'D773', 10, '');
+  T('tạo lô "D773" -> D0773LA, ký hiệu B',
+    r.ok === true && r.data.ma_lo === 'D0773LA' && r.data.ky_hieu === 'B',
+    r.ok ? r.data : r.error);
+
+  r = apiTaoLo(VE1, 'T77', 10, '');
+  T('tạo lô sai khuôn bị chặn, câu báo lỗi có nói khuôn đúng',
+    r.ok === false && r.error.indexOf('7 ký tự') >= 0, r.error);
+
+  // Hai cách gõ khác nhau nhưng CÙNG ra một mã -> phải bắt được trùng
+  r = apiTaoLo(VE1, 'T0771LA', 10, '');
+  T('gõ "T0771LA" khi đã có lô "T771" -> báo TRÙNG (cùng chuẩn hoá ra một mã)',
+    r.ok === false && r.error.indexOf('đã tồn tại') >= 0, r.error);
+
+  // ══════ 30.3 apiSuaMaLo cũng chuẩn hoá ══════
+  r = apiSuaMaLo(VE1, 'T0772HC', 'T774');
+  T('sửa mã lô sang "T774" -> lưu thành T0774LA',
+    r.ok === true && r.data.ma_lo === 'T0774LA', r.ok ? r.data : r.error);
+
+  r = apiSuaMaLo(VE1, 'T0774LA', 'T77');
+  T('sửa mã lô sang mã sai khuôn bị chặn', r.ok === false, r.error);
+
+  // ══════ 30.4 klBaoTu_ — luật đọc khối lượng bao ══════
+  const K = [
+    ['49,8',  49.8,  'dấu phẩy = thập phân (lỗi số 1 của bản v1.1, không được đổi)'],
+    ['49.8',  49.8,  'dấu chấm cũng là thập phân'],
+    ['498',   49.8,  'không dấu, >= 100 -> số cuối thành thập phân'],
+    ['150',   15,    'Andy chấp nhận: bao 150 kg gõ "150" thành 15 kg'],
+    ['100',   10,    'đúng ngưỡng 100 -> đổi'],
+    ['99',    99,    'dưới 100 -> giữ nguyên'],
+    ['99,5',  99.5,  'dưới 100 có dấu -> giữ nguyên'],
+    ['1508',  150.8, 'bốn chữ số không dấu'],
+    ['2005',  200.5, 'đọc đúng, nhưng 200.5 > KL_MAX nên API sẽ chặn — xem ca dưới'],
+    ['2000',  200,   'số lớn nhất còn lọt qua KL_MAX = 200'],
+    ['1',     1,     'một chữ số'],
+    ['150,0', 150,   'cách Andy dặn công nhân gõ để ra đúng 150 kg']
+  ];
+  K.forEach(function (x) {
+    T('khối lượng "' + x[0] + '" -> ' + x[1] + ' kg (' + x[2] + ')',
+      klBaoTu_(x[0]) === x[1], klBaoTu_(x[0]));
+  });
+
+  T('klBaoTu_ nhận SỐ thì trả nguyên (chống đọc hai lần)', klBaoTu_(150) === 150, klBaoTu_(150));
+  T('klBaoTu_ số 498 vẫn là 498 (điện thoại đã đọc rồi thì máy chủ không đọc lại)',
+    klBaoTu_(498) === 498, klBaoTu_(498));
+  T('klBaoTu_("") -> NaN', isNaN(klBaoTu_('')), klBaoTu_(''));
+  T('klBaoTu_("abc") -> NaN', isNaN(klBaoTu_('abc')), klBaoTu_('abc'));
+
+  // ══════ 30.5 soTu_ KHÔNG được đổi — số bao vẫn đọc như cũ ══════
+  T('soTu_("498") vẫn là 498 (luật mới không lan sang soTu_)', soTu_('498') === 498, soTu_('498'));
+  T('soTu_("150") vẫn là 150', soTu_('150') === 150, soTu_('150'));
+
+  // ══════ 30.6 Đi qua API thật ══════
+  r = apiTaoLo(VE1, 'T775', 10, '');
+  T('dựng lô để thử khối lượng', r.ok === true, r.error);
+
+  r = apiLuuBao(VE1, { ma_lo: 'T0775LA', loai: '1', stt_bao: 77501,
+                       khoi_luong: '498', phien: PHIEN1, client_id: 'g2a' });
+  T('apiLuuBao nhận chuỗi "498" -> lưu 49.8 kg',
+    r.ok === true && r.data.khoi_luong === 49.8, r.ok ? r.data.khoi_luong : r.error);
+
+  r = apiLuuBao(VE1, { ma_lo: 'T0775LA', loai: '1', stt_bao: 77502,
+                       khoi_luong: '150', phien: PHIEN1, client_id: 'g2b' });
+  T('apiLuuBao nhận chuỗi "150" -> lưu 15 kg (Andy chốt)',
+    r.ok === true && r.data.khoi_luong === 15, r.ok ? r.data.khoi_luong : r.error);
+
+  r = apiLuuBao(VE1, { ma_lo: 'T0775LA', loai: '1', stt_bao: 77503,
+                       khoi_luong: 150, phien: PHIEN1, client_id: 'g2c' });
+  T('apiLuuBao nhận SỐ 150 -> giữ 150 kg (không đọc lại lần hai)',
+    r.ok === true && r.data.khoi_luong === 150, r.ok ? r.data.khoi_luong : r.error);
+
+  r = apiLuuBao(VE1, { ma_lo: 'T0775LA', loai: '1', stt_bao: '150',
+                       khoi_luong: '50', phien: PHIEN1, client_id: 'g2d' });
+  T('SỐ BAO "150" vẫn là bao 150, không bị luật khối lượng đụng tới',
+    r.ok === true && r.data.stt_bao === 150, r.ok ? r.data.stt_bao : r.error);
+
+  r = apiLuuNhieuBao(VE1, { ma_lo: 'T0775LA', loai: '2', phien: PHIEN1, danh_sach: [
+    { stt_bao: 77510, khoi_luong: '498',  client_id: 'g2e' },
+    { stt_bao: 77511, khoi_luong: '49,8', client_id: 'g2f' }
+  ]});
+  T('lưu cả mẻ: "498" và "49,8" đều ra 49.8 kg',
+    r.ok === true && r.data.da_luu.every(b => b.khoi_luong === 49.8),
+    r.ok ? r.data.da_luu.map(b => b.khoi_luong) : r.error);
+
+  r = apiSuaBao(VE1, apiMoLo(VE1, 'T0775LA', PHIEN1).data.ds_bao
+                       .filter(b => b.stt_bao === 77501)[0].id, 77501, '1508');
+  T('sửa bao: chuỗi "1508" -> 150.8 kg',
+    r.ok === true && r.data.khoi_luong === 150.8, r.ok ? r.data.khoi_luong : r.error);
+
+  // Luật mới KHÔNG mở rộng khoảng cho phép: đọc xong vẫn phải nằm trong KL_MIN–KL_MAX.
+  r = apiLuuBao(VE1, { ma_lo: 'T0775LA', loai: '3', stt_bao: 77520,
+                       khoi_luong: '2005', phien: PHIEN1, client_id: 'g2g' });
+  T('"2005" đọc ra 200.5 kg nhưng vẫn bị chặn vì vượt KL_MAX = 200',
+    r.ok === false && r.error.indexOf('200') >= 0, r.ok ? r.data : r.error);
+})();
+
 console.log('\n────────────────────────────────');
 console.log('KẾT QUẢ:  ' + pass + ' đạt / ' + fail + ' lỗi');
 console.log('────────────────────────────────');

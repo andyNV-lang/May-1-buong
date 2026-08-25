@@ -200,6 +200,7 @@ var CAU_HINH_MAC_DINH = [
   ['SO_BAO_MOI_LAN',    20,    'Số bao tối đa nhập được trong cùng một lần lưu'],
   ['TIEN_TO_A',         'T',   'Ký tự đầu mã lô ứng với ký hiệu A'],
   ['TIEN_TO_B',         'D',   'Ký tự đầu mã lô ứng với ký hiệu B'],
+  ['MA_LO_HAU_TO',      'LA',  'Hai chữ cuối mã lô, tự điền khi người nhập bỏ trống'],
   ['TONG_HOP_PHUT',     15,    'Bao lâu tự cập nhật bảng tổng hợp 1 lần (phút: 1/5/10/15/30)'],
   ['TEN_MAY',           'MÁY 1 BUỒNG', 'Tên hiển thị trên đầu màn hình']
 ];

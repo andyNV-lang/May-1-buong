@@ -26,6 +26,7 @@ function apiTrangChu(ve) {
         SO_BAO_MOI_LAN: Number(cfg('SO_BAO_MOI_LAN')),
         TIEN_TO_A: String(cfg('TIEN_TO_A')),
         TIEN_TO_B: String(cfg('TIEN_TO_B')),
+        MA_LO_HAU_TO: String(cfg('MA_LO_HAU_TO')),
         TEN_MAY: String(cfg('TEN_MAY'))
       },
       ds_lo: layDanhSachLoDangChay_()
@@ -154,13 +155,12 @@ function apiLoDaDong(ve, tuNgay, denNgay) {
 function apiTaoLo(ve, maLoRaw, soBaoVao, ghiChu, klVao) {
   try {
     var nd = xacThuc_(ve);
-    var maLo = chuanHoaMaLo_(maLoRaw);
+    var maGo = chuanHoaMaLo_(maLoRaw);
+    if (!maGo) return loi_('Chưa nhập mã lô.');
 
-    if (!maLo) return loi_('Chưa nhập mã lô.');
-    if (!MAU_MA_LO.test(maLo)) {
-      return loi_('Mã lô "' + maLo + '" không hợp lệ.\n' +
-                  'Chỉ được dùng chữ cái, chữ số và dấu gạch ngang, dài 3–20 ký tự.');
-    }
+    // Bản 1.7: mã lô luôn 7 ký tự, máy điền nốt phần gõ tắt. Xem chuanMaLo7_.
+    var maLo = chuanMaLo7_(maGo);
+    if (!maLo) return loi_(loiMaLo_(maGo));
 
     var kyHieu = kyHieuTuMaLo_(maLo);
     if (!kyHieu) {
@@ -381,7 +381,7 @@ function apiLuuBao(ve, duLieu) {
       return loi_('Số thứ tự bao phải là số nguyên dương.');
     }
 
-    var klNum = soTu_(kl);
+    var klNum = klBaoTu_(kl);          // bản 1.7: "498" -> 49.8. Xem klBaoTu_.
     var klMin = Number(cfg('KL_MIN')), klMax = Number(cfg('KL_MAX'));
     if (isNaN(klNum)) return loi_('Chưa nhập khối lượng (hoặc gõ sai định dạng số).');
     if (klNum < klMin || klNum > klMax) {
@@ -548,7 +548,7 @@ function apiLuuNhieuBao(ve, duLieu) {
       if (isNaN(stt) || stt <= 0 || stt !== Math.floor(stt)) {
         return loi_(nhan + ': số thứ tự bao phải là số nguyên dương.', 'LOI_DONG');
       }
-      var kl = soTu_(d.khoi_luong);
+      var kl = klBaoTu_(d.khoi_luong);   // bản 1.7 — xem klBaoTu_
       if (isNaN(kl)) {
         return loi_(nhan + ' (bao ' + stt + '): chưa nhập khối lượng.', 'LOI_DONG');
       }
@@ -797,7 +797,7 @@ function apiSuaBao(ve, id, sttBaoMoi, klMoi, lyDo) {
     if (isNaN(sttNum) || sttNum <= 0 || sttNum !== Math.floor(sttNum)) {
       return loi_('Số thứ tự bao phải là số nguyên dương.');
     }
-    var klNum = soTu_(klMoi);
+    var klNum = klBaoTu_(klMoi);       // bản 1.7 — xem klBaoTu_
     var klMin = Number(cfg('KL_MIN')), klMax = Number(cfg('KL_MAX'));
     if (isNaN(klNum) || klNum < klMin || klNum > klMax) {
       return loi_('Khối lượng phải trong khoảng ' + klMin + '–' + klMax + ' kg.');
@@ -1192,14 +1192,14 @@ function apiSuaMaLo(ve, maLoCuRaw, maLoMoiRaw, lyDo) {
   try {
     var nd = xacThuc_(ve);
     var maCu = chuanHoaMaLo_(maLoCuRaw);
-    var maMoi = chuanHoaMaLo_(maLoMoiRaw);
+    var maMoiGo = chuanHoaMaLo_(maLoMoiRaw);
+    if (!maMoiGo) return loi_('Chưa nhập mã lô mới.');
 
-    if (!maMoi) return loi_('Chưa nhập mã lô mới.');
+    // Bản 1.7: mã mới phải theo đúng khuôn 7 ký tự như lúc tạo lô — nếu không, hai
+    // đường ghi sẽ đẻ ra hai kiểu mã lô khác nhau trên cùng một sheet.
+    var maMoi = chuanMaLo7_(maMoiGo);
+    if (!maMoi) return loi_(loiMaLo_(maMoiGo));
     if (maMoi === maCu) return loi_('Mã lô mới trùng mã cũ, không có gì để sửa.');
-    if (!MAU_MA_LO.test(maMoi)) {
-      return loi_('Mã lô "' + maMoi + '" không hợp lệ.\n' +
-                  'Chỉ được dùng chữ cái, chữ số và dấu gạch ngang, dài 3–20 ký tự.');
-    }
     var kyHieuMoi = kyHieuTuMaLo_(maMoi);
     if (!kyHieuMoi) {
       return loi_('Mã lô "' + maMoi + '" không hợp lệ.\n' +
