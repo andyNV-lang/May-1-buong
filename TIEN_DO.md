@@ -41,7 +41,7 @@ Bản 1.6 đã chạy thật và ổn định. Bản 1.7 gồm 5 ý tưởng And
 **Bản 1.7 KHÔNG đụng cấu trúc dữ liệu** — không thêm cột, không thêm sheet.
 **Không phải chạy menu tạo cấu trúc sheet.**
 
-Dán lại **6 file**:
+Dán lại **7 file** (đối chiếu bằng `git diff --name-only` với bản 1.6 đang chạy):
 
 | Dán lại | Giữ nguyên |
 |---|---|
@@ -580,7 +580,7 @@ sang `1508 → 150.8` và **thêm một ca mới** khẳng định `2005` vẫn 
 
 ### Dán lên Google
 
-Cộng cả Gói 1 + Gói 2, dán lại **6 file**: `00_Config.gs`, `01_Util.gs`, `02_Setup.gs`,
+Cộng cả Gói 1 + Gói 2, dán lại **7 file**: `00_Config.gs`, `01_Util.gs`, `02_Setup.gs`,
 `04_Api.gs`, `Index.html`, `Script.html`, `Style.html`.
 **Không cần** chạy menu tạo cấu trúc sheet. Vẫn phải **Deploy → New version**.
 
