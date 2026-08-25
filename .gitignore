@@ -1,0 +1,9 @@
+# Rác của macOS
+.DS_Store
+
+# Rác của Python (cong_cu/*.py)
+__pycache__/
+*.pyc
+
+# Bản nén đóng gói thủ công — mốc phiên bản đã nằm trong git rồi
+*.zip

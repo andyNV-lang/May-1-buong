@@ -848,7 +848,11 @@ function apiSuaBao(ve, id, sttBaoMoi, klMoi, lyDo) {
       nangChiSo_(String(bao.ky_hieu).trim().toUpperCase() + String(bao.loai).trim(),
                  sttNum, 0);
       // Số bao không đổi, chỉ khối lượng đổi -> chỉnh phần chênh lệch vào cột đếm sẵn.
-      congDonLo_(lo._row, 0, klNum - (Number(bao.khoi_luong) || 0), bao.nguoi_nhap);
+      // lo CÓ THỂ là null: từ bản 1.6, quản lý đi qua được cửa miễn trừ nên sửa được cả
+      // bao mồ côi (ma_lo không còn dòng nào bên LO). Lúc đó không có cột đếm nào để cộng,
+      // nhưng bao thì đã ghi xong ở trên — ném lỗi ở đây sẽ để lại một sửa đổi nửa vời
+      // KHÔNG có nhật ký. Bỏ qua im lặng như apiXoaBao vẫn làm.
+      congDonLo_(lo ? lo._row : 0, 0, klNum - (Number(bao.khoi_luong) || 0), bao.nguoi_nhap);
 
       ghiLog_(nd, vuot ? 'QL_SUA_BAO' : 'SUA_BAO', SHEETS.BAO, id, cu, moi,
               vuot ? (bao.ma_lo + ' | QUẢN LÝ sửa số liệu ĐÃ KHOÁ | lý do: ' + bl.lyDo)
