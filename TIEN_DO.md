@@ -1,6 +1,6 @@
 # TIẾN ĐỘ & BÀN GIAO — Máy 1 buồng
 
-**Cập nhật: 22/08/2026 · bản 1.6 — ĐỦ CẢ BỐN ĐỢT A, B, C, D**
+**Cập nhật: 25/08/2026 · bản 1.6.3 — ĐỦ CẢ BỐN ĐỢT A, B, C, D · mã nguồn đã vào git**
 
 File này dành cho việc **tiếp tục công việc ở một phiên trò chuyện mới**.
 Nó KHÔNG lặp lại nội dung đã có ở `0_DOC_TRUOC.md` (lịch sử phiên bản, danh sách lỗi đã sửa,
@@ -23,13 +23,14 @@ mô tả tính năng) — đọc file đó trước, rồi đọc file này đ�
 
 | Hạng mục | Tình trạng |
 |---|---|
-| Phiên bản | **1.6 — đủ 6/6 yêu cầu** (không còn đóng gói zip; Andy chốt 22/08/2026 chỉ sửa thẳng vào thư mục) |
+| Phiên bản | **1.6.3 — đủ 6/6 yêu cầu.** Mốc git mới nhất `v1.6.3` (không còn đóng gói zip; Andy chốt 22/08/2026 chỉ sửa thẳng vào thư mục) |
 | Đã deploy lên Google chưa | **Bản 1.5 đang chạy thật, Andy xác nhận OK (22/08/2026).** Bản 1.6 **CHƯA dán lên Apps Script** |
 | Kiểm thử logic | **431 đạt / 0 lỗi** — chạy `bash cong_cu/chay_kiemthu.sh` |
 | Kiểm thử giao diện (Playwright) | ❌ **Chưa chạy lại được** từ bản 1.1. File `9_KIEMTHU_GIAODIEN.js.txt` ghi cứng đường dẫn Chromium của máy Linux (`/opt/pw-browsers/…`) |
 | Thử tay giao diện | ✅ **Đã bấm tay qua trình duyệt ngày 22/08/2026** — 12 luồng cho bản 1.5 (mục 1d), cộng các luồng mới của từng đợt 1.6 (mục 1e–1h) |
 | Số file đã đổi ở bản 1.6 | **9/11** — chỉ `03_Auth.gs` và `appsscript.json` giữ nguyên |
 | Nhịp sản xuất thật | Andy xác nhận 21/08/2026: **200–500 bao/ngày, thiết kế an toàn cho 1000 bao/ngày**. Bao nặng **1–200 kg** |
+| Git / GitHub | ✅ **Có từ 25/08/2026** — `github.com/andyNV-lang/May-1-buong`, nhánh `main` + `dev`, mốc `v1.6.0` → `v1.6.3`. Xem mục **4b** |
 
 ### 🔴 VIỆC TIẾP THEO — dán bản 1.6 lên Google
 
@@ -78,6 +79,7 @@ không phải tự phát hiện lại, và để Andy biết mình đang chấp 
 | 5 | **Menu "Điền 6 cột xem nhanh" chưa thử ở quy mô thật.** Đường chia mẻ + mốc nhớ viết cho 250.000 dòng nhưng chỉ chạy trên vài chục dòng — nhánh "hết giờ, lưu mốc, chạy lại" **chưa từng thực sự xảy ra** | 🟡 thấp |
 | 6 | **Bảng tổng hợp 19 cột trên điện thoại: cuộn sang phải là mất cột "Mã lô"** (tiêu đề dính, cột đầu chưa dính). Ghim cột đầu là ~10 dòng CSS | 🟡 thấp |
 | 7 | **Nút CHỐT CA bị đẩy xuống sâu hơn** ở bản 1.6 (khối kết quả chen vào giữa). Chốt ca là việc hàng ngày, đóng lô thì thỉnh thoảng — đang làm khó cái thường xuyên | 🟡 thấp — chờ Andy bấm thử rồi quyết |
+| 8 | **Lỗi `apiSuaBao` sửa ngày 25/08 KHÔNG có ca kiểm thử nào canh.** Sửa đúng 1 dòng mã, không ca nào tái hiện được lỗi cũ — ai viết lại chỗ đó là lỗi quay về lặng lẽ, mà đường lỗi này **không để lại dấu vết trong nhật ký**. Xem mục **1i** | 🟠 vừa |
 
 **Chưa đo lại hiệu năng cho kịch bản mới của đợt C** (quản lý mở nhiều lô liên tiếp,
 mỗi lần `apiMoLo` quét cả sheet `BAO`).
@@ -493,6 +495,48 @@ Dán lại **9 file**:
 
 ---
 
+## 1i. BẢN 1.6.1 — lỗi `apiSuaBao` làm hỏng số liệu (sửa ngày 25/08/2026)
+
+Lỗi này **do chính đợt C sinh ra**, chỉ lộ ra sau khi bản 1.6 đã coi như xong.
+Ghi lại đây vì hai phiên làm việc ngày 25/08 sửa mã mà **không cập nhật file này** —
+đọc `TIEN_DO.md` thôi thì không ai biết lỗi từng tồn tại.
+
+### Lỗi là gì
+
+Trước bản 1.6, hàm `lyDoKhongSuaDuoc_` có chốt chặn `!lo` chặn **tất cả mọi người**, nên
+chỗ hỏng không ai với tới được. Đợt C mở cửa miễn trừ: `kiemTraQuyenSua_` trả về `null`
+(cho qua) với **mọi** `QUAN_LY`. Khi bao đó là **bao mồ côi** — `ma_lo` không còn dòng nào
+bên sheet `LO` — thì `lo === null`, và `congDonLo_(lo._row, …)` ném lỗi.
+
+**Hậu quả nặng hơn vẻ ngoài:** `suaDong_` đã ghi bao xong **trước đó**. Lỗi ném ra ở giữa
+chừng để lại một sửa đổi **nửa vời**:
+
+- khối lượng / số thứ tự của bao **đã đổi**, `nangChiSo_` **đã tăng**;
+- `kl_ra` / `so_bao_ra` của lô **không được chỉnh**;
+- `ghiLog_` **không bao giờ chạy** → **không có một dòng nhật ký nào**.
+
+Quản lý chỉ thấy chữ "LỖI" chung chung, tưởng là chưa sửa được gì.
+
+### Cách sửa
+
+`congDonLo_(lo ? lo._row : 0, …)` — đúng khuôn `apiXoaBao` vẫn dùng, vì bản thân
+`congDonLo_` đã có sẵn `if (!soDongLo) return`. Không có lô thì không có cột đếm nào để
+cộng, nhưng bao thì đã ghi xong — bỏ qua im lặng đúng hơn là ném lỗi.
+
+Đã soát thêm: `kiemTraQuyenLo_` chặn `!lo` **trước** cửa miễn trừ, nên các API mức lô
+(`apiSuaLo`, `apiMoLaiLo`, `apiXoaLo`…) **không dính lỗi cùng kiểu**.
+
+### ⚠️ Chưa có kiểm thử canh — nợ số 8 ở mục 1a
+
+Trái hẳn lối làm của cả bản 1.6 (viết kiểm thử trước, thấy đỏ rồi mới sửa mã). Ca cần
+viết: dựng một bao có `ma_lo` không tồn tại bên `LO`, cho `QUAN_LY` sửa khối lượng, rồi
+khẳng định (a) **không ném lỗi**, (b) nhật ký `QL_SUA_BAO` **có chạy**, (c) bảng `CHI_SO`
+và cột đếm của lô không bị bỏ lại nửa vời.
+
+**File đã đổi:** `04_Api.gs` — 1 dòng, quanh dòng 851. **Mốc git:** `v1.6.1` (`6463173`).
+
+---
+
 ## 1d. Thử tay giao diện bản 1.5 — đã làm ngày 22/08/2026
 
 Chạy trên `mo_phong.html` (giao diện thật + logic máy chủ thật), khổ màn hình điện thoại.
@@ -560,6 +604,10 @@ Ghi để phiên sau biết **thứ tự nhân quả**, không phải để khoe
 | **21/08 chiều** | **Thiết kế nền móng mở rộng.** Andy cho biết: các công đoạn **không cần nối số liệu**, tài khoản **Gmail cá nhân**, **10–30 người đồng thời**, ngân sách **dưới 10 USD/tháng**; ban lãnh đạo quyết theo **giờ công + sai sót** | `KIEN_TRUC_MO_RONG.md` ở thư mục cha · **chưa viết dòng mã nào** cho các máy khác |
 | **22/08 chiều** | **Andy đưa 6 yêu cầu nâng cấp** (bản 1.6) và xác nhận bản 1.5 đã chạy thật OK. Trả lời 12 câu hỏi làm rõ. Làm **đủ bốn đợt A → D**, tức **6/6 yêu cầu** | **431 kiểm thử** · mục 1e–1h · **bản 1.6 xong, chưa dán lên Google** |
 | **22/08** | **Kiểm tra trước khi dán 1.5 lên Google.** Đối chiếu thư mục/zip, kiểm cú pháp, bấm tay 12 luồng giao diện, diễn thử bước dựng lại bộ đếm | **Không tìm thấy lỗi nào trong mã sẽ dán.** Sửa 2 lỗ hổng của bộ mô phỏng (mục 1d). **Bản 1.5 sẵn sàng dán** — vẫn chưa dán, vì cần tài khoản Google của Andy |
+| **25/08 sáng** | **Sửa lỗi `apiSuaBao` làm hỏng số liệu khi quản lý sửa bao mồ côi** — lỗi do đợt C sinh ra | mốc `v1.6.1` · mục **1i** · ⚠️ **không viết ca kiểm thử nào**, cũng **không cập nhật file này** — nợ số 8 |
+| **25/08 trưa** | Viết `4_CACH_LAM_VIEC.md` — sổ tay quy trình sửa/nâng cấp cho người không phải lập trình viên | mốc `v1.6.2` |
+| **25/08 chiều** | **Đưa dự án vào git, đẩy lên GitHub.** Thêm `README.md`, `claude.md` (luật làm việc cho AI), nâng cấp `.gitignore` — chặn luôn `*.zip` | mốc `v1.6.3` · `github.com/andyNV-lang/May-1-buong` |
+| **25/08 chiều** | **Rà lại git + vá tài liệu.** Chạy lại kiểm thử để lấy bằng chứng cho mốc, gắn `v1.6.3` kèm ghi chú xác minh, đẩy mốc lên GitHub | **431 đạt / 0 lỗi** · vá lại chính file này cho khớp mã nguồn (mục 1i, 4b, nợ số 8) |
 
 ### Ba việc phiên 21/08 cố tình KHÔNG làm — đừng tưởng là bỏ sót
 
@@ -699,6 +747,33 @@ python3 -m http.server 8777
 
 ---
 
+## 4b. Git — mốc an toàn (có từ 25/08/2026)
+
+Mã nguồn nay nằm trong **git**, đẩy lên `github.com/andyNV-lang/May-1-buong`.
+**Không nén zip nữa** — mỗi mốc phiên bản là một `tag` trong git, quay lại lúc nào cũng được.
+
+| Mốc | Nội dung |
+|---|---|
+| `v1.6.0` | Bản 1.6 — mốc an toàn đầu tiên (đủ 6/6 yêu cầu) |
+| `v1.6.1` | Sửa lỗi `apiSuaBao` làm hỏng số liệu bao mồ côi — mục **1i** |
+| `v1.6.2` | Thêm `4_CACH_LAM_VIEC.md` |
+| `v1.6.3` | Thêm `README.md` + `claude.md`; xác minh **431 kiểm thử xanh**, cây làm việc sạch, hai nhánh trùng nhau |
+
+**Luật đã chốt (xem `README.md`):** chỉ gộp vào `main` khi kiểm thử xanh; `main` **luôn**
+là bản dán lên Apps Script được ngay. Nhánh `dev` để làm hằng ngày.
+
+Xem lại một mốc cũ mà không làm hỏng gì đang có:
+
+```
+git switch --detach v1.6.0     # xem bản cũ
+git switch main                # quay về bản mới nhất
+```
+
+⚠️ **Đừng sửa lịch sử đã đẩy lên GitHub** (cấm `rebase` / `force-push`) — đó là điều
+`claude.md` cấm, và cũng là thứ làm mất mốc an toàn của người khác.
+
+---
+
 ## 5. Lưu ý về môi trường (đã mất thời gian vì mấy chỗ này)
 
 - **Đường dẫn có dấu tiếng Việt.** Thư mục `Hỗ trợ nhập liệu` lưu ở dạng Unicode NFD trên
@@ -754,6 +829,8 @@ Cách làm tôi muốn giữ nguyên:
     (mở qua http://, và chạy localStorage.clear() trước khi tải lại — xem mục 5)
 - Đo hiệu năng khi đụng đường ghi/đọc:
     node may1buong_appscript/cong_cu/do_hieu_nang.js 250000
+- Sửa xong + kiểm thử xanh thì COMMIT ngay, message tiếng Việt có dấu.
+  Cập nhật TIEN_DO.md trong CÙNG lần sửa đó — hai phiên ngày 25/08 quên việc này.
 - Nếu thiếu thông tin thì NÓI RÕ LÀ THIẾU, đừng tự suy đoán.
 - Nói cho tôi từng bước tư duy trước khi trả lời, và tự nhận xét điểm yếu sau khi trả lời.
 
