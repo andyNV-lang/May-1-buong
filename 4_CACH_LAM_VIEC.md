@@ -16,11 +16,11 @@ Trả lời hai câu hỏi: *thư mục này có những file gì* và *muốn s
 | | **Máy tính của Andy** | **Google** |
 |---|---|---|
 | Nằm ở đâu | Thư mục `may1buong_appscript/` này | script.google.com + file Google Sheets |
-| Chứa gì | Bản gốc của toàn bộ code + tài liệu | Bản đang chạy thật, công nhân đang dùng |
-| Sửa ở đây thì | **Chưa ảnh hưởng gì tới công nhân** | Ảnh hưởng **ngay lập tức** |
+| Chứa gì | Bản gốc của toàn bộ code + tài liệu | Bản đang chạy thật, người vận hành đang dùng |
+| Sửa ở đây thì | **Chưa ảnh hưởng gì tới người vận hành** | Ảnh hưởng **ngay lập tức** |
 
 Hai thế giới này **không tự đồng bộ với nhau.** Sửa file trong thư mục này xong,
-app của công nhân vẫn y nguyên như cũ cho tới khi Andy tự tay dán code lên Apps Script
+app của người vận hành vẫn y nguyên như cũ cho tới khi Andy tự tay dán code lên Apps Script
 và bấm **Triển khai lại**.
 
 Hệ quả cần nhớ:
@@ -44,11 +44,11 @@ Hệ quả cần nhớ:
 | `01_Util.gs` | 757 | Dụng cụ chung: đọc/ghi sheet, khoá chống hai người ghi cùng lúc, làm tròn, kiểm tra dữ liệu | Hiếm. Sửa ở đây là ảnh hưởng cả hệ thống |
 | `02_Setup.gs` | 378 | Menu ⚙️ trong Google Sheets + lệnh tự tạo cấu trúc sheet | Thêm một mục vào menu ⚙️ |
 | `03_Auth.gs` | 183 | Đăng nhập PIN, chống dò PIN, cấp "vé" cho điện thoại | Hiếm. Đụng vào là đụng vào bảo mật |
-| `04_Api.gs` | **1657** | **File lớn nhất và quan trọng nhất.** Mọi việc công nhân bấm trên điện thoại đều chạy vào đây: tạo lô, lưu bao, sửa, xoá, chốt ca, đóng lô | Đa số việc sửa nghiệp vụ nằm ở đây |
+| `04_Api.gs` | **1657** | **File lớn nhất và quan trọng nhất.** Mọi việc người vận hành bấm trên điện thoại đều chạy vào đây: tạo lô, lưu bao, sửa, xoá, chốt ca, đóng lô | Đa số việc sửa nghiệp vụ nằm ở đây |
 | `05_Report.gs` | 245 | Bảng `TONG_HOP_LO` cho bộ phận thống kê + công thức tính tỉ lệ thu hồi / hao hụt | Đổi cách tính tỉ lệ, thêm cột vào bảng tổng hợp |
-| `06_WebApp.gs` | 270 | Cửa vào của app — hàm `doGet` chạy khi công nhân bấm link | Rất hiếm |
+| `06_WebApp.gs` | 270 | Cửa vào của app — hàm `doGet` chạy khi người vận hành bấm link | Rất hiếm |
 
-### Nhóm B — 3 file HTML: cái công nhân nhìn thấy
+### Nhóm B — 3 file HTML: cái người vận hành nhìn thấy
 
 Cũng **phải dán lên Apps Script**. Ba file này ghép lại thành một trang duy nhất.
 
@@ -56,7 +56,7 @@ Cũng **phải dán lên Apps Script**. Ba file này ghép lại thành một tr
 |---|---:|---|
 | `Index.html` | 441 | **Bộ khung** — có những màn hình nào, nút nào, ô nhập nào |
 | `Script.html` | 2149 | **Cách màn hình cư xử** — bấm nút thì gì xảy ra, gọi máy chủ, xếp hàng chờ khi mất mạng |
-| `Style.html` | 453 | **Màu sắc, cỡ chữ, cỡ nút.** Nút to, tương phản cao vì xưởng thiếu sáng và công nhân đeo găng |
+| `Style.html` | 453 | **Màu sắc, cỡ chữ, cỡ nút.** Nút to, tương phản cao vì xưởng thiếu sáng và người vận hành đeo găng |
 
 Muốn *đổi chữ trên nút* → `Index.html`. Muốn *đổi màu / cỡ chữ* → `Style.html`.
 Muốn *đổi việc bấm nút thì làm gì* → `Script.html`.
@@ -65,7 +65,7 @@ Muốn *đổi việc bấm nút thì làm gì* → `Script.html`.
 
 | File | Làm gì |
 |---|---|
-| `appsscript.json` | 10 dòng, cũng phải dán lên. Đặt múi giờ Việt Nam, bật V8, và cho phép **bất kỳ ai có link** đều mở được app (`ANYONE_ANONYMOUS`) — đó là lý do công nhân không cần tài khoản Google |
+| `appsscript.json` | 10 dòng, cũng phải dán lên. Đặt múi giờ Việt Nam, bật V8, và cho phép **bất kỳ ai có link** đều mở được app (`ANYONE_ANONYMOUS`) — đó là lý do người vận hành không cần tài khoản Google |
 
 ### Nhóm D — 6 file tài liệu `.md`
 
@@ -76,7 +76,7 @@ Không dán lên Google. Chỉ để đọc.
 | `0_DOC_TRUOC.md` | 360 | Andy — hệ thống là gì, lịch sử các bản, đã sửa lỗi nào |
 | `1_HUONG_DAN_TRIEN_KHAI.md` | 244 | Andy — 9 bước cài đặt từ số 0, mất 25–35 phút |
 | `2_CAU_TRUC_SHEET.md` | 274 | Andy + bộ phận thống kê — 7 sheet có cột gì, nghĩa là gì |
-| `3_HUONG_DAN_CONG_NHAN.md` | 182 | **Công nhân** — 1 trang A4 in ra ép nhựa dán tại máy |
+| `3_HUONG_DAN_CONG_NHAN.md` | 182 | **Người vận hành** — 1 trang A4 in ra ép nhựa dán tại máy |
 | `4_CACH_LAM_VIEC.md` | — | File này |
 | `TIEN_DO.md` | 794 | **Claude ở phiên trò chuyện sau** — đang dở ở đâu, chờ quyết gì |
 
@@ -92,7 +92,7 @@ Không dán lên Google. Chỉ để đọc.
 | `tao_mo_phong.py` | `python3 cong_cu/tao_mo_phong.py` | Dựng `mo_phong.html` để **thử giao diện ngay trên máy**, không cần deploy |
 | `tao_pdf.py` | `python3 cong_cu/tao_pdf.py` | Xuất 2 file hướng dẫn ra PDF để in (dùng Google Chrome) |
 | `md2html.py` | (tao_pdf gọi tự động) | Chuyển markdown sang HTML |
-| `dem_trang.py` | `python3 cong_cu/dem_trang.py file.pdf` | Đếm số trang PDF — kiểm tra hướng dẫn công nhân có vừa 1 trang A4 không |
+| `dem_trang.py` | `python3 cong_cu/dem_trang.py file.pdf` | Đếm số trang PDF — kiểm tra hướng dẫn người vận hành có vừa 1 trang A4 không |
 | `do_hieu_nang.js` | `node cong_cu/do_hieu_nang.js` | Đo mỗi thao tác tốn bao nhiêu ô Google Sheets. Google tính tiền theo ô, không theo giây |
 | `IN_*.html`, `_du_lieu_mau.html`, `_gia_lap.html` | — | File phụ trợ do các công cụ trên dùng |
 
@@ -167,7 +167,7 @@ hoặc vứt bỏ hết sửa dở: `git checkout -- .`
 
 Nói với Claude bằng tiếng Việt đời thường, **mô tả hiện tượng chứ đừng đoán tên file**:
 
-> *"Công nhân báo là khi nhập bao thứ 3 trở đi thì máy gợi ý sai số bao."*
+> *"Người vận hành báo là khi nhập bao thứ 3 trở đi thì máy gợi ý sai số bao."*
 
 Tốt hơn nhiều so với *"sửa hàm apiLuuBao trong 04_Api.gs"* — vì bệnh có thể không nằm ở đó.
 
@@ -189,7 +189,7 @@ python3 cong_cu/tao_mo_phong.py
 python3 -m http.server 8777
 ```
 
-Rồi mở `http://localhost:8777/mo_phong.html`. Bấm thử như công nhân.
+Rồi mở `http://localhost:8777/mo_phong.html`. Bấm thử như người vận hành.
 ⚠️ Phải mở qua `http://`, mở bằng cách nhấp đúp vào file thì trình duyệt chặn.
 Xong thì bấm `Ctrl+C` ở cửa sổ Terminal để tắt.
 
@@ -208,7 +208,7 @@ git add -A && git commit -m "Sua goi y so bao khi nhap tu bao thu 3"
 4. Bấm **Triển khai → Quản lý các bản triển khai → biểu tượng bút chì → Phiên bản: Phiên bản mới → Triển khai.**
 
 > ⚠️ **Bước 4 là bước hay quên nhất.** Chỉ bấm Lưu mà không Triển khai lại thì
-> **link của công nhân vẫn chạy code cũ.** Sửa xong thấy "không có gì thay đổi" thì
+> **link của người vận hành vẫn chạy code cũ.** Sửa xong thấy "không có gì thay đổi" thì
 > 9/10 lần là quên bước này.
 
 **Muốn biết đang cần dán những file nào?** Hỏi git:
@@ -231,7 +231,7 @@ Ghi rõ ngay trong `00_Config.gs`, nhưng dễ quên nhất.
 **Luật 3 — Không sửa tay vào sheet `TONG_HOP_LO`.** Sheet này bị ghi đè toàn bộ
 mỗi 15 phút. Mọi thứ gõ vào đó sẽ biến mất.
 
-**Luật 4 — Không đưa file Google Sheets cho công nhân.** Công nhân chỉ nhận **link app**.
+**Luật 4 — Không đưa file Google Sheets cho người vận hành.** Người vận hành chỉ nhận **link app**.
 Ai mở được file Sheets là xem được PIN của tất cả mọi người.
 
 ---
@@ -258,7 +258,7 @@ git reset --hard HEAD~1
 git log --oneline
 ```
 
-Sau khi lùi dưới máy, muốn công nhân cũng quay về bản cũ thì **phải dán lại lên Apps Script**
+Sau khi lùi dưới máy, muốn người vận hành cũng quay về bản cũ thì **phải dán lại lên Apps Script**
 và triển khai lại — lùi dưới máy không tự lùi trên Google.
 
 > **Còn một lưới an toàn nữa Google cho sẵn:** trong Apps Script, menu
@@ -308,7 +308,7 @@ python3 cong_cu/tao_pdf.py
 | Muốn làm gì | Chỗ cần sửa |
 |---|---|
 | Đổi giới hạn cân, ngưỡng cảnh báo, tên máy, thời gian khoá | **Sheet `CAU_HINH`** — không đụng code |
-| Thêm / sửa / khoá tài khoản công nhân, đổi PIN | **Sheet `NGUOI_DUNG`** — không đụng code |
+| Thêm / sửa / khoá tài khoản người vận hành, đổi PIN | **Sheet `NGUOI_DUNG`** — không đụng code |
 | Đổi chữ trên nút, thêm ô nhập | `Index.html` |
 | Đổi màu, cỡ chữ, cỡ nút | `Style.html` |
 | Đổi hành vi khi bấm nút | `Script.html` |

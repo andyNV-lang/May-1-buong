@@ -24,7 +24,7 @@ Hệ thống tự tạo **7 sheet** (bản 1.5 thêm `CHI_SO`). **Không đổi 
 | `ma_lo` | Mã lô, VD `T0748LA`. Ký tự đầu **T** → ký hiệu A, **D** → ký hiệu B |
 | `ky_hieu` | `A` hoặc `B`. **Máy tự suy ra**, không nhập tay |
 | `so_bao_vao` | Tổng số bao đầu vào. Được phép để trống |
-| `kl_vao` | **Tổng khối lượng đầu vào (kg)** — công nhân tự nhập. Là MẪU SỐ để tính tỉ lệ thu hồi. Nhập lúc tạo lô, hoặc bổ sung sau ở màn hình "Xem trước kết quả". Cột này nằm ở **cuối bảng** vì được thêm sau khi đã có dữ liệu thật |
+| `kl_vao` | **Tổng khối lượng đầu vào (kg)** — người vận hành tự nhập. Là MẪU SỐ để tính tỉ lệ thu hồi. Nhập lúc tạo lô, hoặc bổ sung sau ở màn hình "Xem trước kết quả". Cột này nằm ở **cuối bảng** vì được thêm sau khi đã có dữ liệu thật |
 | `trang_thai` | `DANG_CHAY` / `DA_DONG` |
 | `ghi_chu` | Ghi chú tự do |
 | `nguoi_mo` | Mã NV người tạo lô |
@@ -37,7 +37,7 @@ Hệ thống tự tạo **7 sheet** (bản 1.5 thêm `CHI_SO`). **Không đổi 
 > **Hai cột `so_bao_ra` / `kl_ra` là bản đếm sẵn cho nhanh, không phải số liệu gốc.**
 > Số liệu gốc luôn là sheet `BAO`. Trước bản 1.5, màn hình danh sách lô đọc toàn bộ
 > sheet `BAO` chỉ để đếm hai con số này — với 250.000 dòng thì đó là 3,25 triệu ô cho
-> một màn hình công nhân mở liên tục trong ca.
+> một màn hình người vận hành mở liên tục trong ca.
 > Nghi hai cột này lệch thì chạy menu ⚙️ → **🔧 Dựng lại bảng đếm & chỉ số**.
 
 > Muốn thống kê nhập sẵn danh sách mã lô: thêm dòng vào sheet này với
@@ -52,8 +52,8 @@ Hệ thống tự tạo **7 sheet** (bản 1.5 thêm `CHI_SO`). **Không đổi 
 | `id` | Mã duy nhất của dòng (máy sinh) |
 | `ma_lo` | Thuộc lô nào |
 | `ky_hieu` | `A` / `B`, chép từ lô |
-| `loai` | `1` / `2` / `3` — công nhân chọn |
-| `stt_bao` | Số thứ tự bao, công nhân tự đánh. **Không trùng trong cùng (ký hiệu + loại)** |
+| `loai` | `1` / `2` / `3` — người vận hành chọn |
+| `stt_bao` | Số thứ tự bao, người vận hành tự đánh. **Không trùng trong cùng (ký hiệu + loại)** |
 | `khoi_luong` | kg, trong khoảng cấu hình (mặc định 1–100) |
 | `phien` | Mã phiên làm việc — dùng để CHỐT CA theo từng lượt nhập |
 | `trang_thai` | `DANG_NHAP` (còn sửa được) / `DA_CHOT` (đã khoá) |
@@ -71,11 +71,11 @@ Hệ thống tự tạo **7 sheet** (bản 1.5 thêm `CHI_SO`). **Không đổi 
 3. Lô còn `DANG_CHAY`
 4. Nhập chưa quá `TU_KHOA_SAU_GIO` giờ (mặc định 12h)
 
-→ Công nhân **không sửa được số liệu của nhau** và **không sửa được số liệu cũ**,
+→ Người vận hành **không sửa được số liệu của nhau** và **không sửa được số liệu cũ**,
 kể cả khi quên bấm CHỐT CA (điều kiện 4 lo phần này).
 
 **CHỐT CA** khoá **toàn bộ** bao còn treo của người đó **trong lô đang mở** — kể cả bao
-sót lại từ ca trước. Bao ở **lô khác** đang nhập dở **không bị đụng tới** (công nhân có
+sót lại từ ca trước. Bao ở **lô khác** đang nhập dở **không bị đụng tới** (người vận hành có
 chạy nhiều lô song song — Andy xác nhận 20/08/2026).
 
 Để không còn dòng "mồ côi", mỗi lần chốt ca máy còn quét dọn thêm những bao của người đó
@@ -166,14 +166,14 @@ Hoặc chạy hàm `caiTriggerTongHop` một lần để nó tự chạy mỗi g
 
 Mỗi lần lưu bao, máy phải trả lời *"số bao này đã ai dùng chưa"*. Trước bản 1.5 nó trả
 lời bằng cách đọc **toàn bộ** sheet `BAO`. Ở nhịp 1000 bao/ngày, sau 1 năm là 250.000
-dòng — tức 3,25 triệu ô cho một thao tác mà công nhân đang đứng chờ.
+dòng — tức 3,25 triệu ô cho một thao tác mà người vận hành đang đứng chờ.
 
 Với bảng này, máy chỉ cần so với `stt_max`:
 
 - Số bao mới **lớn hơn** `stt_max` → chắc chắn chưa ai dùng, **khỏi đọc sheet `BAO`**.
   Đây là gần như 100% trường hợp thật, vì máy điền sẵn số tăng dần.
 - Số bao mới **nhỏ hơn hoặc bằng** → mới quét sheet `BAO` để dò. Đó đúng là tình huống
-  công nhân tự gõ một số cũ, tức tình huống cần bắt.
+  người vận hành tự gõ một số cũ, tức tình huống cần bắt.
 
 ### Vì sao không được sửa tay
 
@@ -211,10 +211,10 @@ Có hai lưới an toàn:
 
 **Ba giới hạn trên là do tôi đặt thêm, ngoài yêu cầu ban đầu — Andy đọc kỹ chỗ này:**
 
-1. **Công nhân không xoá được lô có bao của người khác.** Yêu cầu gốc nói "người tạo lô
+1. **Người vận hành không xoá được lô có bao của người khác.** Yêu cầu gốc nói "người tạo lô
    xoá được", nhưng hệ thống này có một lời hứa từ đầu là *"không sửa số liệu của nhau"*.
    Cho phép người tạo lô xoá cả phần đồng nghiệp đã nhập là phá lời hứa đó. Quản lý vẫn xoá được.
-2. **Công nhân không xoá được lô đã có bao CHỐT CA.** Chốt ca nghĩa là *"khoá vĩnh viễn"*.
+2. **Người vận hành không xoá được lô đã có bao CHỐT CA.** Chốt ca nghĩa là *"khoá vĩnh viễn"*.
    Nếu xoá lô bỏ qua được, câu đó không còn đúng nữa. Quản lý vẫn xoá được.
 3. **Lô đã ĐÓNG thì không ai sửa/xoá được**, kể cả quản lý. Muốn sửa thì mở lại lô trước
    (menu ⚙️ Máy 1 buồng → 🔓 Mở lại 1 lô), để việc mở lại có dấu vết riêng trong nhật ký.
@@ -231,7 +231,7 @@ và giữ nguyên mọi thứ**, không sửa nửa vời.
 
 **Xoá lô làm gì bên dưới:** chụp toàn bộ số liệu của lô vào sheet `LOG` (từng bao: nhóm, số bao,
 khối lượng, người nhập) **trước khi** xoá, rồi mới xoá dòng lô và toàn bộ bao. Xoá xong vẫn tra
-được lô đó từng có gì. Công nhân phải **gõ lại đúng mã lô** để xác nhận.
+được lô đó từng có gì. Người vận hành phải **gõ lại đúng mã lô** để xác nhận.
 
 ---
 
@@ -248,7 +248,7 @@ tỉ lệ hao hụt = 100% − (tỉ lệ L1 + tỉ lệ L2 + tỉ lệ L3)
 ```
 
 Phép trừ thực hiện trên các số **đã làm tròn 2 số lẻ**, để 4 con số hiện trên màn hình
-cộng lại đúng bằng 100% — công nhân nhẩm lại được, không thấy lệch vô lý.
+cộng lại đúng bằng 100% — người vận hành nhẩm lại được, không thấy lệch vô lý.
 
 **Cảnh báo (chỉ cảnh báo, KHÔNG chặn đóng lô):**
 

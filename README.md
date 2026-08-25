@@ -3,7 +3,7 @@
 > **Phiên bản hiện tại:** 1.6 · Chạy trên Google Apps Script  
 > **Trạng thái:** 431 kiểm thử xanh · Bản 1.5 đang chạy thật · Bản 1.6 chưa dán lên Apps Script  
 
-Hệ thống giúp công nhân ghi chép số bao / khối lượng từ điện thoại Android giá rẻ,
+Hệ thống giúp người vận hành ghi chép số bao / khối lượng từ điện thoại Android giá rẻ,
 thay thế hoàn toàn sổ giấy. Thống kê xem báo cáo trực tiếp trên Google Sheets.
 
 ---

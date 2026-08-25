@@ -1,6 +1,6 @@
 # TIẾN ĐỘ & BÀN GIAO — Máy 1 buồng
 
-**Cập nhật: 25/08/2026 · bản 1.6.3 — ĐỦ CẢ BỐN ĐỢT A, B, C, D · mã nguồn đã vào git**
+**Cập nhật: 25/08/2026 · bản 1.7 — GÓI 1 (giao diện) đã xong · bản 1.6 ĐANG CHẠY THẬT**
 
 File này dành cho việc **tiếp tục công việc ở một phiên trò chuyện mới**.
 Nó KHÔNG lặp lại nội dung đã có ở `0_DOC_TRUOC.md` (lịch sử phiên bản, danh sách lỗi đã sửa,
@@ -23,45 +23,42 @@ mô tả tính năng) — đọc file đó trước, rồi đọc file này đ�
 
 | Hạng mục | Tình trạng |
 |---|---|
-| Phiên bản | **1.6.3 — đủ 6/6 yêu cầu.** Mốc git mới nhất `v1.6.3` (không còn đóng gói zip; Andy chốt 22/08/2026 chỉ sửa thẳng vào thư mục) |
-| Đã deploy lên Google chưa | **Bản 1.5 đang chạy thật, Andy xác nhận OK (22/08/2026).** Bản 1.6 **CHƯA dán lên Apps Script** |
+| Phiên bản | **1.7 — Gói 1 (giao diện) xong**, xây trên nền 1.6 đủ 6/6 yêu cầu. Không còn đóng gói zip; mốc phiên bản nằm trong git |
+| Đã deploy lên Google chưa | **Bản 1.6 ĐANG CHẠY THẬT.** Andy xác nhận 25/08/2026: chính Andy, người vận hành và quản lý đã chạy thử nhiều lô, **chưa phát hiện lỗi nào**. Gói 1 của bản 1.7 **CHƯA dán** |
 | Kiểm thử logic | **431 đạt / 0 lỗi** — chạy `bash cong_cu/chay_kiemthu.sh` |
 | Kiểm thử giao diện (Playwright) | ❌ **Chưa chạy lại được** từ bản 1.1. File `9_KIEMTHU_GIAODIEN.js.txt` ghi cứng đường dẫn Chromium của máy Linux (`/opt/pw-browsers/…`) |
-| Thử tay giao diện | ✅ **Đã bấm tay qua trình duyệt ngày 22/08/2026** — 12 luồng cho bản 1.5 (mục 1d), cộng các luồng mới của từng đợt 1.6 (mục 1e–1h) |
+| Thử tay giao diện | ✅ **Đã bấm tay qua trình duyệt** — 12 luồng bản 1.5 (mục 1d), các luồng của từng đợt 1.6 (mục 1e–1h), và 8 luồng của Gói 1 bản 1.7 (mục 1j) |
 | Số file đã đổi ở bản 1.6 | **9/11** — chỉ `03_Auth.gs` và `appsscript.json` giữ nguyên |
 | Nhịp sản xuất thật | Andy xác nhận 21/08/2026: **200–500 bao/ngày, thiết kế an toàn cho 1000 bao/ngày**. Bao nặng **1–200 kg** |
 | Git / GitHub | ✅ **Có từ 25/08/2026** — `github.com/andyNV-lang/May-1-buong`, nhánh `main` + `dev`, mốc `v1.6.0` → `v1.6.3`. Xem mục **4b** |
 
-### 🔴 VIỆC TIẾP THEO — dán bản 1.6 lên Google
+### 🔴 VIỆC TIẾP THEO — dán GÓI 1 của bản 1.7 lên Google
 
-Bản 1.6 **đã xong đủ 6/6 yêu cầu Andy đưa ngày 22/08/2026**, 431 kiểm thử xanh, đã bấm
-tay qua trình duyệt. **Chưa dán lên Apps Script.** Trên máy sản xuất vẫn là bản 1.5.
+Bản 1.6 đã chạy thật và ổn định. Gói 1 của bản 1.7 (ý tưởng 1 + 2 + 3 Andy đưa ngày
+25/08/2026) đã xong, 431 kiểm thử vẫn xanh, đã bấm tay 8 luồng trên bản mô phỏng.
 
-**Trước khi dán — việc chỉ Andy làm được:** đổi mã PIN của `QL01` (Bùi Thế Hiếu). Bản 1.6
-cho vai `QUAN_LY` **xoá được số liệu đã chốt**, mà PIN 4 số hiện tại đã lộ trong một ảnh
-chụp gửi qua mạng. Nhân tiện xem lại `CN02`, `CN03`, `TK01` đang để PIN `0000`.
+**Gói 1 KHÔNG đụng cấu trúc dữ liệu** — không thêm cột, không thêm sheet.
+Vì vậy **không phải chạy menu tạo cấu trúc sheet**, không phải điền lại gì cả.
 
-**Dán 9 file** (giữ nguyên `03_Auth.gs` và `appsscript.json`):
+Dán lại **5 file**:
 
-| Dán lại | |
+| Dán lại | Giữ nguyên |
 |---|---|
-| `00_Config.gs` · `01_Util.gs` · `02_Setup.gs` | `04_Api.gs` · `05_Report.gs` · `06_WebApp.gs` |
-| `Index.html` · `Script.html` · `Style.html` | |
+| `02_Setup.gs` · `04_Api.gs` | `00_Config.gs` · `01_Util.gs` · `03_Auth.gs` · `05_Report.gs` · `06_WebApp.gs` |
+| `Index.html` · `Script.html` · `Style.html` | `appsscript.json` |
 
-1. Dán 9 file → 💾 Save.
-2. ⚙️ → **"1. Tạo / kiểm tra cấu trúc sheet"** *(BẮT BUỘC — thêm 1 cột ở sheet `LO`,
-   8 cột ở sheet `BAO`, đặt định dạng cột "Thời gian")*.
-3. ⚙️ → **"🧾 Điền 6 cột xem nhanh (P–U) cho dữ liệu cũ"** *(BẮT BUỘC — bao nhập trước
-   khi nâng cấp sẽ trống 6 cột đó cho tới khi chạy)*.
-4. Chọn hàm `tuKiemTra` → **Run** → phải thấy **tất cả ✅**.
-5. **Deploy → Manage deployments → ✏️ → Version: New version → Deploy.** *Bắt buộc.*
-   Link `/exec` chạy bản ĐÃ DEPLOY, không tự lấy code mới.
-6. Công nhân **đóng hẳn app rồi mở lại**. App 1.5 còn mở vẫn chạy được (máy chủ nhận cả
-   kiểu xác nhận cũ), chỉ là không thấy bảng tỉ lệ ở màn hình nhập.
-7. *(Nên)* Trên sheet `BAO`, xoá các cột thừa **từ V trở đi** — Google giới hạn ~10 triệu
-   ô mỗi bảng tính; 250.000 dòng × 26 cột ≈ 6,5 triệu, cắt về 21 cột còn ≈ 5,25 triệu.
+1. Dán 5 file → 💾 Save.
+2. Chạy `tuKiemTra` → phải thấy tất cả ✅.
+3. **Deploy → Manage deployments → ✏️ → Version: New version → Deploy.** *Bắt buộc.*
+4. Người vận hành **đóng hẳn app rồi mở lại**.
 
-Chi tiết từng đợt: mục **1e** (đợt A) · **1f** (B) · **1g** (C) · **1h** (D).
+⚠️ **VIỆC CÒN TREO TỪ BẢN 1.6, CHƯA XÁC NHẬN XONG:** đổi mã PIN của `QL01`
+(Bùi Thế Hiếu). Bản 1.6 cho vai `QUAN_LY` **xoá được số liệu đã chốt**, mà PIN 4 số
+cũ đã lộ trong một ảnh chụp gửi qua mạng — nay bản 1.6 đã chạy thật nên việc này
+**quá hạn**, không còn là việc "trước khi dán". Cũng xem lại `CN02`, `CN03`, `TK01`
+đang để PIN `0000`. *(Phiên 25/08 chưa hỏi lại Andy xem đã đổi chưa.)*
+
+Chi tiết: bản 1.7 Gói 1 ở mục **1j**. Bản 1.6: mục **1e** (đợt A) · **1f** (B) · **1g** (C) · **1h** (D) · **1i** (lỗi vá 25/08).
 
 ---
 
@@ -78,7 +75,8 @@ không phải tự phát hiện lại, và để Andy biết mình đang chấp 
 | 4 | **Quyền `QUAN_LY` gần như không còn giới hạn kỹ thuật** — xoá được lô đã đóng của bất kỳ ai, sửa được mọi bao đã chốt. Chốt chặn còn lại chỉ là **nhật ký**, mà nhật ký chỉ ghi lại chứ không ngăn. Cửa vào là **một mã PIN 4 số** | 🟠 vừa — Andy đã biết và chấp nhận |
 | 5 | **Menu "Điền 6 cột xem nhanh" chưa thử ở quy mô thật.** Đường chia mẻ + mốc nhớ viết cho 250.000 dòng nhưng chỉ chạy trên vài chục dòng — nhánh "hết giờ, lưu mốc, chạy lại" **chưa từng thực sự xảy ra** | 🟡 thấp |
 | 6 | **Bảng tổng hợp 19 cột trên điện thoại: cuộn sang phải là mất cột "Mã lô"** (tiêu đề dính, cột đầu chưa dính). Ghim cột đầu là ~10 dòng CSS | 🟡 thấp |
-| 7 | **Nút CHỐT CA bị đẩy xuống sâu hơn** ở bản 1.6 (khối kết quả chen vào giữa). Chốt ca là việc hàng ngày, đóng lô thì thỉnh thoảng — đang làm khó cái thường xuyên | 🟡 thấp — chờ Andy bấm thử rồi quyết |
+| 7 | ~~**Nút CHỐT CA bị đẩy xuống sâu hơn** ở bản 1.6~~ → **đỡ một phần ở bản 1.7**: bảng tỉ lệ với người vận hành rút từ 6 dòng còn 3, nút CHỐT CA lên cao hơn. Với Thống kê / Quản lý thì vẫn như cũ (họ cần bảng đầy đủ) | 🟢 đã đỡ — Andy bấm thử rồi nói tiếp |
+| 9 | **Gom bao theo ca dựa vào cặp (`phien`, `trang_thai`), không có mã ca thật.** Chốt ca HAI LẦN trong cùng một lần đăng nhập, cùng một lô → hai khối gộp làm một. Chữa gốc là ghi mốc thời gian chốt lên từng bao, tức thêm cột ở sheet `BAO`. Xem mục **1j** | 🟡 thấp |
 | 8 | **Lỗi `apiSuaBao` sửa ngày 25/08 KHÔNG có ca kiểm thử nào canh.** Sửa đúng 1 dòng mã, không ca nào tái hiện được lỗi cũ — ai viết lại chỗ đó là lỗi quay về lặng lẽ, mà đường lỗi này **không để lại dấu vết trong nhật ký**. Xem mục **1i** | 🟠 vừa |
 
 **Chưa đo lại hiệu năng cho kịch bản mới của đợt C** (quản lý mở nhiều lô liên tiếp,
@@ -495,6 +493,83 @@ Dán lại **9 file**:
 
 ---
 
+## 1j. BẢN 1.7 — GÓI 1: GIAO DIỆN (làm ngày 25/08/2026)
+
+Ba ý tưởng Andy đưa ngày 25/08 sau khi bản 1.6 đã chạy thật ổn định. Gộp một gói vì
+cả ba **chỉ đụng giao diện** — không thêm cột, không thêm sheet, không đổi luật máy chủ.
+
+### Đã làm gì
+
+| # | Việc | File |
+|---|---|---|
+| G1 | **"Công nhân" → "Vận hành máy"** trên mọi chữ hiện ra màn hình + 4 file tài liệu | `Script`, `Index`, `02_Setup`, `04_Api`, 4 file `.md` |
+| G2 | **Ẩn chi tiết từng loại** với người vận hành: chỉ còn *Tổng bao ra · Tổng khối lượng ra · Bụi + hao hụt*. Thống kê / Quản lý vẫn thấy bảng đầy đủ | `Script`, `Style` |
+| G3 | **Danh sách bao gom theo CA**, trong mỗi ca thì bao cùng loại nằm liền nhau | `Script`, `Style` |
+| G4 | **Tô sáng mẻ bao vừa lưu** — bù cho việc bao mới không còn nằm ở đầu danh sách | `Script`, `Style` |
+
+### Ba quyết định cần biết trước khi đọc mã
+
+1. **Mã vai trò `CONG_NHAN` trong sheet `NGUOI_DUNG` GIỮ NGUYÊN.** Chỉ đổi chữ hiển thị
+   (Andy chọn phương án 1A). Đó là *giá trị dữ liệu*, không phải chữ cho người đọc; đổi nó
+   phải sửa mọi dòng trong sheet, mà `chuanVaiTro_` lại âm thầm hạ mọi giá trị lạ về quyền
+   thấp nhất — đổi nửa vời sẽ không báo lỗi gì cả. Đổi được cũng chẳng lợi: không ai nhìn
+   thấy chữ đó. **Đừng "dọn nốt" chỗ này ở phiên sau.**
+
+2. **`xemChiTietLoai()` KHÔNG phải một chốt chặn quyền.** Nó chỉ bớt phân tâm. Mỗi dòng bao
+   trên màn hình vẫn ghi rõ loại của nó, ai cộng lại cũng ra. Muốn giấu thật thì phải cắt
+   ở máy chủ — mà chính máy chủ đang cần số liệu đó để tính tổng, nên cắt cũng vô nghĩa.
+   Hàm dùng **danh sách trắng** giống nút "Xem tổng hợp": gõ sai cột `vai_tro` thì rơi về
+   mức thấy **ít** hơn, không phải nhiều hơn.
+
+3. **Khoá gom ca là cặp (`phien`, `trang_thai`) — KHÔNG có mã ca thật.** Hệ thống không hề
+   ghi "lần chốt ca thứ mấy" lên từng bao: `apiChotCa` chỉ đặt `trang_thai = DA_CHOT`
+   (xem `datTrangThaiBao_`). Cặp này tách đúng trong mọi tình huống thật — người khác nhập,
+   lần đăng nhập khác, và **chốt ca xong nhập tiếp trong cùng lần đăng nhập** (đã bấm tay
+   xác nhận). Chỗ duy nhất gộp nhầm: **chốt ca hai lần trong cùng một lần đăng nhập, cùng
+   một lô**. Xem nợ số 9 ở mục 1a.
+
+### ⚠️ Chỗ nguy hiểm nhất của gói này
+
+`htmlDongBao(b, i)` nhận **vị trí trong `S.dsBao`**, và nút ✎ dùng đúng số đó để biết sửa
+bao nào. Gom nhóm rồi **đánh số lại theo thứ tự hiển thị là sửa nhầm bao** — mà nhầm ở đây
+thì không có gì báo cho biết. Nên `htmlDsBaoTheoCa` gánh theo cặp `{b, i}` với `i` là vị trí
+GỐC. Đã bấm tay kiểm chứng cả 4 chỉ số (xem bảng thử bên dưới).
+
+### Kiểm thử
+
+**431 đạt / 0 lỗi — KHÔNG THÊM CA NÀO.** Nói thẳng: bộ kiểm thử **không canh được gì**
+cho gói này, vì cả 431 ca đều là phía máy chủ còn gói này thuần giao diện. Đây đúng là
+**nợ kỹ thuật số 1**. Bằng chứng duy nhất là bấm tay ở bảng dưới.
+
+Ca duy nhất chạm tới máy chủ là chữ trong nhật ký `BAO_LOI_BO` (`04_Api.gs`) — không ca
+kiểm thử nào so chuỗi đó nên vẫn xanh.
+
+### Thử tay trên bản mô phỏng — đã làm
+
+| Thử gì | Kết quả |
+|---|---|
+| Màn hình chọn tên hiện *"CN01 · Vận hành máy"* | ✅ |
+| Người vận hành: bảng kết quả chỉ còn 3 dòng (bao ra · kg ra · bụi + hao hụt) | ✅ |
+| **Quản lý** mở cùng lô đó: bảng đầy đủ 4 loại + tỉ lệ thu hồi | ✅ đối chứng |
+| **Thống kê** mở cùng lô đó: bảng đầy đủ | ✅ đối chứng |
+| Nhập đan xen loại 1 → 2 → 1 → 3, hiển thị gom thành A1, A1, A2, A3 | ✅ |
+| **Nút ✎ mở đúng bao** dù chỉ số hiển thị là 3, 1, 2, 0 | ✅ kiểm cả 4 |
+| Chốt ca rồi nhập tiếp **trong cùng lần đăng nhập** → tách thành 2 khối | ✅ |
+| Khối cũ (lần đăng nhập khác) vẫn là khối riêng thứ 3 | ✅ |
+| Bao vừa lưu được tô nền xanh nhạt, tìm thấy ngay trong danh sách đã xếp lại | ✅ |
+| Màn hình **chi tiết lô** cũng gom theo ca (dùng chung hàm) | ✅ |
+
+Một lỗi hiển thị nhỏ đã sửa trong lúc thử: dấu cách sau 🔒 / ▶ bị **flex nuốt mất**
+(khoảng trắng đầu/cuối của text node trong flex container bị cắt) → đổi sang `&nbsp;`.
+
+### Dán lên Google
+
+Dán lại **5 file**: `02_Setup.gs`, `04_Api.gs`, `Index.html`, `Script.html`, `Style.html`.
+**Không cần** chạy menu tạo cấu trúc sheet. Vẫn phải **Deploy → New version**, và người
+vận hành **đóng hẳn app rồi mở lại**.
+
+---
+
 ## 1i. BẢN 1.6.1 — lỗi `apiSuaBao` làm hỏng số liệu (sửa ngày 25/08/2026)
 
 Lỗi này **do chính đợt C sinh ra**, chỉ lộ ra sau khi bản 1.6 đã coi như xong.
@@ -607,6 +682,8 @@ Ghi để phiên sau biết **thứ tự nhân quả**, không phải để khoe
 | **25/08 sáng** | **Sửa lỗi `apiSuaBao` làm hỏng số liệu khi quản lý sửa bao mồ côi** — lỗi do đợt C sinh ra | mốc `v1.6.1` · mục **1i** · ⚠️ **không viết ca kiểm thử nào**, cũng **không cập nhật file này** — nợ số 8 |
 | **25/08 trưa** | Viết `4_CACH_LAM_VIEC.md` — sổ tay quy trình sửa/nâng cấp cho người không phải lập trình viên | mốc `v1.6.2` |
 | **25/08 chiều** | **Đưa dự án vào git, đẩy lên GitHub.** Thêm `README.md`, `claude.md` (luật làm việc cho AI), nâng cấp `.gitignore` — chặn luôn `*.zip` | mốc `v1.6.3` · `github.com/andyNV-lang/May-1-buong` |
+| **25/08 chiều** | **Andy xác nhận bản 1.6 đã chạy thật, ổn định** — Andy, người vận hành và quản lý đã nhập thử nhiều lô, chưa thấy lỗi. Andy đưa **4 ý tưởng cải tiến**, tôi phân tích ưu/nhược từng cái | Andy chốt: 1A · 2B · 3C · 4.1 giữ 2 ký tự cuối nếu có · 4.2B |
+| **25/08 chiều** | **Làm GÓI 1 (giao diện)**: đổi cách gọi vai trò, ẩn chi tiết loại theo vai, gom bao theo ca | **bản 1.7 Gói 1** · mục **1j** · 431 kiểm thử vẫn xanh (không ca nào canh được gói này) |
 | **25/08 chiều** | **Rà lại git + vá tài liệu.** Chạy lại kiểm thử để lấy bằng chứng cho mốc, gắn `v1.6.3` kèm ghi chú xác minh, đẩy mốc lên GitHub | **431 đạt / 0 lỗi** · vá lại chính file này cho khớp mã nguồn (mục 1i, 4b, nợ số 8) |
 
 ### Ba việc phiên 21/08 cố tình KHÔNG làm — đừng tưởng là bỏ sót

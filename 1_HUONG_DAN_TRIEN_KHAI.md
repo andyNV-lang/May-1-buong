@@ -99,7 +99,7 @@ Kết quả: **7 sheet** được tạo — `NGUOI_DUNG`, `LO`, `BAO`, `LOG`, `C
 
 ---
 
-## BƯỚC 5 — Nhập danh sách công nhân
+## BƯỚC 5 — Nhập danh sách người vận hành
 
 Mở sheet **`NGUOI_DUNG`**, điền từ dòng 2:
 
@@ -129,16 +129,16 @@ Mở sheet **`NGUOI_DUNG`**, điền từ dòng 2:
 4. Điền:
    - **Description**: `Ban 1.0`
    - **Execute as**: **Me (email của bạn)** ← bắt buộc
-   - **Who has access**: **Anyone** ← bắt buộc (công nhân không có tài khoản Google)
+   - **Who has access**: **Anyone** ← bắt buộc (người vận hành không có tài khoản Google)
 5. Bấm **Deploy** → cấp quyền nếu được hỏi.
-6. Copy **Web app URL** — đây là link gửi cho công nhân.
+6. Copy **Web app URL** — đây là link gửi cho người vận hành.
 
 > 🔒 **Vì sao chọn "Anyone" mà vẫn an toàn:** ai có link chỉ thấy màn hình nhập PIN.
 > Không có mã PIN thì không vào được. Đây là mức bảo vệ phù hợp cho nội bộ nhà máy.
 >
-> ⚠️ **TUYỆT ĐỐI KHÔNG chia sẻ file Google Sheets cho công nhân.** Nếu họ vào được
+> ⚠️ **TUYỆT ĐỐI KHÔNG chia sẻ file Google Sheets cho người vận hành.** Nếu họ vào được
 > Sheets, mọi phân quyền trong app đều vô nghĩa. App truy cập Sheets bằng tài khoản
-> của bạn nên công nhân **không cần** quyền gì trên file Sheets.
+> của bạn nên người vận hành **không cần** quyền gì trên file Sheets.
 
 ---
 
@@ -166,7 +166,7 @@ Từ bản 1.5 hàm này canh thêm 4 thứ, mỗi thứ đều là một lỗi 
 
 ---
 
-## BƯỚC 8 — Cài lên điện thoại công nhân
+## BƯỚC 8 — Cài lên điện thoại người vận hành
 
 Gửi link qua Zalo cho từng người, rồi làm trên máy họ:
 
@@ -196,7 +196,7 @@ Từ đó sheet `TONG_HOP_LO` tự làm mới mỗi **15 phút**, chị thống 
 
 | Việc | Ai làm | Ở đâu |
 |---|---|---|
-| Tạo lô, nhập bao, chốt ca | Công nhân | App trên điện thoại |
+| Tạo lô, nhập bao, chốt ca | Người vận hành | App trên điện thoại |
 | Xem dữ liệu thô | Thống kê | Sheet `BAO` |
 | Xem tổng hợp theo lô | Thống kê | Sheet `TONG_HOP_LO` hoặc nút trong app |
 | Xem ai đã nhập/sửa/xoá gì | Andy | Sheet `LOG` |
@@ -219,13 +219,13 @@ Từ đó sheet `TONG_HOP_LO` tự làm mới mỗi **15 phút**, chị thống 
 | Sửa code xong app không đổi | Phải **Deploy → Manage deployments → ✏️ → Version: New version → Deploy** |
 | Nâng cấp lên bản 1.3 mà app báo lỗi cột | Sheet `LO` thiếu cột mới `kl_vao`. Chạy **⚙️ Máy 1 buồng → 1. Tạo / kiểm tra cấu trúc sheet** một lần, dữ liệu cũ giữ nguyên |
 | **Nâng cấp lên 1.5: danh sách lô hiện 0 bao cho mọi lô cũ** | Chưa chạy BƯỚC 4 sau khi dán code. Hai cột đếm sẵn `so_bao_ra`/`kl_ra` còn trống. Chạy **⚙️ → 1. Tạo / kiểm tra cấu trúc sheet**, hoặc **⚙️ → 🔧 Dựng lại bảng đếm & chỉ số** |
-| **Nâng cấp lên 1.5: bấm ĐÓNG LÔ thì báo "Chưa xác nhận đúng mã lô"** | App trên điện thoại còn là bản cũ, không có ô gõ xác nhận. Bảo công nhân **đóng hẳn app rồi mở lại**. Dữ liệu không mất gì |
+| **Nâng cấp lên 1.5: bấm ĐÓNG LÔ thì báo "Chưa xác nhận đúng mã lô"** | App trên điện thoại còn là bản cũ, không có ô gõ xác nhận. Bảo người vận hành **đóng hẳn app rồi mở lại**. Dữ liệu không mất gì |
 | **`tuKiemTra` báo đỏ "Bảng chỉ số CHI_SO"** | Chạy **⚙️ → 🔧 Dựng lại bảng đếm & chỉ số**. Nếu tái diễn: có ai đang sửa tay vào sheet `CHI_SO` — sheet đó máy tự quản, đừng đụng vào |
 | **`tuKiemTra` báo đỏ "Múi giờ project"** | Vào ⚙️ Project Settings trong Apps Script, đặt lại Time zone thành **(GMT+07:00) Bangkok, Hanoi, Jakarta** |
-| **Công nhân báo bao trên 100 kg không nhập được** | Sheet `CAU_HINH` → `KL_MAX` → đổi thành `200`. Có hiệu lực ngay, không cần deploy lại |
+| **Người vận hành báo bao trên 100 kg không nhập được** | Sheet `CAU_HINH` → `KL_MAX` → đổi thành `200`. Có hiệu lực ngay, không cần deploy lại |
 | Màn hình kết quả hiện toàn dấu `—` | Lô đó chưa có khối lượng đầu vào. Nhập vào ô trên cùng rồi bấm LƯU |
 | "Hệ thống đang bận" | Hai người bấm lưu cùng lúc. Bấm lại sau 2–3 giây |
-| Công nhân quên PIN | Andy mở sheet `NGUOI_DUNG` đổi PIN mới |
+| Người vận hành quên PIN | Andy mở sheet `NGUOI_DUNG` đổi PIN mới |
 
 ---
 
@@ -240,5 +240,5 @@ Từ đó sheet `TONG_HOP_LO` tự làm mới mỗi **15 phút**, chị thống 
    bảo mật cấp cao. Ai xem được sheet là xem được PIN — nên chỉ Andy giữ quyền vào Sheets.
 4. **Google Sheets chậm dần khi vượt ~50.000 dòng** ở sheet `BAO`. Với ~50 bao/ngày thì
    khoảng 3 năm mới tới ngưỡng. Khi tới, tạo file mới theo năm.
-5. Số lượt chạy Apps Script/ngày có giới hạn theo loại tài khoản. Với 3–10 công nhân
+5. Số lượt chạy Apps Script/ngày có giới hạn theo loại tài khoản. Với 3–10 người vận hành
    thì không chạm ngưỡng; nếu mở rộng lên vài chục người cần theo dõi lại.

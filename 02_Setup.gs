@@ -149,7 +149,7 @@ function taoCauTrucSheet() {
 
   SpreadsheetApp.getUi().alert(
     'KẾT QUẢ TẠO CẤU TRÚC\n\n' + ketQua.join('\n') +
-    '\n\nBƯỚC TIẾP THEO: mở sheet NGUOI_DUNG và nhập danh sách công nhân + mã PIN.'
+    '\n\nBƯỚC TIẾP THEO: mở sheet NGUOI_DUNG và nhập danh sách người vận hành máy + mã PIN.'
   );
 }
 
@@ -181,8 +181,8 @@ function taoDuLieuMau() {
   }
 
   ghiMau_(SHEETS.NGUOI_DUNG, [
-    { ma_nv: 'CN01', ten: 'Công nhân 1', pin: '1111', vai_tro: VAI_TRO.CONG_NHAN, dang_dung: 'CO' },
-    { ma_nv: 'CN02', ten: 'Công nhân 2', pin: '2222', vai_tro: VAI_TRO.CONG_NHAN, dang_dung: 'CO' },
+    { ma_nv: 'CN01', ten: 'Vận hành 1', pin: '1111', vai_tro: VAI_TRO.CONG_NHAN, dang_dung: 'CO' },
+    { ma_nv: 'CN02', ten: 'Vận hành 2', pin: '2222', vai_tro: VAI_TRO.CONG_NHAN, dang_dung: 'CO' },
     { ma_nv: 'TK01', ten: 'Thống kê',    pin: '9999', vai_tro: VAI_TRO.THONG_KE,  dang_dung: 'CO' },
     { ma_nv: 'QL01', ten: 'Quản lý',     pin: '8888', vai_tro: VAI_TRO.QUAN_LY,   dang_dung: 'CO' }
   ]);
@@ -196,7 +196,7 @@ function taoDuLieuMau() {
       trang_thai: LO_TRANG_THAI.DANG_CHAY, nguoi_mo: 'CN01', tg_mo: bayGio_() }
   ]);
 
-  ui.alert('Đã tạo dữ liệu mẫu.\n\nPIN thử: 1111 (Công nhân 1), 2222 (Công nhân 2),\n9999 (Thống kê), 8888 (Quản lý).\n\n⚠️ NHỚ ĐỔI PIN trước khi dùng thật.');
+  ui.alert('Đã tạo dữ liệu mẫu.\n\nPIN thử: 1111 (Vận hành 1), 2222 (Vận hành 2),\n9999 (Thống kê), 8888 (Quản lý).\n\n⚠️ NHỚ ĐỔI PIN trước khi dùng thật.');
 }
 
 /** Xoá sạch dữ liệu nghiệp vụ, giữ nguyên cấu trúc và người dùng. */

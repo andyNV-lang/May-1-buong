@@ -704,7 +704,7 @@ function apiGhiBaoLoi(ve, duLieu, lyDo, hanhDong) {
     ghiLog_(nd, bo ? 'BAO_LOI_BO' : 'BAO_LOI_TREO', SHEETS.BAO,
             String(duLieu.client_id || ''),
             mota,
-            bo ? '(công nhân bỏ hẳn, không nhập lại)' : '(đang treo ở khay chờ xử lý)',
+            bo ? '(người vận hành bỏ hẳn, không nhập lại)' : '(đang treo ở khay chờ xử lý)',
             'Máy chủ từ chối: ' + String(lyDo || ''));
 
     return ok_({ da_ghi: true, bo: bo });

@@ -373,6 +373,30 @@ input[type=number]{-moz-appearance:textfield;}
 .bang-kq tr.bui td.ti-le{font-size:22px;color:var(--xanh-la);}
 .bang-kq tr.bui.lech td{background:#fef7e0;border-top-color:var(--cam);}
 .bang-kq tr.bui.lech td.ti-le{color:#b06000;}
+/* ---------- Đầu khối CA trong danh sách bao (bản 1.7, ý tưởng 3) ----------
+   Bao gom theo ca nên phải có vạch ngăn rõ, nếu không hai ca dính vào nhau
+   trông như một. Nền xám đậm cho ca ĐANG NHẬP, nhạt hơn cho ca đã chốt. */
+.dau-ca{
+  margin:14px 0 7px;padding:8px 11px;border-radius:9px;
+  background:var(--xanh-dam);color:#fff;
+}
+.dau-ca.da-chot{background:#e8eaed;color:var(--xam-chu);}
+.dau-ca-ten{font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px;}
+.dau-ca-tt{
+  margin-left:auto;font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;
+  background:rgba(255,255,255,.22);
+}
+.dau-ca.da-chot .dau-ca-tt{background:rgba(0,0,0,.08);}
+.dau-ca-phu{font-size:13px;opacity:.9;margin-top:2px;font-variant-numeric:tabular-nums;}
+
+/* Mẻ bao VỪA LƯU. Danh sách gom theo ca nên bao mới không còn nằm ở đầu —
+   không tô sáng thì người vận hành phải đi tìm bao mình vừa nhập. */
+.dong-bao.vua-luu{background:#eef8f0;}
+
+/* Bảng rút gọn cho người vận hành máy (bản 1.7, ý tưởng 2): 2 cột, không tiêu đề. */
+.bang-kq-gon td:first-child{font-weight:700;}
+.bang-kq-gon tr.bui td:first-child{font-weight:800;}
+
 /* ---------- Sửa / xoá lô ---------- */
 .khu-quan-ly-lo{display:flex;gap:8px;margin:14px 0 4px;}
 .nut-nho-vien{

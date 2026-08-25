@@ -27,6 +27,7 @@ var S = {
   ketQua: null,
   duocSuaLo: false,
   laQuanLy: false,
+  vuaLuu: {},          // id các bao của MẺ VỪA LƯU — xem htmlDsBaoTheoCa
   dsLoDong: [],
   dsTongHop: [],
   veTu: 'ChonLo',      // màn hình nào đã mở CHI TIẾT LÔ — để nút Quay lại về đúng chỗ
@@ -398,7 +399,7 @@ function batDauDangNhap() {
 function nhanVaiTro(v) {
   if (v === 'THONG_KE') return 'Thống kê';
   if (v === 'QUAN_LY') return 'Quản lý';
-  return 'Công nhân';
+  return 'Vận hành máy';
 }
 
 function chonNguoi(viTri) {
@@ -802,7 +803,9 @@ function taiLaiLo(maLo, imLang) {
  */
 function htmlDongBao(b, i) {
   var khoa = !b.sua_duoc;
-  return '<div class="dong-bao' + (khoa ? ' khoa' : '') + '" data-loai="' + escapeHtml(b.loai) + '">' +
+  var moi = (S.vuaLuu && S.vuaLuu[String(b.id)]) ? ' vua-luu' : '';
+  return '<div class="dong-bao' + (khoa ? ' khoa' : '') + moi +
+         '" data-loai="' + escapeHtml(b.loai) + '">' +
            '<div class="nhom">' + escapeHtml(String(b.ky_hieu) + String(b.loai)) + '</div>' +
            '<div class="giua"><div class="stt">Bao ' + escapeHtml(b.stt_bao) + '</div>' +
              '<div class="meta">' + escapeHtml(b.ten_nguoi_nhap) + ' · ' +
@@ -813,6 +816,86 @@ function htmlDongBao(b, i) {
               ? '<div class="khoa-icon">🔒</div>'
               : '<button class="sua" onclick="moSuaBao(' + i + ')">✎</button>') +
          '</div>';
+}
+
+/*
+ * Danh sách bao GOM THEO CA (bản 1.7 — Andy chốt 25/08/2026, ý tưởng 3 / 3C).
+ *
+ * ⚠️ ĐỌC KỸ CHỖ NÀY TRƯỚC KHI SỬA — khoá gom là cặp (phien, trang_thai), KHÔNG phải
+ * một mã ca riêng. Lý do: hệ thống KHÔNG hề ghi "lần chốt ca thứ mấy" lên từng bao —
+ * apiChotCa chỉ đặt trang_thai = DA_CHOT (xem datTrangThaiBao_ trong 01_Util.gs).
+ *
+ * Cặp (phien, trang_thai) tách ĐÚNG trong mọi tình huống thật:
+ *   - người khác nhập            -> phien khác  (phien = mã NV + giờ đăng nhập)
+ *   - lần đăng nhập khác         -> phien khác
+ *   - chốt ca xong nhập tiếp
+ *     trong CÙNG lần đăng nhập   -> trang_thai tách hai khối ra
+ *
+ * CHỖ DUY NHẤT nó gộp nhầm: chốt ca HAI LẦN trong cùng một lần đăng nhập, cùng một
+ * lô — hai khối đó đều mang DA_CHOT nên nhập làm một khối. Muốn tách tuyệt đối thì
+ * phải ghi thêm mốc thời gian chốt lên từng bao, tức THÊM CỘT ở sheet BAO. Chưa làm.
+ *
+ * Trong mỗi khối: bao CÙNG LOẠI nằm liền nhau, rồi theo số bao tăng dần.
+ * Giữa các khối: khối có bao mới nhất lên trên, để khối đang nhập luôn ở đầu màn hình.
+ *
+ * ⚠️ Chỉ số truyền cho htmlDongBao phải là VỊ TRÍ GỐC trong S.dsBao, KHÔNG phải vị
+ * trí sau khi sắp xếp — nút ✎ dùng đúng chỉ số này để biết sửa bao nào. Sắp xếp rồi
+ * đánh số lại là sửa nhầm bao, mà nhầm ở đây thì không có gì báo cho biết.
+ */
+function htmlDsBaoTheoCa(dsBao) {
+  if (!dsBao || !dsBao.length) return '';
+
+  var khoi = [], theoKhoa = {};
+
+  dsBao.forEach(function (b, i) {
+    var k = String(b.phien || '') + '|' + String(b.trang_thai || '');
+    if (!theoKhoa[k]) {
+      theoKhoa[k] = {
+        ds: [], kl: 0,
+        ten: b.ten_nguoi_nhap || b.nguoi_nhap || '—',
+        daChot: (String(b.trang_thai).toUpperCase() === 'DA_CHOT'),
+        tgDau: String(b.tg_nhap || ''), tgCuoi: String(b.tg_nhap || '')
+      };
+      khoi.push(theoKhoa[k]);
+    }
+    var o = theoKhoa[k];
+    o.ds.push({ b: b, i: i });          // i = vị trí GỐC, xem ghi chú trên
+    o.kl += Number(b.khoi_luong) || 0;
+    var tg = String(b.tg_nhap || '');
+    if (tg) {
+      if (!o.tgDau  || tg < o.tgDau)  o.tgDau  = tg;
+      if (!o.tgCuoi || tg > o.tgCuoi) o.tgCuoi = tg;
+    }
+  });
+
+  khoi.sort(function (a, b) { return String(b.tgCuoi).localeCompare(String(a.tgCuoi)); });
+
+  var h = '';
+  khoi.forEach(function (k) {
+    k.ds.sort(function (x, y) {
+      var lx = String(x.b.loai), ly = String(y.b.loai);
+      if (lx !== ly) return lx < ly ? -1 : 1;
+      return (Number(x.b.stt_bao) || 0) - (Number(y.b.stt_bao) || 0);
+    });
+
+    var gio = gioNgan(k.tgDau) + (gioNgan(k.tgCuoi) !== gioNgan(k.tgDau)
+                                    ? ' → ' + gioNgan(k.tgCuoi) : '');
+    h += '<div class="dau-ca' + (k.daChot ? ' da-chot' : '') + '">' +
+           '<div class="dau-ca-ten">' + (k.daChot ? '🔒&nbsp;' : '▶&nbsp;') + escapeHtml(k.ten) +
+             '<span class="dau-ca-tt">' + (k.daChot ? 'đã chốt ca' : 'đang nhập') + '</span>' +
+           '</div>' +
+           '<div class="dau-ca-phu">' + escapeHtml(gio) + ' · ' + k.ds.length +
+             ' bao · ' + tron2(k.kl) + ' kg</div>' +
+         '</div>';
+
+    k.ds.forEach(function (x) { h += htmlDongBao(x.b, x.i); });
+  });
+  return h;
+}
+
+/* "2026-08-25 06:12:33" -> "08-25 06:12". Cùng cách cắt đã dùng ở htmlDongBao. */
+function gioNgan(tg) {
+  return String(tg || '').substring(5, 16);
 }
 
 function veDanhSachBao() {
@@ -861,7 +944,7 @@ function veDanhSachBao() {
 
   // Truyền VỊ TRÍ trong danh sách, không ghép giá trị vào onclick — cùng nguyên tắc
   // đã áp cho nút chọn tên và nút chọn lô ở bản 1.2.
-  S.dsBao.forEach(function (b, i) { h += htmlDongBao(b, i); });
+  h += htmlDsBaoTheoCa(S.dsBao);
 
   if (!tongBao) {
     h = '<p class="ghi-chu-mo">Chưa có bao nào. Chọn Loại rồi nhập khối lượng.</p>';
@@ -1009,7 +1092,11 @@ function luuBao() {
       }
 
       // Cập nhật tại chỗ, KHÔNG gọi lại máy chủ -> cả mẻ chỉ tốn 1 lượt mạng.
+      // Đánh dấu mẻ vừa lưu: từ bản 1.7 danh sách gom theo CA nên bao mới KHÔNG còn
+      // nằm ở đầu danh sách nữa, phải tô sáng thì người vận hành mới tìm thấy nó.
+      S.vuaLuu = {};
       (kq.data.da_luu || []).forEach(function (b) {
+        S.vuaLuu[String(b.id)] = true;
         S.dsBao.unshift({
           id: b.id, loai: b.loai, ky_hieu: b.ky_hieu,
           stt_bao: b.stt_bao, khoi_luong: b.khoi_luong,
@@ -1551,7 +1638,42 @@ function phanTram(v) {
  * Dòng "Bụi + hao hụt" nằm NGAY DƯỚI ba loại (Andy chốt 22/08/2026): chỉ có tỉ lệ,
  * không có số bao / khối lượng — đây là phần TÍNH RA (100% − thu hồi), không ai cân nó.
  */
+/*
+ * Ai được xem CHI TIẾT TỪNG LOẠI (bản 1.7 — Andy chốt 25/08/2026, ý tưởng 2 / 2B).
+ *
+ * Người vận hành máy chỉ cần 3 con số: tổng bao ra, tổng kg ra, bụi + hao hụt.
+ * Chi tiết từng loại làm họ phân tâm giữa lúc đang nhập, mà nhập bao mới là việc
+ * của họ. Thống kê và Quản lý vẫn thấy đủ.
+ *
+ * ⚠️ Đây là chuyện BỚT PHÂN TÂM, KHÔNG phải chuyện giữ bí mật. Mỗi dòng bao trên
+ * màn hình vẫn ghi rõ loại của nó, ai cộng lại cũng ra. Muốn giấu thật thì phải cắt
+ * ngay ở máy chủ — mà chính máy chủ đang cần số liệu đó để tính tổng, nên cắt cũng
+ * vô nghĩa. Đừng nhầm hàm này với một chốt chặn quyền.
+ *
+ * Dùng DANH SÁCH TRẮNG giống chỗ nút "Xem tổng hợp": gõ sai cột vai_tro trong sheet
+ * thì rơi về mức thấy ÍT hơn, không phải nhiều hơn.
+ */
+function xemChiTietLoai() {
+  var v = S.nguoiDung ? String(S.nguoiDung.vai_tro || '') : '';
+  return (v === 'THONG_KE' || v === 'QUAN_LY');
+}
+
+/* Bảng rút gọn cho người vận hành máy: đúng 3 con số Andy chốt. */
+function htmlBangTiLeGon(d) {
+  return '<table class="bang-kq bang-kq-gon"><tbody>' +
+           '<tr class="tong"><td>Tổng bao ra</td>' +
+             '<td class="so">' + d.tong_so_bao_ra + '</td></tr>' +
+           '<tr class="tong"><td>Tổng khối lượng ra</td>' +
+             '<td class="so">' + d.tong_kl_ra + ' kg</td></tr>' +
+           '<tr class="bui' + (d.canh_bao ? ' lech' : '') + '">' +
+             '<td>Bụi + hao hụt</td>' +
+             '<td class="ti-le">' + phanTram(d.ti_le_hao_hut) + '</td>' +
+           '</tr></tbody></table>';
+}
+
 function htmlBangTiLe(d) {
+  if (!xemChiTietLoai()) return htmlBangTiLeGon(d);
+
   var h = '<table class="bang-kq"><thead><tr>' +
           '<th>Loại</th><th>Số bao</th><th>Khối lượng</th><th>Tỉ lệ thu hồi</th>' +
           '</tr></thead><tbody>';
@@ -1763,8 +1885,7 @@ function veChiTietLo() {
     dongTT('Mở lúc', String(lo.tg_mo || '—').substring(0, 16)) +
     (daDong ? dongTT('Đóng lúc', String(lo.tg_dong || '—').substring(0, 16)) : '');
 
-  var h = '';
-  S.dsBao.forEach(function (b, i) { h += htmlDongBao(b, i); });
+  var h = htmlDsBaoTheoCa(S.dsBao);
   $('ctDsBao').innerHTML = h || '<p class="ghi-chu-mo">Lô này không có bao nào.</p>';
 
   if (S.laQuanLy) {
