@@ -1,0 +1,2149 @@
+<script>
+/* ============================================================
+   Máy 1 buồng — Logic phía điện thoại
+   Không dùng thư viện ngoài => chạy được cả khi mạng yếu.
+   ============================================================ */
+
+var KHOA = { VE: 'm1b_ve', PHIEN: 'm1b_phien', HANG_DOI: 'm1b_hangdoi',
+             KHAY_LOI: 'm1b_khayloi' };
+
+var S = {
+  ve: null,
+  nguoiDung: null,
+  phien: null,
+  cauHinh: { KL_MIN: 1, KL_MAX: 100, SO_LE: 1, TIEN_TO_A: 'T', TIEN_TO_B: 'D',
+             SO_BAO_MOI_LAN: 20, HAO_HUT_MIN: 20, HAO_HUT_MAX: 30 },
+  dsNguoiDung: [],
+  maNvDangChon: null,
+  tenDangChon: '',
+  pin: '',
+  pinDoDai: 4,
+  dsLo: [],
+  lo: null,
+  dsBao: [],
+  goiYStt: {},
+  loaiDangChon: null,
+  baoDangSua: null,
+  ketQua: null,
+  duocSuaLo: false,
+  laQuanLy: false,
+  dsLoDong: [],
+  dsTongHop: [],
+  veTu: 'ChonLo',      // màn hình nào đã mở CHI TIẾT LÔ — để nút Quay lại về đúng chỗ
+  manHinh: 'DangNhap',
+  dangGui: false
+};
+
+/* ============================================================
+   TIỆN ÍCH
+   ============================================================ */
+
+function $(id) { return document.getElementById(id); }
+function hien(id) { $(id).classList.remove('an'); }
+function an(id) { $(id).classList.add('an'); }
+
+function luuLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function docLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function xoaLocal(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+var _toastTimer = null;
+function toast(text, mau) {
+  var t = $('toast');
+  t.textContent = text;
+  t.className = 'toast' + (mau ? ' ' + mau : '');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function () { t.classList.add('an'); }, 2800);
+}
+
+function cho(bat) { if (bat) hien('manCho'); else an('manCho'); }
+
+function hienLoi(idO, text) {
+  var o = $(idO);
+  o.textContent = text;
+  o.classList.remove('an');
+}
+function anLoi(idO) { $(idO).classList.add('an'); }
+
+function rung(ms) { try { if (navigator.vibrate) navigator.vibrate(ms || 40); } catch (e) {} }
+
+/**
+ * Đổi chuỗi người dùng gõ thành số.
+ * Chấp nhận dấu PHẨY thập phân — bàn phím số tiếng Việt trên iPhone/Android
+ * cho ra dấu "," chứ không phải "." khi gõ 49,8.
+ */
+function soTu(v) {
+  var s = String(v === null || v === undefined ? '' : v).trim().replace(/\s/g, '');
+  if (s === '') return NaN;
+  s = s.replace(',', '.');
+  if (!/^\d*\.?\d+$/.test(s)) return NaN;
+  return Number(s);
+}
+
+/**
+ * Bản khách của soLonTu_ trên máy chủ — HIỂU DẤU PHÂN CÁCH NGHÌN.
+ * Chỉ dùng cho ô KHỐI LƯỢNG ĐẦU VÀO CẢ LÔ. Ô khối lượng từng BAO vẫn dùng soTu(),
+ * nơi dấu phẩy luôn là dấu thập phân ("49,8" = 49.8 kg).
+ * Máy chủ soát lại lần nữa bằng docKlVao_ — bản này chỉ để hiện ngay cho công nhân thấy.
+ */
+function soLonTu(v) {
+  var s = String(v === null || v === undefined ? '' : v).trim().replace(/\s/g, '');
+  if (s === '') return NaN;
+  if (!/^[0-9.,]+$/.test(s)) return NaN;
+
+  var coCham = s.indexOf('.') >= 0, coPhay = s.indexOf(',') >= 0;
+  var dauNghin = '', dauLe = '';
+  if (coCham && coPhay) {
+    dauLe = (s.lastIndexOf('.') > s.lastIndexOf(',')) ? '.' : ',';
+    dauNghin = (dauLe === '.') ? ',' : '.';
+  } else if (coCham || coPhay) {
+    var d = coCham ? '.' : ',';
+    if (s.split(d).length - 1 >= 2) dauNghin = d;
+    else {
+      var sau = s.substring(s.indexOf(d) + 1);
+      if (/^\d{3}$/.test(sau) && s.indexOf(d) > 0) dauNghin = d; else dauLe = d;
+    }
+  }
+  var nguyen = s, le = '';
+  if (dauLe) {
+    var vt = s.lastIndexOf(dauLe);
+    nguyen = s.substring(0, vt); le = s.substring(vt + 1);
+    if (!/^\d+$/.test(le)) return NaN;
+  }
+  if (dauNghin) {
+    var nhom = nguyen.split(dauNghin);
+    if (nhom.length < 2 || !/^\d{1,3}$/.test(nhom[0])) return NaN;
+    for (var i = 1; i < nhom.length; i++) if (!/^\d{3}$/.test(nhom[i])) return NaN;
+    nguyen = nhom.join('');
+  }
+  if (!/^\d+$/.test(nguyen)) return NaN;
+  var kq = Number(nguyen + (le ? '.' + le : ''));
+  return isNaN(kq) ? NaN : kq;
+}
+
+/** Số kg hiện lại cho dễ đọc: 1000 -> "1.000". */
+function kgDeDoc(n) {
+  var s = String(n);
+  var p = s.split('.');
+  p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return p.join(',');
+}
+
+/**
+ * Hiện lại NGAY con số máy đã hiểu, dưới ô khối lượng đầu vào.
+ * Đây mới là chốt chặn thật: quy tắc đoán dấu phân cách nghìn kiểu gì cũng có ngoại
+ * lệ, nên phải để công nhân nhìn thấy số máy hiểu TRƯỚC khi bấm lưu.
+ */
+function echoKlVao(idO, idEcho) {
+  var o = document.getElementById(idEcho);
+  var v = String(document.getElementById(idO).value || '').trim();
+  if (!v) { o.className = 'xem-ky-hieu'; o.textContent = 'Máy sẽ hiểu: —'; return; }
+  var n = soLonTu(v);
+  if (isNaN(n) || n <= 0) {
+    o.className = 'xem-ky-hieu sai';
+    o.textContent = '✕ Không đọc được "' + v + '". Gõ 1000 hoặc 1.000';
+  } else {
+    o.className = 'xem-ky-hieu dung';
+    o.textContent = '✓ Máy hiểu: ' + kgDeDoc(n) + ' kg';
+  }
+}
+
+/**
+ * Gọi hàm máy chủ, trả về Promise.
+ * - resolve: máy chủ trả lời (kể cả lỗi nghiệp vụ {ok:false})
+ * - reject : KHÔNG gọi được máy chủ (mất mạng / script lỗi)
+ */
+function goi(ten, args) {
+  return new Promise(function (res, rej) {
+    var r = google.script.run
+      .withSuccessHandler(function (kq) { res(kq); })
+      .withFailureHandler(function (err) {
+        rej({ mangLoi: true, message: (err && err.message) ? err.message : 'Không kết nối được máy chủ' });
+      });
+    r[ten].apply(r, args || []);
+  });
+}
+
+/** Xử lý chung khi máy chủ báo phiên hết hạn. */
+function kiemTraPhien(kq) {
+  if (kq && !kq.ok && kq.code === 'PHIEN_HET_HAN') {
+    toast('Phiên hết hạn, đăng nhập lại', 'do');
+    dangXuat(true);
+    return true;
+  }
+  return false;
+}
+
+/* ============================================================
+   HÀNG ĐỢI OFFLINE
+   ============================================================ */
+
+function layHangDoi() {
+  try { return JSON.parse(docLocal(KHOA.HANG_DOI) || '[]'); } catch (e) { return []; }
+}
+function luuHangDoi(hd) { luuLocal(KHOA.HANG_DOI, JSON.stringify(hd)); }
+
+function themVaoHangDoi(item) {
+  var hd = layHangDoi();
+  hd.push(item);
+  luuHangDoi(hd);
+  veTrangThai();
+}
+
+/* ============================================================
+   KHAY BAO LỖI — bao máy chủ TỪ CHỐI, chờ công nhân xử lý
+
+   Trước bản 1.5 những bao này bị xoá thẳng khỏi hàng đợi, chỉ báo bằng một dòng
+   chữ chạy 2,8 giây. Công nhân đang cầm bao, không nhìn màn hình, là mất hẳn.
+   Từ 1.5: bao đó nằm lại đây, có dải đỏ hiện THƯỜNG TRỰC cho tới khi được xử lý,
+   và mọi lần bỏ hẳn đều ghi vào nhật ký trên Google Sheets.
+   ============================================================ */
+
+function layKhayLoi() {
+  try { return JSON.parse(docLocal(KHOA.KHAY_LOI) || '[]'); } catch (e) { return []; }
+}
+function luuKhayLoi(k) { luuLocal(KHOA.KHAY_LOI, JSON.stringify(k)); }
+
+function themVaoKhayLoi(item, lyDo) {
+  var k = layKhayLoi();
+  item = item || {};
+  item.ly_do = String(lyDo || 'Máy chủ từ chối');
+  item.luc = new Date().toISOString().substring(0, 19).replace('T', ' ');
+  k.push(item);
+  luuKhayLoi(k);
+  veTrangThai();
+  // Ghi nhật ký ngay để trên Google Sheets có dấu vết, kể cả khi công nhân
+  // chưa xử lý gì. Hỏng bước này cũng không được làm hỏng việc chính.
+  if (S.ve) {
+    goi('apiGhiBaoLoi', [S.ve, item, item.ly_do, 'TREO']).catch(function () {});
+  }
+}
+
+function veTrangThai() {
+  var hd = layHangDoi();
+  var kl = layKhayLoi();
+  var d = $('daiTrangThai');
+
+  // Khay lỗi ưu tiên cao nhất: đây là số liệu ĐANG CÓ NGUY CƠ MẤT.
+  if (kl.length > 0) {
+    d.className = 'loi';
+    d.textContent = '❗ ' + kl.length + ' bao KHÔNG gửi lên được — bấm để xử lý ngay';
+    d.onclick = moKhayLoi;
+    d.classList.remove('an');
+    return;
+  }
+  if (hd.length > 0) {
+    d.className = 'cho';
+    d.textContent = '⏳ ' + hd.length + ' bao chưa gửi được — sẽ tự gửi lại khi có mạng. Bấm để thử ngay.';
+    d.onclick = function () { xuLyHangDoi(true); };
+    d.classList.remove('an');
+  } else if (!navigator.onLine) {
+    d.className = 'loi';
+    d.textContent = '⚠️ Đang mất mạng — vẫn nhập được, dữ liệu lưu tạm trong máy.';
+    d.onclick = null;
+    d.classList.remove('an');
+  } else {
+    d.classList.add('an');
+    d.onclick = null;
+  }
+}
+
+var _dangXuLyHangDoi = false;
+function xuLyHangDoi(hienThongBao) {
+  if (_dangXuLyHangDoi || !S.ve || !S.nguoiDung) return;
+  var hd = layHangDoi();
+  if (!hd.length) return;
+  if (!navigator.onLine) {
+    if (hienThongBao) toast('Vẫn chưa có mạng', 'do');
+    return;
+  }
+
+  var item = hd[0];
+
+  // CHỐT CHẶN: không gửi dữ liệu của người khác bằng tài khoản đang đăng nhập.
+  // Nếu không có bước này, công nhân A để lại hàng đợi rồi công nhân B đăng nhập
+  // trên cùng điện thoại thì số liệu của A sẽ bị ghi tên B.
+  if (item.ma_nv && item.ma_nv !== S.nguoiDung.ma_nv) {
+    if (hienThongBao) {
+      alert('Còn ' + hd.length + ' bao chưa gửi là của ' + (item.ten_nguoi || item.ma_nv) + '.\n\n' +
+            'Nhờ người đó đăng nhập lại trên chính điện thoại này để gửi lên,\n' +
+            'tránh ghi nhầm tên người nhập.');
+    }
+    return;
+  }
+
+  _dangXuLyHangDoi = true;
+
+  goi('apiLuuBao', [S.ve, item])
+    .then(function (kq) {
+      _dangXuLyHangDoi = false;
+      if (kq && kq.ok) {
+        // Gửi thành công -> bỏ khỏi hàng đợi
+        var l = layHangDoi();
+        l.shift();
+        luuHangDoi(l);
+        veTrangThai();
+        if (S.lo && item.ma_lo === S.lo.ma_lo) taiLaiLo(S.lo.ma_lo, true);
+        xuLyHangDoi();
+      } else if (kq && kq.code === 'PHIEN_HET_HAN') {
+        kiemTraPhien(kq);
+      } else {
+        // Lỗi nghiệp vụ (trùng số bao, lô đã đóng…). Vẫn phải lấy ra khỏi hàng đợi
+        // để không kẹt vĩnh viễn — NHƯNG chuyển sang KHAY BAO LỖI chứ không vứt đi.
+        // Vứt đi chính là đường mất số liệu đã có từ bản 1.1 tới 1.4.
+        var l2 = layHangDoi();
+        var bo = l2.shift();
+        luuHangDoi(l2);
+        themVaoKhayLoi(bo, kq ? kq.error : 'Máy chủ từ chối, không rõ lý do');
+        toast('1 bao không gửi được (STT ' + bo.stt_bao + ') — đã đưa vào khay chờ xử lý', 'do');
+        xuLyHangDoi();
+      }
+    })
+    .catch(function () {
+      _dangXuLyHangDoi = false;
+      if (hienThongBao) toast('Chưa gửi được, sẽ thử lại sau', 'do');
+    });
+}
+
+window.addEventListener('online', function () { veTrangThai(); xuLyHangDoi(); });
+window.addEventListener('offline', veTrangThai);
+setInterval(function () { xuLyHangDoi(); }, 25000);
+
+/* ============================================================
+   KHỞI ĐỘNG
+   ============================================================ */
+
+window.addEventListener('load', function () {
+  veTrangThai();
+  var ve = docLocal(KHOA.VE);
+  if (ve) {
+    cho(true);
+    goi('apiKiemTraVe', [ve])
+      .then(function (kq) {
+        cho(false);
+        if (kq && kq.ok) {
+          S.ve = ve;
+          S.nguoiDung = kq.data.nguoi_dung;
+          S.phien = docLocal(KHOA.PHIEN) || taoPhienMoi();
+          vaoApp();
+        } else {
+          xoaLocal(KHOA.VE);
+          batDauDangNhap();
+        }
+      })
+      .catch(function () { cho(false); batDauDangNhap(); });
+  } else {
+    batDauDangNhap();
+  }
+});
+
+function taoPhienMoi() {
+  var d = new Date();
+  function p(n) { return (n < 10 ? '0' : '') + n; }
+  var s = (S.nguoiDung ? S.nguoiDung.ma_nv : 'NA') + '_' +
+          d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '_' +
+          p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+  luuLocal(KHOA.PHIEN, s);
+  return s;
+}
+
+/* ============================================================
+   ĐĂNG NHẬP
+   ============================================================ */
+
+function batDauDangNhap() {
+  chuyenManHinh('DangNhap');
+  an('thanhTren');
+  hien('buocChonTen');
+  an('buocNhapPin');
+  cho(true);
+  goi('apiDanhSachNguoiDung', [])
+    .then(function (kq) {
+      cho(false);
+      an('taiNguoiDung');
+      if (!kq || !kq.ok) {
+        $('taiNguoiDung').textContent = 'Lỗi tải danh sách: ' + (kq ? kq.error : '');
+        hien('taiNguoiDung');
+        return;
+      }
+      S.dsNguoiDung = kq.data.ds || [];
+      S.pinDoDai = kq.data.pin_do_dai || 4;
+      if (kq.data.ten_may) {
+        var dsTen = document.querySelectorAll('.logo-ten');
+        for (var t = 0; t < dsTen.length; t++) dsTen[t].textContent = kq.data.ten_may;
+        $('tieuDeChinh').textContent = kq.data.ten_may;
+      }
+      if (!S.dsNguoiDung.length) {
+        $('taiNguoiDung').textContent =
+          'Chưa có người dùng nào. Vào Google Sheets → sheet NGUOI_DUNG để thêm.';
+        hien('taiNguoiDung');
+        return;
+      }
+      var h = '';
+      // Truyền VỊ TRÍ trong danh sách, không nhét mã NV thẳng vào onclick:
+      // mã NV do Andy gõ tay vào sheet, chỉ một dấu nháy đơn là hỏng nút đăng nhập.
+      S.dsNguoiDung.forEach(function (u, i) {
+        h += '<button class="nut-nguoi" onclick="chonNguoi(' + i + ')">' +
+             escapeHtml(u.ten) + '<small>' + escapeHtml(u.ma_nv) + ' · ' +
+             nhanVaiTro(u.vai_tro) + '</small></button>';
+      });
+      $('dsNguoiDung').innerHTML = h;
+    })
+    .catch(function (e) {
+      cho(false);
+      $('taiNguoiDung').textContent = 'Không kết nối được máy chủ. Kiểm tra mạng rồi tải lại trang.';
+      hien('taiNguoiDung');
+    });
+}
+
+function nhanVaiTro(v) {
+  if (v === 'THONG_KE') return 'Thống kê';
+  if (v === 'QUAN_LY') return 'Quản lý';
+  return 'Công nhân';
+}
+
+function chonNguoi(viTri) {
+  var u = S.dsNguoiDung[viTri];
+  if (!u) return;
+  S.maNvDangChon = u.ma_nv;
+  S.tenDangChon = u.ten;
+  $('tenDangChon').textContent = S.tenDangChon;
+  S.pin = '';
+  veOPin();
+  anLoi('loiPin');
+  an('buocChonTen');
+  hien('buocNhapPin');
+}
+
+function doiNguoi() {
+  S.pin = '';
+  an('buocNhapPin');
+  hien('buocChonTen');
+}
+
+function veOPin() {
+  var h = '';
+  for (var i = 0; i < S.pinDoDai; i++) {
+    h += '<span class="' + (i < S.pin.length ? 'day' : '') + '"></span>';
+  }
+  $('oPin').innerHTML = h;
+}
+
+function bamPin(so) {
+  if (S.pin.length >= S.pinDoDai) return;
+  S.pin += so;
+  rung(25);
+  veOPin();
+  anLoi('loiPin');
+  if (S.pin.length === S.pinDoDai) setTimeout(guiPin, 120);
+}
+
+function xoaPin() {
+  S.pin = S.pin.slice(0, -1);
+  veOPin();
+  anLoi('loiPin');
+}
+
+function guiPin() {
+  cho(true);
+  goi('apiDangNhap', [S.maNvDangChon, S.pin])
+    .then(function (kq) {
+      cho(false);
+      if (!kq || !kq.ok) {
+        S.pin = '';
+        veOPin();
+        rung([60, 50, 60]);
+        hienLoi('loiPin', kq ? kq.error : 'Lỗi không xác định');
+        return;
+      }
+      S.ve = kq.data.ve;
+      S.nguoiDung = kq.data.nguoi_dung;
+      luuLocal(KHOA.VE, S.ve);
+      S.phien = taoPhienMoi();
+      vaoApp();
+    })
+    .catch(function () {
+      cho(false);
+      S.pin = '';
+      veOPin();
+      hienLoi('loiPin', 'Không kết nối được máy chủ. Kiểm tra mạng.');
+    });
+}
+
+function dangXuat(imLang) {
+  if (!imLang) {
+    var hd = layHangDoi();
+    var kl = layKhayLoi();
+    if (kl.length > 0) {
+      if (!confirm('❗ Còn ' + kl.length + ' bao CHƯA VÀO ĐƯỢC hệ thống.\n' +
+                   'Những bao này KHÔNG có trong số liệu và chỉ nằm trong máy này.\n\n' +
+                   'Nên xử lý trước khi thoát. Vẫn thoát?')) return;
+    } else if (hd.length > 0) {
+      if (!confirm('Còn ' + hd.length + ' bao CHƯA GỬI LÊN máy chủ.\n' +
+                   'Thoát bây giờ vẫn giữ trong máy này, nhưng phải mở lại app trên chính máy này để gửi.\n\nVẫn thoát?')) return;
+    } else if (!confirm('Thoát khỏi app?')) return;
+  }
+  S.ve = null; S.nguoiDung = null; S.pin = '';
+  xoaLocal(KHOA.VE);
+  batDauDangNhap();
+}
+
+/* ============================================================
+   ĐIỀU HƯỚNG
+   ============================================================ */
+
+function chuyenManHinh(ten) {
+  ['DangNhap', 'ChonLo', 'TaoLo', 'NhapBao', 'ThongKe', 'LoDaDong', 'ChiTietLo'].forEach(function (m) {
+    an('mh' + m);
+  });
+  hien('mh' + ten);
+  S.manHinh = ten;
+  window.scrollTo(0, 0);
+
+  // Nút quay lại chỉ hiện ở màn hình con
+  if (ten === 'ChonLo' || ten === 'DangNhap') an('btnQuayLai');
+  else hien('btnQuayLai');
+}
+
+function quayLai() {
+  if (S.manHinh === 'ChiTietLo') { quayLaiTuChiTiet(); return; }
+  if (S.manHinh === 'TaoLo' || S.manHinh === 'NhapBao' ||
+      S.manHinh === 'ThongKe' || S.manHinh === 'LoDaDong') veManHinhLo();
+}
+
+function vaoApp() {
+  hien('thanhTren');
+  $('tieuDePhu').textContent = S.nguoiDung.ten + ' · ' + nhanVaiTro(S.nguoiDung.vai_tro);
+  veManHinhLo();
+}
+
+function veManHinhLo() {
+  chuyenManHinh('ChonLo');
+  taiDanhSachLo();
+}
+
+/* ============================================================
+   DANH SÁCH LÔ
+   ============================================================ */
+
+function taiDanhSachLo() {
+  cho(true);
+  goi('apiTrangChu', [S.ve])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { toast(kq ? kq.error : 'Lỗi tải dữ liệu', 'do'); return; }
+
+      S.cauHinh = kq.data.cau_hinh;
+      S.dsLo = kq.data.ds_lo;
+      $('tieuDeChinh').textContent = S.cauHinh.TEN_MAY;
+
+      var h = '';
+      S.dsLo.forEach(function (l, i) {
+        h += '<div class="the-lo-ds" onclick="moLoTheoViTri(' + i + ')">' +
+               '<div>' +
+                 '<div class="ma">' + escapeHtml(l.ma_lo) + '</div>' +
+                 '<div class="phu">Ký hiệu <b>' + escapeHtml(l.ky_hieu) + '</b>' +
+                   (l.so_bao_vao !== null ? ' · vào ' + l.so_bao_vao + ' bao' : '') +
+                   (l.kl_vao !== null && l.kl_vao !== undefined ? ' · ' + l.kl_vao + ' kg' : '') +
+                   '</div>' +
+               '</div>' +
+               '<div class="so"><b>' + l.so_bao_ra + '</b>bao ra<br>' + l.tong_kl_ra + ' kg</div>' +
+             '</div>';
+      });
+
+      // Nút vào màn hình thống kê — danh sách TRẮNG, khớp với chốt chặn ở máy chủ.
+      // Không dùng "khác CONG_NHAN": gõ sai cột vai_tro trong sheet là lọt.
+      if (S.nguoiDung.vai_tro === 'THONG_KE' || S.nguoiDung.vai_tro === 'QUAN_LY') {
+        h += '<button class="nut-lon nut-xam" style="margin-top:16px" onclick="moThongKe()">📊 Xem tổng hợp theo lô</button>';
+      }
+
+      $('dsLo').innerHTML = h;
+      if (S.dsLo.length) an('khongCoLo'); else hien('khongCoLo');
+      veTrangThai();
+    })
+    .catch(function () {
+      cho(false);
+      toast('Mất kết nối — kéo xuống tải lại', 'do');
+      veTrangThai();
+    });
+}
+
+/* ============================================================
+   TẠO LÔ MỚI
+   ============================================================ */
+
+function moFormTaoLo() {
+  chuyenManHinh('TaoLo');
+  $('inMaLo').value = '';
+  $('inSoBaoVao').value = '';
+  $('inKlVaoMoi').value = '';
+  $('inGhiChuLo').value = '';
+  anLoi('loiTaoLo');
+  echoKlVao('inKlVaoMoi', 'echoKlVaoMoi');
+  xemTruocKyHieu();
+  setTimeout(function () { $('inMaLo').focus(); }, 100);
+}
+
+function xemTruocKyHieu() {
+  var v = ($('inMaLo').value || '').trim().toUpperCase();
+  $('inMaLo').value = v;
+  var o = $('xemKyHieu');
+  if (!v) {
+    o.className = 'xem-ky-hieu';
+    o.textContent = 'Ký hiệu sẽ là: —';
+    return;
+  }
+  var c = v.charAt(0);
+  if (c === String(S.cauHinh.TIEN_TO_A).toUpperCase()) {
+    o.className = 'xem-ky-hieu dung';
+    o.textContent = '✓ Ký hiệu: A  (vì mã lô bắt đầu bằng "' + S.cauHinh.TIEN_TO_A + '")';
+  } else if (c === String(S.cauHinh.TIEN_TO_B).toUpperCase()) {
+    o.className = 'xem-ky-hieu dung';
+    o.textContent = '✓ Ký hiệu: B  (vì mã lô bắt đầu bằng "' + S.cauHinh.TIEN_TO_B + '")';
+  } else {
+    o.className = 'xem-ky-hieu sai';
+    o.textContent = '✕ Mã lô phải bắt đầu bằng "' + S.cauHinh.TIEN_TO_A +
+                    '" hoặc "' + S.cauHinh.TIEN_TO_B + '"';
+  }
+}
+
+function taoLo() {
+  var maLo = ($('inMaLo').value || '').trim().toUpperCase();
+  var soBao = ($('inSoBaoVao').value || '').trim();
+  var klVao = ($('inKlVaoMoi').value || '').trim();
+  var ghiChu = ($('inGhiChuLo').value || '').trim();
+
+  anLoi('loiTaoLo');
+  if (!maLo) { hienLoi('loiTaoLo', 'Chưa nhập mã lô.'); return; }
+  var c = maLo.charAt(0);
+  if (c !== String(S.cauHinh.TIEN_TO_A).toUpperCase() &&
+      c !== String(S.cauHinh.TIEN_TO_B).toUpperCase()) {
+    hienLoi('loiTaoLo', 'Mã lô phải bắt đầu bằng "' + S.cauHinh.TIEN_TO_A +
+                        '" hoặc "' + S.cauHinh.TIEN_TO_B + '".');
+    return;
+  }
+
+  if (klVao) {
+    var kv = soLonTu(klVao);
+    if (isNaN(kv) || kv <= 0) {
+      hienLoi('loiTaoLo', 'Không đọc được khối lượng đầu vào "' + klVao + '".\n' +
+                          'Gõ số thường (VD 1000) hoặc có dấu phân cách nghìn (VD 1.000).');
+      return;
+    }
+  }
+
+  cho(true);
+  goi('apiTaoLo', [S.ve, maLo, soBao, ghiChu, klVao])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiTaoLo', kq ? kq.error : 'Lỗi'); return; }
+      toast('Đã tạo lô ' + kq.data.ma_lo, 'xanh');
+      moLo(kq.data.ma_lo);
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiTaoLo', 'Mất mạng — không tạo được lô mới. Lô mới BẮT BUỘC phải có mạng.');
+    });
+}
+
+/* ============================================================
+   MÀN HÌNH NHẬP BAO
+   ============================================================ */
+
+/**
+ * Mở lô theo VỊ TRÍ trong danh sách, không nhét mã lô thẳng vào onclick.
+ * Bộ phận thống kê được phép gõ tay mã lô vào sheet LO nên mã đó không đi qua
+ * bộ kiểm tra ký tự của apiTaoLo — không chắc sạch.
+ */
+function moLoTheoViTri(i) {
+  var l = S.dsLo[i];
+  if (l) moLo(l.ma_lo);
+}
+
+function moLo(maLo) {
+  chuyenManHinh('NhapBao');
+  S.loaiDangChon = null;
+  capNhatNutLoai();
+  dungLaiDongNhap(1);
+  anLoi('loiNhapBao');
+  an('canhBaoNhapBao');
+  taiLaiLo(maLo);
+}
+
+/* ============================================================
+   CÁC DÒNG NHẬP BAO (nhập nhiều bao cùng lúc)
+   ============================================================ */
+
+function dsDong() {
+  return Array.prototype.slice.call(document.querySelectorAll('#dsDongNhap .dong-nhap'));
+}
+
+function htmlDongNhap(i, stt, kl) {
+  return '<div class="dong-nhap">' +
+           '<div class="so-dong">' + (i + 1) + '</div>' +
+           '<input class="o-stt" type="text" inputmode="numeric" pattern="[0-9]*" ' +
+             'autocomplete="off" placeholder="Số bao" value="' +
+             (stt === undefined || stt === null ? '' : stt) + '">' +
+           '<input class="o-kl" type="text" inputmode="decimal" ' +
+             'autocomplete="off" placeholder="kg" value="' +
+             (kl === undefined || kl === null ? '' : kl) + '">' +
+           '<button class="bo-dong" onclick="boDongNhap(this)" aria-label="Bỏ dòng">✕</button>' +
+         '</div>';
+}
+
+/** Dựng lại toàn bộ các dòng (mất nội dung đang gõ) — chỉ dùng khi mở lô / sau khi lưu xong. */
+function dungLaiDongNhap(soDong) {
+  var h = '';
+  for (var i = 0; i < (soDong || 1); i++) h += htmlDongNhap(i);
+  $('dsDongNhap').innerHTML = h;
+  capNhatSoDong();
+}
+
+function danhSoLaiDong() {
+  dsDong().forEach(function (el, i) { el.querySelector('.so-dong').textContent = i + 1; });
+}
+
+function capNhatSoDong() {
+  var n = dsDong().length;
+  var max = Number(S.cauHinh.SO_BAO_MOI_LAN) || 20;
+  $('demDongNhap').textContent = n;
+  $('btnThemDong').disabled = (n >= max);
+  $('btnThemDong').textContent = (n >= max)
+    ? ('Đã đủ ' + max + ' dòng — bấm LƯU BAO')
+    : '＋ THÊM 1 DÒNG';
+  // Viền trái các dòng mang màu của loại đang chọn
+  var mau = S.loaiDangChon ? ('var(--loai' + S.loaiDangChon + ')') : '';
+  dsDong().forEach(function (el) { el.style.setProperty('--mau-loai', mau); });
+}
+
+/** Thêm 1 dòng, số bao tự nối tiếp dòng trước. Trả về thẻ vừa thêm, hoặc null nếu đã đủ. */
+function themDongNhap() {
+  var ds = dsDong();
+  var max = Number(S.cauHinh.SO_BAO_MOI_LAN) || 20;
+  if (ds.length >= max) { toast('Mỗi lần chỉ nhập tối đa ' + max + ' bao', 'do'); return null; }
+
+  var sttMoi = '';
+  if (ds.length) {
+    var truoc = soTu(ds[ds.length - 1].querySelector('.o-stt').value);
+    if (!isNaN(truoc)) sttMoi = truoc + 1;
+  }
+  var tam = document.createElement('div');
+  tam.innerHTML = htmlDongNhap(ds.length, sttMoi, '');
+  var node = tam.firstChild;
+  $('dsDongNhap').appendChild(node);
+  capNhatSoDong();
+  return node;
+}
+
+function boDongNhap(btn) {
+  var ds = dsDong();
+  if (ds.length <= 1) {           // còn 1 dòng thì chỉ xoá nội dung, luôn giữ lại 1 dòng
+    ds[0].querySelector('.o-stt').value = '';
+    ds[0].querySelector('.o-kl').value = '';
+    return;
+  }
+  btn.parentNode.parentNode.removeChild(btn.parentNode);
+  danhSoLaiDong();
+  capNhatSoDong();
+}
+
+var _luotMoLo = 0;
+
+function taiLaiLo(maLo, imLang) {
+  var luot = ++_luotMoLo;
+  if (!imLang) cho(true);
+  goi('apiMoLo', [S.ve, maLo, S.phien])
+    .then(function (kq) {
+      if (luot !== _luotMoLo) return;   // phản hồi lỗi thời -> bỏ, tránh ghi đè danh sách bao
+      if (!imLang) cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { toast(kq ? kq.error : 'Lỗi', 'do'); return; }
+
+      S.lo = kq.data.lo;
+      S.dsBao = kq.data.ds_bao;
+      S.goiYStt = kq.data.goi_y_stt;
+      S.duocSuaLo = !!kq.data.duoc_sua_lo;
+      S.laQuanLy = !!kq.data.la_quan_ly;
+      S.ketQua = kq.data.ket_qua || null;
+
+      // Màn hình CHI TIẾT LÔ dùng chung đúng dữ liệu này (bản 1.6) — nhờ vậy mọi hộp
+      // thoại sửa bao / sửa mã lô / xoá lô chạy được ở cả hai màn hình mà không sửa gì.
+      if (S.manHinh === 'ChiTietLo') { veChiTietLo(); return; }
+
+      if (S.duocSuaLo) hien('khuQuanLyLo'); else an('khuQuanLyLo');
+
+      $('loMa').textContent = S.lo.ma_lo;
+      $('loPhu').textContent = 'Ký hiệu ' + S.lo.ky_hieu +
+        (S.lo.so_bao_vao !== null ? ' · vào ' + S.lo.so_bao_vao + ' bao' : '') +
+        (S.lo.kl_vao !== null && S.lo.kl_vao !== undefined ? ' · ' + S.lo.kl_vao + ' kg' : '');
+
+      ['1', '2', '3'].forEach(function (l) {
+        $('nhanLoai' + l).textContent = S.lo.ky_hieu + l;
+      });
+
+      veDanhSachBao();
+      veKetQua(S.ketQua);   // bảng tỉ lệ đi kèm apiMoLo, không tốn lượt gọi thứ hai
+      if (S.loaiDangChon) datGoiYStt(S.loaiDangChon, false);
+    })
+    .catch(function () {
+      if (!imLang) cho(false);
+      toast('Mất mạng — vẫn nhập được, dữ liệu chờ gửi', 'do');
+      veTrangThai();
+    });
+}
+
+/*
+ * Một dòng bao. Dùng chung cho màn hình NHẬP LIỆU và màn hình CHI TIẾT LÔ (bản 1.6);
+ * cả hai đều đọc từ S.dsBao nên chỉ số i truyền vào moSuaBao là như nhau.
+ *
+ * Với quản lý, máy chủ trả sua_duoc = true cho MỌI bao (kể cả bao đã chốt của người
+ * khác, kể cả lô đã đóng) — nên nút ✎ hiện ra, và hộp thoại sẽ bắt gõ lý do.
+ */
+function htmlDongBao(b, i) {
+  var khoa = !b.sua_duoc;
+  return '<div class="dong-bao' + (khoa ? ' khoa' : '') + '" data-loai="' + escapeHtml(b.loai) + '">' +
+           '<div class="nhom">' + escapeHtml(String(b.ky_hieu) + String(b.loai)) + '</div>' +
+           '<div class="giua"><div class="stt">Bao ' + escapeHtml(b.stt_bao) + '</div>' +
+             '<div class="meta">' + escapeHtml(b.ten_nguoi_nhap) + ' · ' +
+             escapeHtml(String(b.tg_nhap).substring(5, 16)) +
+             (b.trang_thai === 'DA_CHOT' ? ' · đã chốt' : '') + '</div></div>' +
+           '<div class="kl">' + escapeHtml(b.khoi_luong) + '</div>' +
+           (khoa
+              ? '<div class="khoa-icon">🔒</div>'
+              : '<button class="sua" onclick="moSuaBao(' + i + ')">✎</button>') +
+         '</div>';
+}
+
+function veDanhSachBao() {
+  // Gộp thêm các bao đang nằm trong hàng đợi của lô này
+  var hd = layHangDoi().filter(function (i) { return S.lo && i.ma_lo === S.lo.ma_lo; });
+
+  /*
+   * Bao còn trong hàng đợi hoặc trong khay lỗi thì CHƯA có trong số liệu máy chủ,
+   * nên bảng tỉ lệ ngay bên dưới đang thiếu đúng phần đó.
+   *
+   * Trước bản 1.6, chỗ này được xử bằng cách CHẶN không cho xem kết quả. Nay bảng nằm
+   * thường trực trên màn hình nhập nên không chặn được nữa — phải nói thẳng ra.
+   * Chốt ca và đóng lô thì VẪN chặn như cũ (xem chanVaoKhayLoi).
+   */
+  var kl = layKhayLoi().filter(function (i) { return S.lo && i.ma_lo === S.lo.ma_lo; });
+  if (hd.length || kl.length) {
+    var ms = [];
+    if (hd.length) ms.push(hd.length + ' bao chưa gửi lên máy chủ');
+    if (kl.length) ms.push(kl.length + ' bao chưa vào được hệ thống');
+    $('canhBaoTamTinh').textContent =
+      '⚠️ Còn ' + ms.join(' và ') + ' — tỉ lệ bên dưới CHƯA tính phần này.';
+    hien('canhBaoTamTinh');
+  } else {
+    an('canhBaoTamTinh');
+  }
+
+  var tongBao = S.dsBao.length + hd.length;
+  var tongKl = 0;
+  S.dsBao.forEach(function (b) { tongKl += Number(b.khoi_luong) || 0; });
+  hd.forEach(function (b) { tongKl += Number(b.khoi_luong) || 0; });
+
+  $('loSoBao').textContent = tongBao;
+  $('demBao').textContent = tongBao;
+
+  var h = '';
+
+  hd.forEach(function (b) {
+    h += '<div class="dong-bao khoa" data-loai="' + escapeHtml(b.loai) + '">' +
+           '<div class="nhom">' + escapeHtml((S.lo ? S.lo.ky_hieu : '') + b.loai) + '</div>' +
+           '<div class="giua"><div class="stt">Bao ' + escapeHtml(b.stt_bao) + '</div>' +
+             '<div class="meta">⏳ chờ gửi lên máy chủ</div></div>' +
+           '<div class="kl">' + escapeHtml(b.khoi_luong) + '</div>' +
+           '<div class="khoa-icon">⏳</div>' +
+         '</div>';
+  });
+
+  // Truyền VỊ TRÍ trong danh sách, không ghép giá trị vào onclick — cùng nguyên tắc
+  // đã áp cho nút chọn tên và nút chọn lô ở bản 1.2.
+  S.dsBao.forEach(function (b, i) { h += htmlDongBao(b, i); });
+
+  if (!tongBao) {
+    h = '<p class="ghi-chu-mo">Chưa có bao nào. Chọn Loại rồi nhập khối lượng.</p>';
+  }
+  $('dsBao').innerHTML = h;
+}
+
+function chonLoai(l) {
+  S.loaiDangChon = l;
+  rung(25);
+  capNhatNutLoai();
+  dungLaiDongNhap(1);       // đổi loại thì dải số bao khác hẳn, làm lại từ 1 dòng
+  datGoiYStt(l, true);
+  anLoi('loiNhapBao');
+  an('canhBaoNhapBao');
+  var d = dsDong()[0];
+  if (d) setTimeout(function () { d.querySelector('.o-kl').focus(); }, 60);
+}
+
+function capNhatNutLoai() {
+  var ds = document.querySelectorAll('.nut-loai');
+  for (var i = 0; i < ds.length; i++) {
+    if (ds[i].getAttribute('data-loai') === S.loaiDangChon) ds[i].classList.add('chon');
+    else ds[i].classList.remove('chon');
+  }
+}
+
+/**
+ * Đặt gợi ý số bao cho loại đang chọn.
+ * Có tính cả các bao đang nằm trong hàng đợi offline, nếu không thì khi mất mạng
+ * mà đổi loại qua lại sẽ gợi ý trùng số bao.
+ */
+function datGoiYStt(l, ep) {
+  var g = (S.goiYStt && S.goiYStt[l] !== undefined && S.goiYStt[l] !== null)
+            ? Number(S.goiYStt[l]) : null;
+
+  var kh = S.lo ? S.lo.ky_hieu : '';
+  layHangDoi().forEach(function (i) {
+    if (i.loai !== l) return;
+    if (i.ky_hieu && kh && i.ky_hieu !== kh) return;
+    if (!i.ky_hieu && i.ma_lo !== (S.lo ? S.lo.ma_lo : '')) return;
+    var tiep = Number(i.stt_bao) + 1;
+    if (g === null || tiep > g) g = tiep;
+  });
+
+  var ds = dsDong();
+  if (!ds.length) return;
+  var o = ds[0].querySelector('.o-stt');
+  // Chỉ ghi đè khi ĐỔI LOẠI (ep = true). Lúc tải lại lô thì không được đụng vào
+  // số công nhân đang gõ dở.
+  if (ep || !String(o.value).trim()) o.value = (g === null) ? '' : g;
+
+  for (var i = 1; i < ds.length; i++) {
+    var truoc = soTu(ds[i - 1].querySelector('.o-stt').value);
+    var oi = ds[i].querySelector('.o-stt');
+    if (ep || !String(oi.value).trim()) oi.value = isNaN(truoc) ? '' : (truoc + 1);
+  }
+}
+
+function luuBao() {
+  if (S.dangGui) return;
+  anLoi('loiNhapBao');
+  an('canhBaoNhapBao');
+
+  if (!S.lo) { hienLoi('loiNhapBao', 'Chưa mở lô.'); return; }
+  if (!S.loaiDangChon) {
+    hienLoi('loiNhapBao', 'Chưa chọn Loại 1 / 2 / 3.');
+    rung([60, 50, 60]);
+    return;
+  }
+
+  var ds = dsDong();
+  ds.forEach(function (el) {
+    el.querySelector('.o-stt').classList.remove('sai');
+    el.querySelector('.o-kl').classList.remove('sai');
+  });
+
+  /* --- Soát từng dòng ngay tại điện thoại, báo rõ SAI Ở DÒNG NÀO --- */
+  var dong = [], loi = '';
+  for (var i = 0; i < ds.length; i++) {
+    var oS = ds[i].querySelector('.o-stt');
+    var oK = ds[i].querySelector('.o-kl');
+    var vS = String(oS.value || '').trim();
+    var vK = String(oK.value || '').trim();
+
+    if (!vS && !vK) continue;                    // dòng để trống hoàn toàn -> bỏ qua
+
+    var sttN = soTu(vS);
+    if (isNaN(sttN) || sttN <= 0 || sttN !== Math.floor(sttN)) {
+      oS.classList.add('sai');
+      loi = 'Dòng ' + (i + 1) + ': số bao phải là số nguyên dương.';
+      break;
+    }
+    var klN = soTu(vK);
+    if (isNaN(klN)) {
+      oK.classList.add('sai');
+      loi = 'Dòng ' + (i + 1) + ' (bao ' + sttN + '): chưa nhập khối lượng.';
+      break;
+    }
+    if (klN < S.cauHinh.KL_MIN || klN > S.cauHinh.KL_MAX) {
+      oK.classList.add('sai');
+      loi = 'Dòng ' + (i + 1) + ' (bao ' + sttN + '): ' + klN + ' kg ngoài khoảng ' +
+            S.cauHinh.KL_MIN + '–' + S.cauHinh.KL_MAX + ' kg. Kiểm tra lại dấu thập phân.';
+      break;
+    }
+    dong.push({ el: ds[i], stt_bao: sttN, khoi_luong: klN, client_id: taoClientId() });
+  }
+
+  if (loi) { hienLoi('loiNhapBao', loi); rung([60, 50, 60]); return; }
+  if (!dong.length) { hienLoi('loiNhapBao', 'Chưa nhập dòng nào.'); return; }
+
+  // Trùng ngay trong danh sách vừa gõ — bắt tại chỗ, khỏi tốn một lượt gọi mạng
+  var thay = {};
+  for (var k = 0; k < dong.length; k++) {
+    if (thay[dong[k].stt_bao] !== undefined) {
+      dong[k].el.querySelector('.o-stt').classList.add('sai');
+      dong[thay[dong[k].stt_bao]].el.querySelector('.o-stt').classList.add('sai');
+      hienLoi('loiNhapBao', 'Số bao ' + dong[k].stt_bao + ' bị gõ 2 lần (dòng ' +
+              (thay[dong[k].stt_bao] + 1) + ' và dòng ' + (k + 1) + ').');
+      rung([60, 50, 60]);
+      return;
+    }
+    thay[dong[k].stt_bao] = k;
+  }
+
+  var danhSach = dong.map(function (d) {
+    return { stt_bao: d.stt_bao, khoi_luong: d.khoi_luong, client_id: d.client_id };
+  });
+
+  S.dangGui = true;
+  $('btnLuuBao').disabled = true;
+
+  goi('apiLuuNhieuBao', [S.ve, {
+    ma_lo: S.lo.ma_lo, loai: S.loaiDangChon, phien: S.phien, danh_sach: danhSach
+  }])
+    .then(function (kq) {
+      S.dangGui = false;
+      $('btnLuuBao').disabled = false;
+      if (kiemTraPhien(kq)) return;
+
+      if (!kq || !kq.ok) {
+        hienLoi('loiNhapBao', kq ? kq.error : 'Lỗi không xác định');
+        rung([60, 50, 60]);
+        return;
+      }
+
+      // Cập nhật tại chỗ, KHÔNG gọi lại máy chủ -> cả mẻ chỉ tốn 1 lượt mạng.
+      (kq.data.da_luu || []).forEach(function (b) {
+        S.dsBao.unshift({
+          id: b.id, loai: b.loai, ky_hieu: b.ky_hieu,
+          stt_bao: b.stt_bao, khoi_luong: b.khoi_luong,
+          trang_thai: 'DANG_NHAP',
+          nguoi_nhap: S.nguoiDung.ma_nv,
+          ten_nguoi_nhap: kq.data.ten_nguoi_nhap || S.nguoiDung.ten,
+          tg_nhap: b.tg_nhap || '', phien: S.phien, sua_duoc: true
+        });
+      });
+
+      sauKhiLuu(kq.data.da_luu.length, kq.data.tong_kl, kq.data.goi_y_stt_tiep,
+                kq.data.canh_bao, kq.data.bo_qua_trung);
+      veDanhSachBao();
+      capNhatKetQuaTaiCho();   // giữ đúng 1 lượt mạng cho cả mẻ — xem hàm này
+    })
+    .catch(function () {
+      // Mất mạng -> đẩy từng dòng vào hàng đợi, KHÔNG bắt công nhân gõ lại.
+      S.dangGui = false;
+      $('btnLuuBao').disabled = false;
+      var tong = 0;
+      danhSach.forEach(function (d) {
+        themVaoHangDoi({
+          ma_lo: S.lo.ma_lo, ky_hieu: S.lo.ky_hieu, loai: S.loaiDangChon,
+          stt_bao: d.stt_bao, khoi_luong: d.khoi_luong,
+          phien: S.phien, client_id: d.client_id,
+          ma_nv: S.nguoiDung.ma_nv, ten_nguoi: S.nguoiDung.ten
+        });
+        tong += d.khoi_luong;
+      });
+      sauKhiLuu(danhSach.length, Math.round(tong * 10) / 10,
+                danhSach[danhSach.length - 1].stt_bao + 1, '', 0);
+      veDanhSachBao();
+      toast('Mất mạng — đã lưu tạm ' + danhSach.length + ' bao trong máy', 'do');
+    });
+}
+
+function sauKhiLuu(soBao, tongKl, sttTiep, canhBao, boQua) {
+  rung(45);
+  if (canhBao) {
+    $('canhBaoNhapBao').textContent = '⚠️ ' + canhBao;
+    hien('canhBaoNhapBao');
+  }
+  if (boQua) {
+    toast('Bỏ qua ' + boQua + ' bao đã gửi lên trước đó', 'do');
+  } else {
+    toast('✔ Đã lưu ' + soBao + ' bao — ' + tongKl + ' kg', 'xanh');
+  }
+
+  if (S.goiYStt && S.loaiDangChon) S.goiYStt[S.loaiDangChon] = sttTiep;
+
+  // Về lại đúng 1 dòng trống, số bao đã điền sẵn -> gõ tiếp mẻ sau ngay
+  dungLaiDongNhap(1);
+  var d = dsDong()[0];
+  if (d) {
+    d.querySelector('.o-stt').value = (sttTiep === null || sttTiep === undefined) ? '' : sttTiep;
+    setTimeout(function () { d.querySelector('.o-kl').focus(); }, 60);
+  }
+}
+
+function taoClientId() {
+  return 'c' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+}
+
+/*
+ * Enter ở ô khối lượng = xuống dòng mới (số bao tự tăng), KHÔNG lưu ngay.
+ * Nhờ vậy công nhân gõ liền mạch: kg → Enter → kg → Enter … rồi bấm LƯU BAO một lần.
+ * Đủ số dòng tối đa rồi thì Enter mới lưu luôn.
+ */
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter' || S.manHinh !== 'NhapBao') return;
+  var el = document.activeElement;
+  if (!el || !el.classList || !el.classList.contains('o-kl')) return;
+  e.preventDefault();
+  var node = themDongNhap();
+  if (node) node.querySelector('.o-kl').focus();
+  else luuBao();
+});
+
+/* ============================================================
+   SỬA / XOÁ BAO
+   ============================================================ */
+
+function moSuaBao(viTri) {
+  var bao = S.dsBao[viTri];
+  if (!bao) return;
+  if (!bao.sua_duoc) { toast('Bao này đã khoá', 'do'); return; }
+
+  S.baoDangSua = bao;
+  $('tieuDeSua').textContent = 'Sửa bao ' + bao.ky_hieu + bao.loai + ' — STT ' + bao.stt_bao;
+  $('suaStt').value = bao.stt_bao;
+  $('suaKl').value = bao.khoi_luong;
+
+  /* Bản 1.6: quản lý sửa/xoá được cả số liệu đã khoá, nhưng máy chủ bắt gõ lý do.
+     Ô này chỉ hiện với quản lý — công nhân không bao giờ thấy. Máy chủ mới là nơi
+     quyết định lý do có bắt buộc hay không (batLyDo_), giao diện chỉ dọn chỗ để gõ. */
+  $('lyDoBao').value = '';
+  if (S.laQuanLy) hien('khuLyDoBao'); else an('khuLyDoBao');
+
+  anLoi('loiSua');
+  hien('lopPhu');
+}
+
+function dongSuaBao(e) {
+  if (e && e.target && e.target.id !== 'lopPhu') return;
+  an('lopPhu');
+  S.baoDangSua = null;
+}
+
+function luuSuaBao() {
+  if (!S.baoDangSua) return;
+  anLoi('loiSua');
+  var sttN = soTu($('suaStt').value);
+  var klN = soTu($('suaKl').value);
+
+  if (isNaN(sttN) || sttN <= 0 || sttN !== Math.floor(sttN)) {
+    hienLoi('loiSua', 'Số bao phải là số nguyên dương.');
+    return;
+  }
+  if (isNaN(klN) || klN < S.cauHinh.KL_MIN || klN > S.cauHinh.KL_MAX) {
+    hienLoi('loiSua', 'Khối lượng phải trong khoảng ' +
+      S.cauHinh.KL_MIN + '–' + S.cauHinh.KL_MAX + ' kg.');
+    return;
+  }
+
+  cho(true);
+  goi('apiSuaBao', [S.ve, S.baoDangSua.id, sttN, klN, $('lyDoBao').value])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiSua', kq ? kq.error : 'Lỗi'); return; }
+      an('lopPhu');
+      S.baoDangSua = null;
+      toast('Đã sửa', 'xanh');
+      taiLaiLo(S.lo.ma_lo, true);
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiSua', 'Mất mạng — sửa được khi có mạng trở lại.');
+    });
+}
+
+function xoaBao() {
+  if (!S.baoDangSua) return;
+  if (!confirm('XOÁ bao ' + S.baoDangSua.ky_hieu + S.baoDangSua.loai +
+               ' — STT ' + S.baoDangSua.stt_bao + ' (' + S.baoDangSua.khoi_luong + ' kg)?\n\n' +
+               'Thao tác này được ghi vào nhật ký.')) return;
+
+  cho(true);
+  goi('apiXoaBao', [S.ve, S.baoDangSua.id, $('lyDoBao').value])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiSua', kq ? kq.error : 'Lỗi'); return; }
+      an('lopPhu');
+      S.baoDangSua = null;
+      toast('Đã xoá', 'xanh');
+      taiLaiLo(S.lo.ma_lo, true);
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiSua', 'Mất mạng — xoá được khi có mạng trở lại.');
+    });
+}
+
+/* ============================================================
+   CHỐT CA / ĐÓNG LÔ
+   ============================================================ */
+
+/**
+ * Chốt chặn dùng chung: còn bao nằm trong khay lỗi thì KHÔNG cho làm những việc
+ * "chốt sổ" (chốt ca, đóng lô, xem kết quả). Nếu cho qua, công nhân sẽ chốt một
+ * bộ số liệu THIẾU mà tưởng là đủ — rồi chốt ca xong là khoá luôn, hết đường sửa.
+ * @return {boolean} true = đang bị chặn
+ */
+function chanVaoKhayLoi(viec) {
+  var k = layKhayLoi();
+  if (!k.length) return false;
+  toast(k.length + ' bao chưa vào được hệ thống — xử lý xong rồi hãy ' + viec, 'do');
+  moKhayLoi();
+  return true;
+}
+
+/*
+ * Bản 1.6: chốt ca dùng hộp thoại có Ô TÍCH, thay cho confirm() của trình duyệt.
+ * confirm() trên Android hiện một hộp nhỏ với nút OK rơi đúng chỗ ngón cái vừa bấm —
+ * bấm nhầm hai nhịp liên tiếp là khoá mất phần đang nhập dở. Hộp thoại này in rõ
+ * lô nào, bao nhiêu bao, bao nhiêu kg trước khi công nhân tích.
+ */
+function chotCa() {
+  if (chanVaoKhayLoi('chốt ca')) return;
+  var hd = layHangDoi();
+  if (hd.length) {
+    toast('Còn ' + hd.length + ' bao chưa gửi — chờ gửi xong rồi chốt', 'do');
+    xuLyHangDoi(true);
+    return;
+  }
+  if (!S.lo) { toast('Chưa mở lô nào', 'do'); return; }
+
+  // Đếm phần SẼ BỊ KHOÁ để công nhân thấy con số trước khi tích, không tích mù.
+  var soBao = 0, tongKl = 0, toi = String(S.nguoiDung.ma_nv).toUpperCase();
+  S.dsBao.forEach(function (b) {
+    if (b.trang_thai !== 'DANG_NHAP') return;
+    if (String(b.nguoi_nhap || '').toUpperCase() !== toi) return;
+    soBao++;
+    tongKl += Number(b.khoi_luong) || 0;
+  });
+
+  $('maLoChot').textContent = S.lo.ma_lo;
+  $('tomTatChotCa').textContent = soBao
+    ? (soBao + ' bao của bạn sẽ bị khoá — ' + (Math.round(tongKl * 10) / 10) + ' kg')
+    : 'Không thấy bao nào của bạn đang chờ chốt trong lô này.';
+  $('tichChotCa').checked = false;
+  $('btnXacNhanChot').disabled = true;
+  anLoi('loiChotCa');
+  hien('lopChotCa');
+}
+
+function dongHopChotCa(e) {
+  if (e && e.target && e.target.id !== 'lopChotCa') return;
+  an('lopChotCa');
+}
+
+function doiTichChotCa() {
+  var tich = $('tichChotCa').checked;
+  $('btnXacNhanChot').disabled = !tich;
+  if (tich) anLoi('loiChotCa');
+}
+
+function xacNhanChotCa() {
+  if (!S.lo) return;
+  if (!$('tichChotCa').checked) {
+    hienLoi('loiChotCa', 'Hãy tích vào ô xác nhận trước khi bấm CHỐT CA.');
+    rung([60, 50, 60]);
+    return;
+  }
+
+  cho(true);
+  // Tham số thứ 4 là cờ xác nhận của bản 1.6 — máy chủ soát lại lần nữa (apiChotCa).
+  goi('apiChotCa', [S.ve, S.phien, S.lo.ma_lo, 'XAC_NHAN'])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiChotCa', kq ? kq.error : 'Lỗi'); return; }
+      an('lopChotCa');
+      S.phien = taoPhienMoi();
+      var tb = '✔ Đã chốt ' + kq.data.so_bao + ' bao — ' + kq.data.tong_kl + ' kg';
+      if (kq.data.so_bao_lo_khac) {
+        tb += ' (+' + kq.data.so_bao_lo_khac + ' bao quá hạn ở lô cũ)';
+      }
+      toast(tb, 'xanh');
+      taiLaiLo(S.lo.ma_lo, true);
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiChotCa', 'Mất mạng — chốt ca cần có mạng.');
+    });
+}
+
+/*
+ * Đóng lô là thao tác KHOÁ VĨNH VIỄN, mở lại phải nhờ quản lý.
+ * Bản 1.5 bắt gõ lại mã lô; bản 1.6 đổi thành TÍCH Ô (Andy chốt 22/08/2026) vì gõ
+ * lại mã trên điện thoại giữa xưởng quá chậm. Bù lại: mã lô in to ngay trên ô tích,
+ * và nút ĐÓNG LÔ chỉ sáng sau khi đã tích. Máy chủ soát lại lần nữa (apiDongLo).
+ */
+function dongLo() {
+  if (chanVaoKhayLoi('đóng lô')) return;
+  var hd = layHangDoi();
+  if (hd.length) {
+    toast('Còn ' + hd.length + ' bao chưa gửi — chờ gửi xong rồi đóng lô', 'do');
+    xuLyHangDoi(true);
+    return;
+  }
+  if (!S.lo) { toast('Chưa mở lô nào', 'do'); return; }
+
+  var d = S.ketQua;
+  $('maLoDong').textContent = S.lo.ma_lo;
+  $('tomTatDongLo').textContent = (d && d.ma_lo === S.lo.ma_lo)
+    ? ('Lô ' + d.ma_lo + ' — ' + d.tong_so_bao_ra + ' bao ra, ' + d.tong_kl_ra + ' kg' +
+       (d.co_kl_vao
+          ? ' · bụi + hao hụt ' + phanTram(d.ti_le_hao_hut)
+          : ' · CHƯA có khối lượng đầu vào, tỉ lệ thu hồi sẽ để trống'))
+    : ('Lô ' + S.lo.ma_lo);
+  $('tichDongLo').checked = false;
+  $('btnXacNhanDong').disabled = true;
+  anLoi('loiDongLo');
+  hien('lopDongLo');
+}
+
+function dongHopDongLo(e) {
+  if (e && e.target && e.target.id !== 'lopDongLo') return;
+  an('lopDongLo');
+}
+
+function doiTichDongLo() {
+  var tich = $('tichDongLo').checked;
+  $('btnXacNhanDong').disabled = !tich;
+  if (tich) anLoi('loiDongLo');
+}
+
+function xacNhanDongLo() {
+  if (!S.lo) return;
+  anLoi('loiDongLo');
+  if (!$('tichDongLo').checked) {
+    hienLoi('loiDongLo', 'Hãy tích vào ô xác nhận trước khi bấm ĐÓNG LÔ.');
+    rung([60, 50, 60]);
+    return;
+  }
+
+  cho(true);
+  goi('apiDongLo', [S.ve, S.lo.ma_lo, 'XAC_NHAN'])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiDongLo', kq ? kq.error : 'Lỗi'); return; }
+      an('lopDongLo');
+      toast('✔ Đã đóng lô — ' + kq.data.so_bao + ' bao, ' + kq.data.tong_kl + ' kg', 'xanh');
+      S.phien = taoPhienMoi();
+      veManHinhLo();
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiDongLo', 'Mất mạng — đóng lô cần có mạng.');
+    });
+}
+
+/* ============================================================
+   MÀN HÌNH THỐNG KÊ
+   ============================================================ */
+
+/*
+ * Bộ lọc ngày của bảng tổng hợp (bản 1.6). 0 = xem tất cả.
+ * Mặc định 30 ngày: ở nhịp thật khoảng 10 lô/ngày, không lọc thì mỗi lần mở bảng là
+ * tải cả năm về máy. Lô ĐANG CHẠY không bao giờ bị lọc mất — máy chủ lo việc đó
+ * (xem tinhTongHopLo_ trong 05_Report.gs), giao diện không tự lọc lại lần nữa.
+ */
+var _locNgay = 30;
+
+/** Ngày đầu của khoảng lọc, dạng yyyy-MM-dd. Rỗng = không lọc. */
+function tuNgayLoc() {
+  if (!_locNgay) return '';
+  var d = new Date();
+  d.setDate(d.getDate() - (_locNgay - 1));   // tính CẢ hôm nay
+  var m = String(d.getMonth() + 1), ng = String(d.getDate());
+  if (m.length < 2) m = '0' + m;
+  if (ng.length < 2) ng = '0' + ng;
+  return d.getFullYear() + '-' + m + '-' + ng;
+}
+
+function capNhatNutLoc() {
+  var ds = document.querySelectorAll('#hangLocNgay button');
+  for (var i = 0; i < ds.length; i++) {
+    if (Number(ds[i].getAttribute('data-ngay')) === _locNgay) ds[i].classList.add('chon');
+    else ds[i].classList.remove('chon');
+  }
+}
+
+function doiLocNgay(n) {
+  _locNgay = Number(n) || 0;
+  capNhatNutLoc();
+  moThongKe();
+}
+
+/* Một ô số của bảng: rỗng thì để gạch ngang, đừng hiện "0" cho thứ chưa có. */
+function oSo(v) {
+  return (v === '' || v === null || v === undefined) ? '—' : escapeHtml(v);
+}
+
+/* Bấm một dòng của bảng tổng hợp -> mở CHI TIẾT LÔ. Đây là đường vào mà Andy chốt
+   cho quyền quản lý (22/08/2026): sửa thẳng từ bảng theo dõi, không phải đi vòng. */
+function moChiTietTuTongHop(i) {
+  var r = S.dsTongHop && S.dsTongHop[i];
+  if (r) moChiTietLo(r.ma_lo, 'ThongKe');
+}
+
+function moThongKe() {
+  chuyenManHinh('ThongKe');
+  capNhatNutLoc();
+  $('bangThongKe').innerHTML = '<p class="ghi-chu-mo">Đang tải…</p>';
+  goi('apiTongHopLo', [S.ve, tuNgayLoc(), ''])
+    .then(function (kq) {
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) {
+        $('bangThongKe').innerHTML = '<p class="ghi-chu-mo">' + escapeHtml(kq ? kq.error : 'Lỗi') + '</p>';
+        return;
+      }
+      var ds = kq.data.ds;
+      if (!ds.length) {
+        $('bangThongKe').innerHTML = '<p class="ghi-chu-mo">Chưa có dữ liệu trong khoảng đã chọn.</p>';
+        return;
+      }
+      var h = '<table class="bang-tk"><thead><tr>' +
+        '<th>Mã lô</th><th>KH</th><th>Trạng thái</th><th>Ngày mở</th>' +
+        '<th>Bao vào</th><th>KL vào</th>' +
+        '<th>Bao L1</th><th>KL L1</th><th>% L1</th>' +
+        '<th>Bao L2</th><th>KL L2</th><th>% L2</th>' +
+        '<th>Bao L3</th><th>KL L3</th><th>% L3</th>' +
+        '<th>Tổng bao</th><th>Tổng KL</th><th>% Bụi + hao hụt</th>' +
+        '<th>Người nhập</th>' +
+        '</tr></thead><tbody>';
+      S.dsTongHop = ds;
+      ds.forEach(function (r, i) {
+        // Lô đang chạy tô xanh lá — quản lý mở bảng này chủ yếu để nhìn cái gì còn chạy.
+        var dangChay = (r.trang_thai === 'Đang chạy');
+        h += '<tr class="' + (dangChay ? 'lo-dang-chay ' : '') + 'bam-duoc"' +
+             ' onclick="moChiTietTuTongHop(' + i + ')">' +
+          '<td><b>' + escapeHtml(r.ma_lo) + '</b></td>' +
+          '<td>' + escapeHtml(r.ky_hieu) + '</td>' +
+          '<td>' + escapeHtml(r.trang_thai) + '</td>' +
+          '<td>' + escapeHtml(r.ngay_mo) + '</td>' +
+          '<td class="so">' + oSo(r.so_bao_vao) + '</td>' +
+          '<td class="so">' + oSo(r.kl_vao) + '</td>' +
+          '<td class="so">' + r.so_bao_L1 + '</td><td class="so">' + r.kl_L1 + '</td>' +
+          '<td class="so ti-le">' + phanTram(r.ti_le_L1) + '</td>' +
+          '<td class="so">' + r.so_bao_L2 + '</td><td class="so">' + r.kl_L2 + '</td>' +
+          '<td class="so ti-le">' + phanTram(r.ti_le_L2) + '</td>' +
+          '<td class="so">' + r.so_bao_L3 + '</td><td class="so">' + r.kl_L3 + '</td>' +
+          '<td class="so ti-le">' + phanTram(r.ti_le_L3) + '</td>' +
+          '<td class="so"><b>' + r.tong_so_bao_ra + '</b></td>' +
+          '<td class="so"><b>' + r.tong_kl_ra + '</b></td>' +
+          '<td class="so ti-le hao-hut">' + phanTram(r.ti_le_hao_hut) + '</td>' +
+          '<td>' + escapeHtml(r.nguoi_nhap) + '</td>' +
+          '</tr>';
+      });
+      h += '</tbody></table>';
+      $('bangThongKe').innerHTML = h;
+    })
+    .catch(function () {
+      $('bangThongKe').innerHTML = '<p class="ghi-chu-mo">Mất kết nối.</p>';
+    });
+}
+
+/* ============================================================
+   KẾT QUẢ CHẠY MÁY  (bản 1.6: nằm ngay trên màn hình nhập liệu)
+   ============================================================ */
+
+/*
+ * Tính lại bảng tỉ lệ NGAY TRÊN MÁY sau khi lưu xong một mẻ bao.
+ *
+ * Vì sao không hỏi lại máy chủ: lưu một mẻ bao cố ý chỉ tốn ĐÚNG 1 lượt mạng — máy tự
+ * chèn bao vừa lưu vào danh sách thay vì tải lại cả lô (xem luuBao). Hỏi thêm lượt nữa
+ * chỉ để lấy tỉ lệ là ném đi chính cái lợi đó, mà đường lấy tỉ lệ lại là đường quét cả
+ * sheet BAO. Máy đã có sẵn mọi bao của lô trong S.dsBao, đây thuần là phép cộng.
+ *
+ * ⚠️ CÔNG THỨC Ở ĐÂY PHẢI KHỚP tinhTiLe_ VÀ canhBaoHaoHut_ trong 05_Report.gs:
+ * làm tròn 2 số lẻ TỪNG tỉ lệ rồi mới lấy 100 trừ đi — nhờ vậy 4 con số trên màn hình
+ * cộng lại đúng 100 và công nhân nhẩm lại được. Sửa một bên mà quên bên kia thì hai
+ * chỗ sẽ nói hai con số khác nhau, và đó là loại lỗi không ai báo.
+ *
+ * Số của MÁY CHỦ vẫn là số chính thức: mọi lần taiLaiLo đều ghi đè lại bảng này.
+ */
+function tron2(x) {
+  var n = Number(x);
+  if (isNaN(n)) return null;
+  return Math.round(n * 100) / 100;
+}
+
+function canhBaoBuiHaoHut(v) {
+  if (v === null || v === undefined) return '';
+  var thap = Number(S.cauHinh.HAO_HUT_MIN), cao = Number(S.cauHinh.HAO_HUT_MAX);
+  var khoang = ' (mức thường gặp ' + thap + '–' + cao + '%)';
+  if (v < 0) {
+    return 'Bụi + hao hụt ' + v + '%: khối lượng ra ĐANG NHIỀU HƠN khối lượng vào. ' +
+           'Chắc chắn có số nhập sai — kiểm tra lại khối lượng đầu vào và các bao.';
+  }
+  if (!isNaN(thap) && v < thap) {
+    return 'Bụi + hao hụt ' + v + '% — THẤP bất thường' + khoang +
+           '. Kiểm tra lại khối lượng đầu vào và các bao đã nhập.';
+  }
+  if (!isNaN(cao) && v > cao) {
+    return 'Bụi + hao hụt ' + v + '% — CAO bất thường' + khoang +
+           '. Kiểm tra lại khối lượng đầu vào và các bao đã nhập.';
+  }
+  return '';
+}
+
+function capNhatKetQuaTaiCho() {
+  if (!S.lo) return;
+
+  var soBao = { '1': 0, '2': 0, '3': 0 }, kl = { '1': 0, '2': 0, '3': 0 };
+  S.dsBao.forEach(function (b) {
+    var l = String(b.loai);
+    if (!soBao.hasOwnProperty(l)) return;
+    soBao[l]++;
+    kl[l] += Number(b.khoi_luong) || 0;
+  });
+
+  var klVao = Number(S.lo.kl_vao);
+  var co = (S.lo.kl_vao !== null && S.lo.kl_vao !== undefined && S.lo.kl_vao !== '' &&
+            !isNaN(klVao) && klVao > 0);
+
+  var soLe = Number(S.cauHinh.SO_LE);
+  if (isNaN(soLe) || soLe < 0) soLe = 1;
+  var he = Math.pow(10, soLe);
+  var lamTron = function (x) { return Math.round(Number(x) * he) / he; };
+
+  var tiLe = { '1': null, '2': null, '3': null }, tong = 0;
+  if (co) {
+    ['1', '2', '3'].forEach(function (l) {
+      tiLe[l] = tron2(kl[l] / klVao * 100);
+      tong += tiLe[l];
+    });
+  }
+
+  var d = {
+    ma_lo: S.lo.ma_lo,
+    ky_hieu: S.lo.ky_hieu,
+    trang_thai: S.lo.trang_thai,
+    so_bao_vao: S.lo.so_bao_vao,
+    kl_vao: co ? lamTron(klVao) : null,
+    co_kl_vao: co,
+    ds_loai: ['1', '2', '3'].map(function (l) {
+      return { loai: l, nhom: S.lo.ky_hieu + l, so_bao: soBao[l],
+               tong_kl: lamTron(kl[l]), ti_le: tiLe[l] };
+    }),
+    tong_so_bao_ra: soBao['1'] + soBao['2'] + soBao['3'],
+    tong_kl_ra: lamTron(kl['1'] + kl['2'] + kl['3']),
+    tong_ti_le_thu_hoi: co ? tron2(tong) : null,
+    ti_le_hao_hut: co ? tron2(100 - tong) : null,
+    hao_hut_min: Number(S.cauHinh.HAO_HUT_MIN),
+    hao_hut_max: Number(S.cauHinh.HAO_HUT_MAX),
+    nguoi_chua_chot: []
+  };
+  d.canh_bao = canhBaoBuiHaoHut(d.ti_le_hao_hut);
+
+  S.ketQua = d;
+  veKetQua(d);
+}
+
+function phanTram(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  var n = Number(v);
+  if (isNaN(n)) return '—';
+  return n.toFixed(2) + '%';
+}
+
+/*
+ * Bảng tỉ lệ. Dùng chung cho màn hình NHẬP LIỆU và màn hình CHI TIẾT LÔ.
+ *
+ * Dòng "Bụi + hao hụt" nằm NGAY DƯỚI ba loại (Andy chốt 22/08/2026): chỉ có tỉ lệ,
+ * không có số bao / khối lượng — đây là phần TÍNH RA (100% − thu hồi), không ai cân nó.
+ */
+function htmlBangTiLe(d) {
+  var h = '<table class="bang-kq"><thead><tr>' +
+          '<th>Loại</th><th>Số bao</th><th>Khối lượng</th><th>Tỉ lệ thu hồi</th>' +
+          '</tr></thead><tbody>';
+  d.ds_loai.forEach(function (x) {
+    h += '<tr data-loai="' + escapeHtml(x.loai) + '">' +
+           '<td class="o-nhom">' + escapeHtml(x.nhom) + '</td>' +
+           '<td class="so">' + x.so_bao + '</td>' +
+           '<td class="so">' + x.tong_kl + ' kg</td>' +
+           '<td class="ti-le">' + phanTram(x.ti_le) + '</td>' +
+         '</tr>';
+  });
+  h += '<tr class="tong">' +
+         '<td>Tổng ra</td>' +
+         '<td class="so">' + d.tong_so_bao_ra + '</td>' +
+         '<td class="so">' + d.tong_kl_ra + ' kg</td>' +
+         '<td class="ti-le">' + phanTram(d.tong_ti_le_thu_hoi) + '</td>' +
+       '</tr>' +
+       '<tr class="bui' + (d.canh_bao ? ' lech' : '') + '">' +
+         '<td colspan="3">Bụi + hao hụt</td>' +
+         '<td class="ti-le">' + phanTram(d.ti_le_hao_hut) + '</td>' +
+       '</tr></tbody></table>';
+  return h;
+}
+
+function veKetQua(d) {
+  if (!d) {
+    $('bangKetQua').innerHTML = '';
+    an('canhBaoKetQua');
+    anLoi('thieuKlVao');
+    return;
+  }
+
+  /* KHÔNG đụng vào ô khối lượng đầu vào khi công nhân đang gõ dở trong đó — cùng
+     nguyên tắc đã áp cho ô số bao ở datGoiYStt. */
+  if (document.activeElement !== $('inKlVao')) {
+    $('inKlVao').value = d.co_kl_vao ? d.kl_vao : '';
+    echoKlVao('inKlVao', 'echoKlVao');
+  }
+  if (d.co_kl_vao) anLoi('thieuKlVao');
+  else hienLoi('thieuKlVao',
+    'Chưa có khối lượng đầu vào nên chưa tính được tỉ lệ. Nhập vào ô trên rồi bấm LƯU.');
+
+  $('bangKetQua').innerHTML = htmlBangTiLe(d);
+
+  if (d.canh_bao) {
+    $('canhBaoKetQua').textContent = '⚠️ ' + d.canh_bao;
+    hien('canhBaoKetQua');
+  } else {
+    an('canhBaoKetQua');
+  }
+}
+
+function luuKlVao() {
+  var v = String($('inKlVao').value || '').trim();
+  var n = soLonTu(v);
+  if (isNaN(n) || n <= 0) {
+    toast('Không đọc được "' + v + '". Gõ 1000 hoặc 1.000', 'do');
+    rung([60, 50, 60]);
+    return;
+  }
+  cho(true);
+  goi('apiCapNhatKlVao', [S.ve, S.lo.ma_lo, v])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { toast(kq ? kq.error : 'Lỗi', 'do'); return; }
+      // Máy chủ đã trả về kết quả tính lại ngay trong lượt gọi này -> vẽ luôn,
+      // KHÔNG hỏi thêm lượt nữa: hai lượt gọi chồng nhau chính là thứ từng làm
+      // màn hình hiện số cũ sau khi đã lưu.
+      S.lo.kl_vao = kq.data.kl_vao;
+      S.ketQua = kq.data;
+      veKetQua(kq.data);
+      toast('Đã lưu khối lượng đầu vào', 'xanh');
+    })
+    .catch(function () {
+      cho(false);
+      toast('Mất mạng — lưu khối lượng đầu vào cần có mạng', 'do');
+    });
+}
+
+/* ============================================================
+   LÔ ĐÃ ĐÓNG — XEM LẠI  (bản 1.6, yêu cầu 2)
+   ============================================================ */
+
+/*
+ * Công nhân chỉ thấy lô CHÍNH MÌNH có nhập bao; thống kê và quản lý thấy tất cả.
+ * Việc lọc do máy chủ làm (apiLoDaDong) dựa trên cột ds_nguoi_nhap của sheet LO —
+ * giao diện KHÔNG tự lọc lại, vì lọc ở đây thì dữ liệu vẫn đã về tới máy rồi.
+ */
+function moLoDaDong() {
+  chuyenManHinh('LoDaDong');
+  $('ghiChuLoDaDong').textContent = '';
+  $('dsLoDaDong').innerHTML = '<p class="ghi-chu-mo">Đang tải…</p>';
+
+  goi('apiLoDaDong', [S.ve, '', ''])
+    .then(function (kq) {
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) {
+        $('dsLoDaDong').innerHTML = '<p class="ghi-chu-mo">' +
+          escapeHtml(kq ? kq.error : 'Lỗi') + '</p>';
+        return;
+      }
+      S.dsLoDong = kq.data.ds || [];
+      $('ghiChuLoDaDong').innerHTML = kq.data.xem_het
+        ? 'Toàn bộ lô đã đóng.'
+        : 'Chỉ hiện những lô <b>bạn có nhập bao</b>.';
+
+      if (!S.dsLoDong.length) {
+        $('dsLoDaDong').innerHTML = '<p class="ghi-chu-mo">Chưa có lô nào đã đóng.</p>';
+        return;
+      }
+
+      var h = '';
+      S.dsLoDong.forEach(function (l, i) {
+        h += '<div class="the-lo-ds" onclick="moChiTietTheoViTri(' + i + ')">' +
+               '<div>' +
+                 '<div class="ma">' + escapeHtml(l.ma_lo) + '</div>' +
+                 '<div class="phu">Ký hiệu <b>' + escapeHtml(l.ky_hieu) + '</b>' +
+                   ' · đóng ' + escapeHtml(String(l.tg_dong).substring(0, 16)) +
+                   (l.kl_vao !== null ? ' · vào ' + l.kl_vao + ' kg' : '') +
+                   '</div>' +
+               '</div>' +
+               '<div class="so"><b>' + l.so_bao_ra + '</b>bao ra<br>' + l.tong_kl_ra + ' kg</div>' +
+             '</div>';
+      });
+      if (kq.data.con_nua) {
+        h += '<p class="ghi-chu-mo">Chỉ hiện ' + S.dsLoDong.length +
+             ' lô đóng gần nhất (tổng ' + kq.data.tong + ' lô).</p>';
+      }
+      $('dsLoDaDong').innerHTML = h;
+    })
+    .catch(function () {
+      $('dsLoDaDong').innerHTML = '<p class="ghi-chu-mo">Mất kết nối.</p>';
+    });
+}
+
+// Truyền VỊ TRÍ chứ không ghép mã lô vào onclick — cùng nguyên tắc của bản 1.2.
+function moChiTietTheoViTri(i) {
+  var l = S.dsLoDong && S.dsLoDong[i];
+  if (l) moChiTietLo(l.ma_lo, 'LoDaDong');
+}
+
+/* ============================================================
+   CHI TIẾT MỘT LÔ  (bản 1.6 — dùng chung cho xem lại và quyền quản lý)
+   ============================================================ */
+
+/*
+ * Màn hình này CỐ Ý tách khỏi màn hình nhập liệu, dù cả hai đọc cùng một gói dữ liệu.
+ * Màn hình nhập liệu có LƯU BAO, CHỐT CA, ĐÓNG LÔ — chỉ cần một lỗi ẩn nút là công
+ * nhân bấm nhầm vào lô đã khoá. Ở đây không có nút nào trong số đó.
+ *
+ * @param {string} veTu  'ThongKe' | 'LoDaDong' — bấm Quay lại thì về đúng chỗ đã đến
+ */
+function moChiTietLo(maLo, veTu) {
+  S.veTu = veTu || 'ChonLo';
+  chuyenManHinh('ChiTietLo');
+  $('ctMaLo').textContent = maLo;
+  $('ctPhu').textContent = 'Đang tải…';
+  $('ctSoBao').textContent = '—';
+  $('ctBangTiLe').innerHTML = '';
+  $('ctThongTin').innerHTML = '';
+  $('ctDsBao').innerHTML = '';
+  an('ctKhuQuanLy');
+  an('ctChiDoc');
+  an('ctCanhBao');
+  taiLaiLo(maLo);
+}
+
+function quayLaiTuChiTiet() {
+  if (S.veTu === 'ThongKe') moThongKe();
+  else if (S.veTu === 'LoDaDong') moLoDaDong();
+  else veManHinhLo();
+}
+
+function dongTT(nhan, giaTri) {
+  return '<div class="dong-tt"><span>' + escapeHtml(nhan) + '</span><b>' +
+         escapeHtml(giaTri) + '</b></div>';
+}
+
+function veChiTietLo() {
+  var lo = S.lo;
+  if (!lo) return;
+  var daDong = (String(lo.trang_thai).toUpperCase() === 'DA_DONG');
+
+  $('ctMaLo').textContent = lo.ma_lo;
+  $('ctPhu').textContent = 'Ký hiệu ' + lo.ky_hieu + ' · ' + (daDong ? 'Đã đóng' : 'Đang chạy');
+  $('ctSoBao').textContent = S.dsBao.length;
+  $('ctDemBao').textContent = S.dsBao.length;
+
+  // Bảng tỉ lệ — dùng chung hàm với màn hình nhập liệu
+  if (S.ketQua) {
+    $('ctBangTiLe').innerHTML = htmlBangTiLe(S.ketQua);
+    if (S.ketQua.canh_bao) {
+      $('ctCanhBao').textContent = '⚠️ ' + S.ketQua.canh_bao;
+      hien('ctCanhBao');
+    } else {
+      an('ctCanhBao');
+    }
+  } else {
+    $('ctBangTiLe').innerHTML = '<p class="ghi-chu-mo">Chưa tính được tỉ lệ.</p>';
+    an('ctCanhBao');
+  }
+
+  $('ctThongTin').innerHTML =
+    dongTT('Trạng thái', daDong ? 'Đã đóng' : 'Đang chạy') +
+    dongTT('Số bao đầu vào', lo.so_bao_vao === null ? '—' : String(lo.so_bao_vao)) +
+    dongTT('Khối lượng đầu vào', lo.kl_vao === null ? '—' : lo.kl_vao + ' kg') +
+    dongTT('Ghi chú', lo.ghi_chu || '—') +
+    dongTT('Mở lúc', String(lo.tg_mo || '—').substring(0, 16)) +
+    (daDong ? dongTT('Đóng lúc', String(lo.tg_dong || '—').substring(0, 16)) : '');
+
+  var h = '';
+  S.dsBao.forEach(function (b, i) { h += htmlDongBao(b, i); });
+  $('ctDsBao').innerHTML = h || '<p class="ghi-chu-mo">Lô này không có bao nào.</p>';
+
+  if (S.laQuanLy) {
+    hien('ctKhuQuanLy');
+    an('ctChiDoc');
+    // Chỉ mở lại được lô ĐÃ ĐÓNG
+    $('btnMoLaiLo').disabled = !daDong;
+  } else {
+    an('ctKhuQuanLy');
+    $('ctChiDoc').textContent = daDong
+      ? '🔒 Lô đã đóng — chỉ xem lại, không sửa được. Cần sửa thì báo quản lý.'
+      : 'Lô này đang chạy. Muốn nhập bao thì vào từ danh sách “Lô đang chạy”.';
+    hien('ctChiDoc');
+  }
+}
+
+/* ---------- Sửa thông tin lô (số bao vào / khối lượng vào / ghi chú) ---------- */
+
+function moSuaThongTinLo() {
+  if (!S.lo) return;
+  $('ttMaLo').textContent = S.lo.ma_lo;
+  $('ttSoBaoVao').value = (S.lo.so_bao_vao === null || S.lo.so_bao_vao === undefined)
+                            ? '' : S.lo.so_bao_vao;
+  $('ttKlVao').value = (S.lo.kl_vao === null || S.lo.kl_vao === undefined) ? '' : S.lo.kl_vao;
+  $('ttGhiChu').value = S.lo.ghi_chu || '';
+  echoKlVao('ttKlVao', 'ttEchoKl');
+  $('ttLyDo').value = '';
+  if (S.laQuanLy) hien('khuLyDoTT'); else an('khuLyDoTT');
+  anLoi('loiSuaTT');
+  hien('lopSuaTT');
+}
+
+function dongSuaThongTinLo(e) {
+  if (e && e.target && e.target.id !== 'lopSuaTT') return;
+  an('lopSuaTT');
+}
+
+function luuThongTinLo() {
+  if (!S.lo) return;
+  anLoi('loiSuaTT');
+  cho(true);
+  goi('apiSuaLo', [S.ve, S.lo.ma_lo, {
+        so_bao_vao: $('ttSoBaoVao').value,
+        kl_vao: $('ttKlVao').value,
+        ghi_chu: $('ttGhiChu').value
+      }, $('ttLyDo').value])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiSuaTT', kq ? kq.error : 'Lỗi'); return; }
+      an('lopSuaTT');
+      toast('✔ Đã sửa thông tin lô', 'xanh');
+      taiLaiLo(S.lo.ma_lo, true);
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiSuaTT', 'Mất mạng — sửa thông tin lô cần có mạng.');
+    });
+}
+
+/* ---------- Mở lại lô ---------- */
+
+function moHopMoLaiLo() {
+  if (!S.lo) return;
+  if (String(S.lo.trang_thai).toUpperCase() !== 'DA_DONG') {
+    toast('Lô này đang chạy, không có gì để mở lại', 'do');
+    return;
+  }
+  $('mlMaLo').textContent = S.lo.ma_lo;
+  $('tomTatMoLai').textContent = 'Lô ' + S.lo.ma_lo + ' — ' + S.dsBao.length +
+    ' bao đã nhập. Đóng lúc ' + String(S.lo.tg_dong || '').substring(0, 16) + '.';
+  $('tichMoLai').checked = false;
+  $('mlLyDo').value = '';
+  $('btnXacNhanMoLai').disabled = true;
+  anLoi('loiMoLai');
+  hien('lopMoLaiLo');
+}
+
+function dongHopMoLaiLo(e) {
+  if (e && e.target && e.target.id !== 'lopMoLaiLo') return;
+  an('lopMoLaiLo');
+}
+
+function doiTichMoLaiLo() {
+  var tich = $('tichMoLai').checked;
+  $('btnXacNhanMoLai').disabled = !tich;
+  if (tich) anLoi('loiMoLai');
+}
+
+function xacNhanMoLaiLo() {
+  if (!S.lo) return;
+  anLoi('loiMoLai');
+  if (!$('tichMoLai').checked) {
+    hienLoi('loiMoLai', 'Hãy tích vào ô xác nhận trước.');
+    rung([60, 50, 60]);
+    return;
+  }
+  cho(true);
+  goi('apiMoLaiLo', [S.ve, S.lo.ma_lo, 'XAC_NHAN', $('mlLyDo').value])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiMoLai', kq ? kq.error : 'Lỗi'); return; }
+      an('lopMoLaiLo');
+      toast('🔓 Đã mở lại lô ' + kq.data.ma_lo, 'xanh');
+      taiLaiLo(S.lo.ma_lo, true);
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiMoLai', 'Mất mạng — mở lại lô cần có mạng.');
+    });
+}
+
+/* ============================================================
+   SỬA MÃ LÔ / XOÁ LÔ
+   (chỉ người tạo lô hoặc quản lý — máy chủ kiểm tra lại lần nữa)
+   ============================================================ */
+
+function moSuaMaLo() {
+  if (!S.lo) return;
+  $('maLoCu').textContent = S.lo.ma_lo;
+  $('inMaLoMoi').value = S.lo.ma_lo;
+  $('lyDoMaLo').value = '';
+  if (S.laQuanLy) hien('khuLyDoMaLo'); else an('khuLyDoMaLo');
+  anLoi('loiSuaLo');
+  xemTruocKyHieuSua();
+  hien('lopSuaLo');
+  setTimeout(function () { $('inMaLoMoi').focus(); }, 100);
+}
+
+function dongSuaMaLo(e) {
+  if (e && e.target && e.target.id !== 'lopSuaLo') return;
+  an('lopSuaLo');
+}
+
+function xemTruocKyHieuSua() {
+  var v = String($('inMaLoMoi').value || '').trim().toUpperCase();
+  $('inMaLoMoi').value = v;
+  var o = $('xemKyHieuSua');
+  var a = String(S.cauHinh.TIEN_TO_A).toUpperCase();
+  var b = String(S.cauHinh.TIEN_TO_B).toUpperCase();
+  var c = v.charAt(0);
+  if (!v) { o.className = 'xem-ky-hieu'; o.textContent = 'Ký hiệu sẽ là: —'; return; }
+  if (c === a || c === b) {
+    var kh = (c === a) ? 'A' : 'B';
+    o.className = 'xem-ky-hieu dung';
+    o.textContent = '✓ Ký hiệu: ' + kh +
+      (S.lo && kh !== S.lo.ky_hieu
+        ? '  ⚠️ ĐỔI từ ' + S.lo.ky_hieu + ' sang ' + kh + ' — cả lô sang nhóm số bao khác'
+        : '');
+  } else {
+    o.className = 'xem-ky-hieu sai';
+    o.textContent = '✕ Mã lô phải bắt đầu bằng "' + S.cauHinh.TIEN_TO_A +
+                    '" hoặc "' + S.cauHinh.TIEN_TO_B + '"';
+  }
+}
+
+function luuMaLoMoi() {
+  var moi = String($('inMaLoMoi').value || '').trim().toUpperCase();
+  anLoi('loiSuaLo');
+  if (!moi) { hienLoi('loiSuaLo', 'Chưa nhập mã lô mới.'); return; }
+  if (moi === S.lo.ma_lo) { hienLoi('loiSuaLo', 'Mã mới trùng mã cũ.'); return; }
+
+  cho(true);
+  goi('apiSuaMaLo', [S.ve, S.lo.ma_lo, moi, $('lyDoMaLo').value])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiSuaLo', kq ? kq.error : 'Lỗi'); return; }
+      an('lopSuaLo');
+      toast('✔ Đã đổi thành ' + kq.data.ma_lo + ' (' + kq.data.so_bao_doi + ' bao đi theo)', 'xanh');
+      if (S.manHinh === 'ChiTietLo') taiLaiLo(kq.data.ma_lo, true);
+      else moLo(kq.data.ma_lo);
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiSuaLo', 'Mất mạng — sửa mã lô cần có mạng.');
+    });
+}
+
+function moXoaLo() {
+  if (!S.lo) return;
+  var soBao = S.dsBao.length;
+  var kl = 0;
+  S.dsBao.forEach(function (b) { kl += Number(b.khoi_luong) || 0; });
+  $('maLoXoa').textContent = S.lo.ma_lo;
+  $('tomTatXoa').textContent = 'Sẽ xoá lô ' + S.lo.ma_lo + ' và toàn bộ ' + soBao +
+                               ' bao (' + (Math.round(kl * 10) / 10) + ' kg) đã nhập.';
+  $('inXacNhanXoa').value = '';
+  $('lyDoXoaLo').value = '';
+  if (S.laQuanLy) hien('khuLyDoXoaLo'); else an('khuLyDoXoaLo');
+  anLoi('loiXoaLo');
+  hien('lopXoaLo');
+}
+
+function dongXoaLo(e) {
+  if (e && e.target && e.target.id !== 'lopXoaLo') return;
+  an('lopXoaLo');
+}
+
+function xacNhanXoaLo() {
+  var go = String($('inXacNhanXoa').value || '').trim().toUpperCase();
+  anLoi('loiXoaLo');
+  if (go !== String(S.lo.ma_lo).toUpperCase()) {
+    hienLoi('loiXoaLo', 'Gõ chưa đúng mã lô. Phải gõ chính xác: ' + S.lo.ma_lo);
+    rung([60, 50, 60]);
+    return;
+  }
+
+  cho(true);
+  goi('apiXoaLo', [S.ve, S.lo.ma_lo, go, $('lyDoXoaLo').value])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiXoaLo', kq ? kq.error : 'Lỗi'); return; }
+      an('lopXoaLo');
+      toast('Đã xoá lô ' + kq.data.ma_lo + ' (' + kq.data.so_bao_da_xoa + ' bao)', 'xanh');
+      var tuChiTiet = (S.manHinh === 'ChiTietLo');
+      S.lo = null;
+      if (tuChiTiet) quayLaiTuChiTiet(); else veManHinhLo();
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiXoaLo', 'Mất mạng — xoá lô cần có mạng.');
+    });
+}
+
+/* ============================================================
+   MÀN HÌNH XỬ LÝ KHAY BAO LỖI
+   ============================================================ */
+
+function moKhayLoi() {
+  veKhayLoi();
+  hien('lopKhayLoi');
+}
+
+function dongKhayLoi(e) {
+  if (e && e.target && e.target.id !== 'lopKhayLoi') return;
+  an('lopKhayLoi');
+}
+
+function veKhayLoi() {
+  var k = layKhayLoi();
+  if (!k.length) {
+    $('dsKhayLoi').innerHTML = '<p class="ghi-chu-mo">Không còn bao nào bị treo. Tốt.</p>';
+    an('lopKhayLoi');
+    veTrangThai();
+    return;
+  }
+
+  var h = '';
+  k.forEach(function (b, i) {
+    // Bao của người khác thì KHÔNG cho gửi lại bằng tài khoản đang đăng nhập —
+    // cùng chốt chặn với hàng đợi, tránh ghi nhầm tên người nhập.
+    var cuaNguoiKhac = b.ma_nv && S.nguoiDung && b.ma_nv !== S.nguoiDung.ma_nv;
+    h += '<div class="bao-loi">' +
+           '<div class="bao-loi-dau">' +
+             '<b>' + escapeHtml(b.ma_lo) + '</b> · nhóm ' +
+             escapeHtml(String(b.ky_hieu || '') + String(b.loai || '')) +
+             '<span class="bao-loi-luc">' + escapeHtml(String(b.luc || '').substring(5)) + '</span>' +
+           '</div>' +
+           '<div class="bao-loi-vi-sao">✕ ' + escapeHtml(b.ly_do) + '</div>';
+
+    if (cuaNguoiKhac) {
+      h += '<div class="bao-loi-vi-sao">Bao này của ' + escapeHtml(b.ten_nguoi || b.ma_nv) +
+           '. Nhờ người đó đăng nhập trên chính máy này để xử lý.</div>';
+    } else {
+      h += '<div class="bao-loi-sua">' +
+             '<input class="o-nhap kl-stt" type="text" inputmode="numeric" pattern="[0-9]*" ' +
+               'value="' + escapeHtml(b.stt_bao) + '" aria-label="Số bao">' +
+             '<input class="o-nhap kl-kg" type="text" inputmode="decimal" ' +
+               'value="' + escapeHtml(b.khoi_luong) + '" aria-label="Khối lượng">' +
+           '</div>' +
+           '<div class="bao-loi-nut">' +
+             '<button class="nut-nho-vien" onclick="guiLaiBaoLoi(' + i + ')">↻ Gửi lại</button>' +
+             '<button class="nut-nho-vien nguy-hiem" onclick="boBaoLoi(' + i + ')">🗑 Bỏ bao này</button>' +
+           '</div>';
+    }
+    h += '</div>';
+  });
+  $('dsKhayLoi').innerHTML = h;
+  $('demKhayLoi').textContent = k.length;
+}
+
+/** Lấy giá trị công nhân vừa sửa ngay trên thẻ bao lỗi thứ i. */
+function _oBaoLoi(i) {
+  var the = document.querySelectorAll('#dsKhayLoi .bao-loi')[i];
+  if (!the) return null;
+  var oS = the.querySelector('.kl-stt'), oK = the.querySelector('.kl-kg');
+  if (!oS || !oK) return null;
+  return { stt: soTu(oS.value), kl: soTu(oK.value) };
+}
+
+function guiLaiBaoLoi(i) {
+  var k = layKhayLoi();
+  var b = k[i];
+  if (!b) return;
+
+  var o = _oBaoLoi(i);
+  if (!o || isNaN(o.stt) || o.stt <= 0 || o.stt !== Math.floor(o.stt)) {
+    toast('Số bao phải là số nguyên dương', 'do'); return;
+  }
+  if (isNaN(o.kl) || o.kl < S.cauHinh.KL_MIN || o.kl > S.cauHinh.KL_MAX) {
+    toast('Khối lượng phải trong khoảng ' + S.cauHinh.KL_MIN + '–' + S.cauHinh.KL_MAX + ' kg', 'do');
+    return;
+  }
+
+  var gui = {
+    ma_lo: b.ma_lo, loai: b.loai, stt_bao: o.stt, khoi_luong: o.kl,
+    phien: S.phien, client_id: b.client_id
+  };
+
+  cho(true);
+  goi('apiLuuBao', [S.ve, gui])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) {
+        // Vẫn bị từ chối -> cập nhật lý do mới, GIỮ NGUYÊN trong khay.
+        var k2 = layKhayLoi();
+        if (k2[i]) {
+          k2[i].stt_bao = o.stt; k2[i].khoi_luong = o.kl;
+          k2[i].ly_do = kq ? kq.error : 'Máy chủ từ chối';
+          luuKhayLoi(k2);
+        }
+        veKhayLoi();
+        toast('Vẫn chưa gửi được — xem lý do trên thẻ', 'do');
+        return;
+      }
+      var k3 = layKhayLoi();
+      k3.splice(i, 1);
+      luuKhayLoi(k3);
+      veKhayLoi();
+      veTrangThai();
+      toast(kq.data.trung_lap_bo_qua
+              ? '✔ Bao này thực ra đã lên hệ thống từ trước'
+              : '✔ Đã gửi lên bao ' + o.stt, 'xanh');
+      if (S.lo && b.ma_lo === S.lo.ma_lo) taiLaiLo(S.lo.ma_lo, true);
+    })
+    .catch(function () {
+      cho(false);
+      toast('Mất mạng — thử lại khi có mạng', 'do');
+    });
+}
+
+function boBaoLoi(i) {
+  var k = layKhayLoi();
+  var b = k[i];
+  if (!b) return;
+  if (!confirm('BỎ HẲN bao ' + b.stt_bao + ' (' + b.khoi_luong + ' kg) của lô ' + b.ma_lo + '?\n\n' +
+               'Bao này sẽ KHÔNG có trong số liệu. Việc bỏ được ghi vào nhật ký kèm tên bạn.\n\n' +
+               'Chỉ bỏ khi chắc chắn bao này đã được nhập bằng cách khác, hoặc không có thật.')) return;
+
+  cho(true);
+  goi('apiGhiBaoLoi', [S.ve, b, b.ly_do, 'BO'])
+    .then(function () { _boKhoiKhay(i); })
+    .catch(function () {
+      cho(false);
+      toast('Mất mạng — phải có mạng mới bỏ được (để còn ghi nhật ký)', 'do');
+    });
+}
+
+function _boKhoiKhay(i) {
+  cho(false);
+  var k = layKhayLoi();
+  k.splice(i, 1);
+  luuKhayLoi(k);
+  veKhayLoi();
+  veTrangThai();
+  toast('Đã bỏ bao và ghi vào nhật ký', 'do');
+}
+
+/* ============================================================
+   AN TOÀN HIỂN THỊ
+   ============================================================ */
+
+function escapeHtml(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+</script>

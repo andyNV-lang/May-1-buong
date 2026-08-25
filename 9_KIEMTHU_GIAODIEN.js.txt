@@ -1,0 +1,181 @@
+const { chromium } = require('playwright');
+
+(async () => {
+  let pass = 0, fail = 0;
+  const T = (t, c, d) => { if (c) { pass++; console.log('  ✅ ' + t); } else { fail++; console.log('  ❌ ' + t + (d !== undefined ? '  →  ' + JSON.stringify(d) : '')); } };
+
+  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+
+  const loiJs = [];
+  page.on('pageerror', e => loiJs.push(String(e)));
+  page.on('console', m => { if (m.type() === 'error') loiJs.push('console: ' + m.text()); });
+
+  await page.goto('file:///tmp/ui/index.html');
+  await page.waitForTimeout(300);
+
+  console.log('\n=== A. MÀN HÌNH ĐĂNG NHẬP ===');
+  T('hiện danh sách người dùng', await page.locator('.nut-nguoi').count() === 2);
+  T('tên hiển thị đúng tiếng Việt', (await page.locator('.nut-nguoi').first().innerText()).includes('Nguyễn Văn A'));
+
+  await page.locator('.nut-nguoi').first().click();
+  await page.waitForTimeout(150);
+  T('hiện bàn phím PIN', await page.locator('#buocNhapPin').isVisible());
+  T('có đúng 4 ô PIN', await page.locator('#oPin span').count() === 4);
+
+  // PIN sai
+  for (const s of ['9', '9', '9', '9']) await page.locator(`.ban-phim button:text-is("${s}")`).click();
+  await page.waitForTimeout(300);
+  T('PIN sai hiện lỗi tiếng Việt', (await page.locator('#loiPin').innerText()).includes('không đúng'));
+  T('PIN sai thì xoá sạch ô nhập', await page.locator('#oPin span.day').count() === 0);
+
+  // PIN đúng
+  for (const s of ['1', '1', '1', '1']) await page.locator(`.ban-phim button:text-is("${s}")`).click();
+  await page.waitForTimeout(500);
+
+  console.log('\n=== B. MÀN HÌNH CHỌN LÔ ===');
+  T('vào được màn hình chọn lô', await page.locator('#mhChonLo').isVisible());
+  T('hiện tên người đăng nhập', (await page.locator('#tieuDePhu').innerText()).includes('Nguyễn Văn A'));
+  T('công nhân KHÔNG thấy nút thống kê', await page.locator('text=Xem tổng hợp theo lô').count() === 0);
+  T('có nút tạo lô mới', await page.locator('#mhChonLo button.nut-xanh').isVisible());
+
+  console.log('\n=== C. TẠO LÔ MỚI ===');
+  await page.locator('#mhChonLo button.nut-xanh').click();
+  await page.waitForTimeout(150);
+  await page.fill('#inMaLo', 'x9999');
+  await page.waitForTimeout(80);
+  T('mã lô sai tiền tố -> báo đỏ ngay khi gõ', (await page.locator('#xemKyHieu').getAttribute('class')).includes('sai'));
+  await page.fill('#inMaLo', 't0748la');
+  await page.waitForTimeout(80);
+  T('gõ chữ thường tự chuyển thành HOA', (await page.inputValue('#inMaLo')) === 'T0748LA');
+  T('xem trước ký hiệu = A', (await page.locator('#xemKyHieu').innerText()).includes('A'));
+  await page.fill('#inSoBaoVao', '163');
+  await page.locator('#mhTaoLo button.nut-xanh').click();
+  await page.waitForTimeout(500);
+
+  console.log('\n=== D. NHẬP BAO — LUỒNG CHÍNH ===');
+  T('vào thẳng màn hình nhập bao', await page.locator('#mhNhapBao').isVisible());
+  T('hiện mã lô', (await page.locator('#loMa').innerText()) === 'T0748LA');
+  T('nhãn nút loại hiện A1/A2/A3', (await page.locator('#nhanLoai1').innerText()) === 'A1');
+
+  // Bao 1 — dùng dấu PHẨY thập phân (bàn phím tiếng Việt)
+  await page.locator('.nut-loai[data-loai="1"]').click();
+  await page.waitForTimeout(100);
+  T('nút loại 1 được tô sáng', (await page.locator('.nut-loai[data-loai="1"]').getAttribute('class')).includes('chon'));
+  await page.fill('#inStt', '2590');
+  await page.fill('#inKl', '49,8');
+  await page.locator('#btnLuuBao').click();
+  await page.waitForTimeout(400);
+  T('lưu được khối lượng gõ DẤU PHẨY 49,8', (await page.locator('#dsBao').innerText()).includes('49.8'));
+  T('số bao tự tăng lên 2591', (await page.inputValue('#inStt')) === '2591');
+  T('ô khối lượng tự xoá', (await page.inputValue('#inKl')) === '');
+  T('loại vẫn giữ nguyên (không phải chọn lại)', (await page.locator('.nut-loai[data-loai="1"]').getAttribute('class')).includes('chon'));
+  T('đếm bao = 1', (await page.locator('#demBao').innerText()) === '1');
+
+  // Bao 2 — chỉ gõ khối lượng rồi lưu (2 thao tác)
+  await page.fill('#inKl', '43.1');
+  await page.locator('#btnLuuBao').click();
+  await page.waitForTimeout(400);
+  T('bao thứ 2 lưu chỉ với 1 lần gõ + 1 lần bấm', (await page.locator('#demBao').innerText()) === '2');
+  T('số bao tiếp theo = 2592', (await page.inputValue('#inStt')) === '2592');
+
+  // Trùng số bao
+  await page.fill('#inStt', '2590');
+  await page.fill('#inKl', '50');
+  await page.locator('#btnLuuBao').click();
+  await page.waitForTimeout(400);
+  T('trùng số bao -> báo lỗi tiếng Việt rõ ràng', (await page.locator('#loiNhapBao').innerText()).includes('ĐÃ NHẬP RỒI'));
+  T('trùng số bao -> KHÔNG tăng số bao đã nhập', (await page.locator('#demBao').innerText()) === '2');
+
+  // Khối lượng ngoài khoảng (gõ thiếu dấu chấm)
+  await page.fill('#inStt', '2592');
+  await page.fill('#inKl', '498');
+  await page.locator('#btnLuuBao').click();
+  await page.waitForTimeout(300);
+  T('498 kg bị chặn ngay tại máy, không cần gọi máy chủ', (await page.locator('#loiNhapBao').innerText()).includes('ngoài khoảng'));
+
+  console.log('\n=== E. QUAY RA / VÀO LẠI LÔ & DẢI SỐ RIÊNG ===');
+  await page.locator('#mhNhapBao button.nut-xam').first().click();   // '‹ Về danh sách lô'
+  await page.waitForTimeout(500);
+  T('quay ra danh sách lô, thấy lô đang chạy', await page.locator('.the-lo-ds').count() === 1);
+  T('thẻ lô hiện số bao đã ra', (await page.locator('.the-lo-ds').first().innerText()).includes('2'));
+  await page.locator('.the-lo-ds').first().click();
+  await page.waitForTimeout(500);
+  await page.locator('.nut-loai[data-loai="1"]').click();
+  await page.waitForTimeout(120);
+  T('vào lại lô -> gợi ý tiếp số 2592 cho nhóm A1', (await page.inputValue('#inStt')) === '2592', await page.inputValue('#inStt'));
+  await page.locator('.nut-loai[data-loai="3"]').click();
+  await page.waitForTimeout(120);
+  T('đổi sang loại 3 -> ô số bao trống (dải số riêng, chưa có bao nào)', (await page.inputValue('#inStt')) === '');
+  await page.fill('#inStt', '6596');
+  await page.fill('#inKl', '77,8');
+  await page.locator('#btnLuuBao').click();
+  await page.waitForTimeout(400);
+  T('nhóm A3 lưu được số 6596 dù nhóm A1 đang ở 259x', (await page.locator('#dsBao').innerText()).includes('6596'));
+  T('thẻ nhóm hiển thị A3', (await page.locator('.dong-bao .nhom').first().innerText()) === 'A3');
+
+  console.log('\n=== F. MẤT MẠNG ===');
+  await page.evaluate(() => { window.__MAT_MANG = true; });
+  await page.locator('.nut-loai[data-loai="1"]').click();
+  await page.waitForTimeout(120);
+  await page.fill('#inKl', '55,5');
+  await page.locator('#btnLuuBao').click();
+  await page.waitForTimeout(400);
+  T('mất mạng vẫn lưu tạm được', (await page.locator('#daiTrangThai').innerText()).includes('chưa gửi'));
+  T('bao chờ gửi hiện trong danh sách', (await page.locator('#dsBao').innerText()).includes('chờ gửi'));
+  const sttSauOffline = await page.inputValue('#inStt');
+  T('offline vẫn tự tăng số bao', sttSauOffline === '2593', sttSauOffline);
+
+  // đổi loại rồi quay lại -> không được gợi ý trùng
+  await page.locator('.nut-loai[data-loai="3"]').click();
+  await page.waitForTimeout(100);
+  await page.locator('.nut-loai[data-loai="1"]').click();
+  await page.waitForTimeout(100);
+  T('đổi loại qua lại khi offline vẫn gợi ý đúng 2593 (không trùng)', (await page.inputValue('#inStt')) === '2593', await page.inputValue('#inStt'));
+
+  await page.evaluate(() => { window.__MAT_MANG = false; });
+  await page.locator('#daiTrangThai').click();
+  await page.waitForTimeout(800);
+  T('có mạng lại -> hàng đợi tự gửi hết', await page.locator('#daiTrangThai').isHidden());
+
+  console.log('\n=== G. TIẾNG VIỆT & KÍCH THƯỚC CHẠM ===');
+  const chuAnh = await page.evaluate(() => {
+    const xau = [];
+    document.querySelectorAll('button, label, h3, .nhan, .nhan-lon, .ghi-chu-mo').forEach(e => {
+      if (e.offsetParent === null) return;
+      const t = (e.textContent || '').trim();
+      if (/\b(Save|Cancel|Submit|Delete|Edit|Login|Logout|Back|Next|Close|Loading|Error|Yes|No)\b/i.test(t)) xau.push(t);
+    });
+    return xau;
+  });
+  T('không còn chữ tiếng Anh trên giao diện', chuAnh.length === 0, chuAnh);
+
+  const nutNho = await page.evaluate(() => {
+    const xau = [];
+    document.querySelectorAll('button').forEach(e => {
+      if (e.offsetParent === null) return;
+      const r = e.getBoundingClientRect();
+      if (r.height < 44 || r.width < 40) xau.push(e.textContent.trim().substring(0, 20) + ' = ' + Math.round(r.width) + 'x' + Math.round(r.height));
+    });
+    return xau;
+  });
+  T('mọi nút đều ≥ 44px chiều cao (chuẩn chạm ngón tay)', nutNho.length === 0, nutNho);
+
+  const tranSo = await page.evaluate(() => document.body.scrollWidth <= window.innerWidth + 1);
+  T('không bị tràn ngang màn hình điện thoại', tranSo);
+
+  const nutLuu = await page.locator('#btnLuuBao').boundingBox();
+  T('nút LƯU BAO rộng gần hết màn hình', nutLuu.width > 300, nutLuu.width);
+
+  console.log('\n=== H. LỖI JAVASCRIPT ===');
+  T('không có lỗi JavaScript nào trong suốt phiên thử', loiJs.length === 0, loiJs);
+
+  console.log('\n────────────────────────────────');
+  console.log('KẾT QUẢ GIAO DIỆN:  ' + pass + ' đạt / ' + fail + ' lỗi');
+  console.log('────────────────────────────────');
+
+  await page.screenshot({ path: '/tmp/ui/mh_nhap_bao.png', fullPage: true });
+  await browser.close();
+  process.exit(fail ? 1 : 0);
+})();

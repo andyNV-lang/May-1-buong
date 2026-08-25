@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="theme-color" content="#1f3864">
+  <?!= include('Style'); ?>
+</head>
+<body>
+
+<!-- ══════════════ THANH TRÊN CÙNG ══════════════ -->
+<header id="thanhTren" class="an">
+  <button id="btnQuayLai" class="nut-icon" onclick="quayLai()" aria-label="Quay lại">‹</button>
+  <div id="tieuDe">
+    <div id="tieuDeChinh"><?= tenMay ?></div>
+    <div id="tieuDePhu"></div>
+  </div>
+  <button id="btnThoat" class="nut-icon" onclick="dangXuat()" aria-label="Thoát">⏻</button>
+</header>
+
+<!-- Dải trạng thái mạng / hàng đợi -->
+<div id="daiTrangThai" class="an"></div>
+
+<main id="noiDung">
+
+  <!-- ══════════════ 1. MÀN HÌNH ĐĂNG NHẬP ══════════════ -->
+  <section id="mhDangNhap" class="man-hinh">
+    <div class="logo-khoi">
+      <div class="logo-ten"><?= tenMay ?></div>
+      <div class="logo-phu">Ghi chép sản xuất</div>
+    </div>
+
+    <div id="buocChonTen">
+      <p class="nhan-lon">Chọn tên của bạn</p>
+      <div id="dsNguoiDung" class="luoi-nguoi"></div>
+      <p id="taiNguoiDung" class="ghi-chu-mo">Đang tải danh sách…</p>
+    </div>
+
+    <div id="buocNhapPin" class="an">
+      <p class="nhan-lon">Xin chào <b id="tenDangChon"></b></p>
+      <div id="oPin" class="o-pin"></div>
+      <div id="loiPin" class="loi-inline an"></div>
+      <div class="ban-phim">
+        <button onclick="bamPin('1')">1</button>
+        <button onclick="bamPin('2')">2</button>
+        <button onclick="bamPin('3')">3</button>
+        <button onclick="bamPin('4')">4</button>
+        <button onclick="bamPin('5')">5</button>
+        <button onclick="bamPin('6')">6</button>
+        <button onclick="bamPin('7')">7</button>
+        <button onclick="bamPin('8')">8</button>
+        <button onclick="bamPin('9')">9</button>
+        <button class="phu" onclick="doiNguoi()">Đổi tên</button>
+        <button onclick="bamPin('0')">0</button>
+        <button class="phu" onclick="xoaPin()">⌫</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 2. MÀN HÌNH CHỌN LÔ ══════════════ -->
+  <section id="mhChonLo" class="man-hinh an">
+    <button class="nut-lon nut-xanh" onclick="moFormTaoLo()">＋ TẠO LÔ MỚI</button>
+    <p class="nhan-lon" style="margin-top:18px">Lô đang chạy</p>
+    <div id="dsLo"></div>
+    <p id="khongCoLo" class="ghi-chu-mo an">Chưa có lô nào đang chạy.<br>Bấm “TẠO LÔ MỚI” để bắt đầu.</p>
+
+    <!-- Bản 1.6: xem lại lô đã đóng. Công nhân chỉ thấy lô CHÍNH MÌNH có nhập bao. -->
+    <button class="nut-lon nut-xam" style="margin-top:18px" onclick="moLoDaDong()">📁&nbsp; Lô đã đóng</button>
+  </section>
+
+  <!-- ══════════════ 7. DANH SÁCH LÔ ĐÃ ĐÓNG (bản 1.6) ══════════════ -->
+  <section id="mhLoDaDong" class="man-hinh an">
+    <p class="nhan-lon">Lô đã đóng</p>
+    <p id="ghiChuLoDaDong" class="ghi-chu-mo" style="margin:0 0 12px"></p>
+    <div id="dsLoDaDong"></div>
+    <button class="nut-lon nut-xam" onclick="veManHinhLo()">‹ Quay lại</button>
+  </section>
+
+  <!-- ══════════════ 8. CHI TIẾT MỘT LÔ — xem lại / quản lý sửa (bản 1.6) ══════════════ -->
+  <section id="mhChiTietLo" class="man-hinh an">
+
+    <div class="the-lo">
+      <div>
+        <div class="the-lo-ma" id="ctMaLo">—</div>
+        <div class="the-lo-phu" id="ctPhu">—</div>
+      </div>
+      <div class="the-lo-so">
+        <div id="ctSoBao">0</div>
+        <div class="the-lo-nhan">bao đã ra</div>
+      </div>
+    </div>
+
+    <div id="ctChiDoc" class="canh-bao-inline an"></div>
+
+    <p class="nhan-lon">Kết quả chạy máy</p>
+    <div id="ctBangTiLe"></div>
+    <div id="ctCanhBao" class="canh-bao-inline an"></div>
+
+    <p class="nhan-lon">Thông tin lô</p>
+    <div id="ctThongTin" class="bang-tt"></div>
+
+    <p class="nhan-lon">Bao trong lô <span id="ctDemBao" class="chip">0</span></p>
+    <div id="ctDsBao"></div>
+
+    <div id="ctKhuQuanLy" class="an">
+      <div class="phan-cach"></div>
+      <p class="nhan-lon">🔑 Quyền quản lý</p>
+      <p class="ghi-chu-mo" style="margin:0 0 10px">
+        Mọi thay đổi ở đây đều <b>phải ghi lý do</b>, và được lưu vào nhật ký kèm tên bạn.</p>
+      <div class="khu-quan-ly-lo">
+        <button class="nut-nho-vien" onclick="moSuaThongTinLo()">✎ Sửa thông tin lô</button>
+        <button class="nut-nho-vien" onclick="moSuaMaLo()">✎ Sửa mã lô</button>
+      </div>
+      <div class="khu-quan-ly-lo">
+        <button id="btnMoLaiLo" class="nut-nho-vien" onclick="moHopMoLaiLo()">🔓 Mở lại lô</button>
+        <button class="nut-nho-vien nguy-hiem" onclick="moXoaLo()">🗑 Xoá lô này</button>
+      </div>
+    </div>
+
+    <button class="nut-lon nut-xam" style="margin-top:20px" onclick="quayLaiTuChiTiet()">‹ Quay lại</button>
+  </section>
+
+  <!-- ══════════════ 3. FORM TẠO LÔ MỚI ══════════════ -->
+  <section id="mhTaoLo" class="man-hinh an">
+    <label class="nhan">Mã lô <span class="bat-buoc">*</span></label>
+    <input id="inMaLo" type="text" class="o-nhap o-nhap-lon" autocomplete="off"
+           autocapitalize="characters" spellcheck="false"
+           placeholder="VD: T0748LA" oninput="xemTruocKyHieu()">
+    <div id="xemKyHieu" class="xem-ky-hieu">Ký hiệu sẽ là: —</div>
+
+    <label class="nhan">Tổng số bao đầu vào <span class="tuy-chon">(có thể bỏ trống)</span></label>
+    <input id="inSoBaoVao" type="text" inputmode="numeric" pattern="[0-9]*" class="o-nhap" placeholder="VD: 163">
+
+    <label class="nhan">Tổng khối lượng đầu vào (kg) <span class="tuy-chon">(có thể bổ sung sau)</span></label>
+    <input id="inKlVaoMoi" type="text" inputmode="decimal" class="o-nhap" placeholder="VD: 1000"
+           oninput="echoKlVao('inKlVaoMoi','echoKlVaoMoi')">
+    <div id="echoKlVaoMoi" class="xem-ky-hieu">Máy sẽ hiểu: —</div>
+
+    <label class="nhan">Ghi chú <span class="tuy-chon">(có thể bỏ trống)</span></label>
+    <input id="inGhiChuLo" type="text" class="o-nhap" placeholder="Máy hỏng, vệ sinh máy…">
+
+    <div id="loiTaoLo" class="loi-inline an"></div>
+
+    <button class="nut-lon nut-xanh" onclick="taoLo()">TẠO LÔ</button>
+    <button class="nut-lon nut-xam" onclick="veManHinhLo()">Huỷ</button>
+  </section>
+
+  <!-- ══════════════ 4. MÀN HÌNH NHẬP BAO ══════════════ -->
+  <section id="mhNhapBao" class="man-hinh an">
+
+    <div id="theLo" class="the-lo">
+      <div>
+        <div class="the-lo-ma" id="loMa">—</div>
+        <div class="the-lo-phu" id="loPhu">—</div>
+      </div>
+      <div class="the-lo-so">
+        <div id="loSoBao">0</div>
+        <div class="the-lo-nhan">bao đã ra</div>
+      </div>
+    </div>
+
+    <p class="nhan">Chọn loại</p>
+    <div class="chon-loai">
+      <button class="nut-loai" data-loai="1" onclick="chonLoai('1')"><b>1</b><span id="nhanLoai1">—</span></button>
+      <button class="nut-loai" data-loai="2" onclick="chonLoai('2')"><b>2</b><span id="nhanLoai2">—</span></button>
+      <button class="nut-loai" data-loai="3" onclick="chonLoai('3')"><b>3</b><span id="nhanLoai3">—</span></button>
+    </div>
+
+    <div class="dau-bang-nhap">
+      <span class="nhan">Số bao &nbsp;·&nbsp; Khối lượng (kg)</span>
+      <span id="demDongNhap" class="chip">1</span>
+    </div>
+    <div id="dsDongNhap"></div>
+
+    <button id="btnThemDong" class="nut-them-dong" onclick="themDongNhap()">＋ THÊM 1 DÒNG</button>
+
+    <div id="loiNhapBao" class="loi-inline an"></div>
+    <div id="canhBaoNhapBao" class="canh-bao-inline an"></div>
+
+    <button id="btnLuuBao" class="nut-lon nut-xanh nut-luu" onclick="luuBao()">LƯU BAO</button>
+
+    <div class="phan-cach"></div>
+
+    <p class="nhan-lon">Bao đã nhập của lô này <span id="demBao" class="chip">0</span></p>
+    <div id="dsBao"></div>
+
+    <div class="phan-cach"></div>
+
+    <!-- ══ KẾT QUẢ CHẠY MÁY ══
+         Bản 1.6 gộp từ màn hình riêng về đây (Andy chốt 22/08/2026). Bảng tỉ lệ đi
+         kèm luôn trong apiMoLo nên không tốn thêm lượt gọi mạng nào, và công nhân
+         thấy tỉ lệ đổi ngay sau mỗi lần lưu bao thay vì phải sang màn hình khác. -->
+    <p class="nhan-lon">📊&nbsp; Kết quả chạy máy</p>
+
+    <label class="nhan">Tổng khối lượng đầu vào (kg) <span class="bat-buoc">*</span></label>
+    <div class="hang-klvao">
+      <input id="inKlVao" type="text" inputmode="decimal" class="o-nhap o-nhap-lon" placeholder="—"
+             oninput="echoKlVao('inKlVao','echoKlVao')">
+      <button class="nut-luu-klvao" onclick="luuKlVao()">LƯU</button>
+    </div>
+    <div id="echoKlVao" class="xem-ky-hieu">Máy sẽ hiểu: —</div>
+    <p id="thieuKlVao" class="loi-inline an">
+      Chưa có khối lượng đầu vào nên chưa tính được tỉ lệ. Nhập vào ô trên rồi bấm LƯU.
+    </p>
+
+    <div id="canhBaoTamTinh" class="canh-bao-inline an"></div>
+    <div id="bangKetQua"></div>
+    <div id="canhBaoKetQua" class="canh-bao-inline an"></div>
+
+    <div class="phan-cach"></div>
+
+    <div id="khuQuanLyLo" class="khu-quan-ly-lo an">
+      <button class="nut-nho-vien" onclick="moSuaMaLo()">✎ Sửa mã lô</button>
+      <button class="nut-nho-vien nguy-hiem" onclick="moXoaLo()">🗑 Xoá lô này</button>
+    </div>
+
+    <button class="nut-lon nut-cam" onclick="chotCa()">✔ CHỐT CA — khoá phần tôi vừa nhập</button>
+
+    <p class="ghi-chu-mo" style="margin:22px 0 0">Chỉ bấm khi lô đã chạy xong hoàn toàn</p>
+    <button class="nut-lon nut-do-vien" onclick="dongLo()">■&nbsp; ĐÓNG LÔ</button>
+
+    <button class="nut-lon nut-xam" style="margin-top:20px" onclick="veManHinhLo()">‹ Về danh sách lô</button>
+  </section>
+
+  <!-- ══════════════ 5. MÀN HÌNH THỐNG KÊ ══════════════ -->
+  <section id="mhThongKe" class="man-hinh an">
+    <p class="nhan-lon">Tổng hợp theo lô</p>
+
+    <!-- Bộ lọc ngày (bản 1.6). Bảng này tăng khoảng 10 lô mỗi ngày, không lọc thì
+         mỗi lần mở là tải cả năm. Lô ĐANG CHẠY không bao giờ bị lọc mất — xem
+         tinhTongHopLo_ trong 05_Report.gs. -->
+    <div id="hangLocNgay" class="hang-loc">
+      <button data-ngay="7"  onclick="doiLocNgay(7)">7 ngày</button>
+      <button data-ngay="30" onclick="doiLocNgay(30)">30 ngày</button>
+      <button data-ngay="90" onclick="doiLocNgay(90)">90 ngày</button>
+      <button data-ngay="0"  onclick="doiLocNgay(0)">Tất cả</button>
+    </div>
+    <p class="ghi-chu-mo" style="margin:0 0 10px">
+      Lô <b>đang chạy</b> luôn hiện, kể cả khi mở từ trước khoảng lọc.</p>
+
+    <div id="bangThongKe" class="cuon-ngang"></div>
+    <button class="nut-lon nut-xam" onclick="veManHinhLo()">‹ Quay lại</button>
+  </section>
+
+</main>
+
+<!-- ══════════════ HỘP THOẠI SỬA BAO ══════════════ -->
+<div id="lopPhu" class="lop-phu an" onclick="dongSuaBao(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3 id="tieuDeSua">Sửa bao</h3>
+    <label class="nhan">Số thứ tự bao</label>
+    <input id="suaStt" type="text" inputmode="numeric" pattern="[0-9]*" class="o-nhap o-nhap-lon">
+    <label class="nhan">Khối lượng (kg)</label>
+    <input id="suaKl" type="text" inputmode="decimal" class="o-nhap o-nhap-lon">
+    <div id="khuLyDoBao" class="khu-ly-do an">
+      <label class="nhan">Lý do sửa / xoá <span class="bat-buoc">*</span></label>
+      <input id="lyDoBao" type="text" class="o-nhap" placeholder="VD: cân lại thấy ghi nhầm 100 thành 110">
+      <p class="ghi-chu-hop">Bắt buộc khi số liệu đã khoá. Lý do vào nhật ký kèm tên bạn.</p>
+    </div>
+    <div id="loiSua" class="loi-inline an"></div>
+    <button class="nut-lon nut-xanh" onclick="luuSuaBao()">LƯU THAY ĐỔI</button>
+    <button class="nut-lon nut-do-vien" onclick="xoaBao()">🗑 XOÁ BAO NÀY</button>
+    <button class="nut-lon nut-xam" onclick="dongSuaBao()">Huỷ</button>
+  </div>
+</div>
+
+<!-- ══════════════ HỘP THOẠI SỬA MÃ LÔ ══════════════ -->
+<div id="lopSuaLo" class="lop-phu an" onclick="dongSuaMaLo(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3>Sửa mã lô</h3>
+    <p class="ghi-chu-hop">Dùng khi gõ sai chính tả mã lô. Toàn bộ bao đã nhập sẽ chuyển
+       theo mã mới, không mất dòng nào.</p>
+    <label class="nhan">Mã lô hiện tại</label>
+    <div id="maLoCu" class="o-chi-doc">—</div>
+    <label class="nhan">Mã lô đúng</label>
+    <input id="inMaLoMoi" type="text" class="o-nhap o-nhap-lon" autocomplete="off"
+           autocapitalize="characters" spellcheck="false" oninput="xemTruocKyHieuSua()">
+    <div id="xemKyHieuSua" class="xem-ky-hieu">Ký hiệu sẽ là: —</div>
+    <div id="khuLyDoMaLo" class="khu-ly-do an">
+      <label class="nhan">Lý do sửa <span class="bat-buoc">*</span></label>
+      <input id="lyDoMaLo" type="text" class="o-nhap" placeholder="VD: công nhân gõ nhầm tên lô rồi đóng lô">
+      <p class="ghi-chu-hop">Bắt buộc khi lô đã đóng. Lý do vào nhật ký kèm tên bạn.</p>
+    </div>
+    <div id="loiSuaLo" class="loi-inline an"></div>
+    <button class="nut-lon nut-xanh" onclick="luuMaLoMoi()">LƯU MÃ MỚI</button>
+    <button class="nut-lon nut-xam" onclick="dongSuaMaLo()">Huỷ</button>
+  </div>
+</div>
+
+<!-- ══════════════ HỘP THOẠI XOÁ LÔ ══════════════ -->
+<div id="lopXoaLo" class="lop-phu an" onclick="dongXoaLo(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3>🗑 Xoá lô</h3>
+    <div class="canh-bao-do">
+      <b>KHÔNG HOÀN TÁC ĐƯỢC.</b>
+      <div id="tomTatXoa">—</div>
+    </div>
+    <p class="ghi-chu-hop">Số liệu sẽ được chụp lại vào nhật ký trước khi xoá.</p>
+    <label class="nhan">Gõ lại mã lô để xác nhận</label>
+    <div id="maLoXoa" class="o-chi-doc">—</div>
+    <input id="inXacNhanXoa" type="text" class="o-nhap o-nhap-lon" autocomplete="off"
+           autocapitalize="characters" spellcheck="false" placeholder="Gõ mã lô ở trên">
+    <div id="khuLyDoXoaLo" class="khu-ly-do an">
+      <label class="nhan">Lý do xoá <span class="bat-buoc">*</span></label>
+      <input id="lyDoXoaLo" type="text" class="o-nhap" placeholder="VD: lô nhập trùng với lô khác">
+      <p class="ghi-chu-hop">Bắt buộc khi lô đã đóng. Lý do vào nhật ký kèm tên bạn.</p>
+    </div>
+    <div id="loiXoaLo" class="loi-inline an"></div>
+    <button class="nut-lon nut-do-dac" onclick="xacNhanXoaLo()">XOÁ HẲN LÔ NÀY</button>
+    <button class="nut-lon nut-xam" onclick="dongXoaLo()">Huỷ</button>
+  </div>
+</div>
+
+<!-- ══════════════ KHAY BAO LỖI — bao máy chủ từ chối ══════════════ -->
+<div id="lopKhayLoi" class="lop-phu an" onclick="dongKhayLoi(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3>❗ Bao chưa vào được hệ thống <span id="demKhayLoi" class="chip">0</span></h3>
+    <p class="ghi-chu-hop">Những bao này đã nhập trên máy nhưng máy chủ TỪ CHỐI.
+       <b>Chúng chưa có trong số liệu.</b> Sửa lại cho đúng rồi bấm <b>Gửi lại</b>,
+       hoặc bấm <b>Bỏ bao này</b> nếu chắc chắn không cần —
+       mọi lần bỏ đều ghi vào nhật ký kèm tên bạn.</p>
+    <div id="dsKhayLoi"></div>
+    <button class="nut-lon nut-xam" onclick="dongKhayLoi()">Đóng</button>
+  </div>
+</div>
+
+<!-- ══════════════ HỘP THOẠI SỬA THÔNG TIN LÔ (bản 1.6) ══════════════ -->
+<div id="lopSuaTT" class="lop-phu an" onclick="dongSuaThongTinLo(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3>✎ Sửa thông tin lô</h3>
+    <p class="ghi-chu-hop">Sửa số liệu ĐẦU VÀO của lô. Đổi khối lượng đầu vào là mọi
+       tỉ lệ thu hồi tính lại theo.</p>
+    <div id="ttMaLo" class="o-chi-doc">—</div>
+
+    <label class="nhan">Tổng số bao đầu vào</label>
+    <input id="ttSoBaoVao" type="text" inputmode="numeric" pattern="[0-9]*" class="o-nhap"
+           placeholder="Để trống nếu không có">
+
+    <label class="nhan">Tổng khối lượng đầu vào (kg)</label>
+    <input id="ttKlVao" type="text" inputmode="decimal" class="o-nhap"
+           placeholder="Để trống nếu chưa cân" oninput="echoKlVao('ttKlVao','ttEchoKl')">
+    <div id="ttEchoKl" class="xem-ky-hieu">Máy sẽ hiểu: —</div>
+
+    <label class="nhan">Ghi chú</label>
+    <input id="ttGhiChu" type="text" class="o-nhap" placeholder="Máy hỏng, vệ sinh máy…">
+
+    <div id="khuLyDoTT" class="khu-ly-do an">
+      <label class="nhan">Lý do sửa <span class="bat-buoc">*</span></label>
+      <input id="ttLyDo" type="text" class="o-nhap"
+             placeholder="VD: đối chiếu phiếu giấy thấy ghi thiếu 5 bao vào">
+      <p class="ghi-chu-hop">Bắt buộc khi lô đã đóng. Lý do vào nhật ký kèm tên bạn.</p>
+    </div>
+
+    <div id="loiSuaTT" class="loi-inline an"></div>
+    <button class="nut-lon nut-xanh" onclick="luuThongTinLo()">LƯU THAY ĐỔI</button>
+    <button class="nut-lon nut-xam" onclick="dongSuaThongTinLo()">Huỷ</button>
+  </div>
+</div>
+
+<!-- ══════════════ HỘP THOẠI MỞ LẠI LÔ (bản 1.6) ══════════════ -->
+<div id="lopMoLaiLo" class="lop-phu an" onclick="dongHopMoLaiLo(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3>🔓 Mở lại lô</h3>
+    <div class="canh-bao-cam">
+      <b>LÔ SẼ QUAY VỀ TRẠNG THÁI ĐANG CHẠY.</b>
+      <div id="tomTatMoLai">—</div>
+    </div>
+    <p class="ghi-chu-hop">Công nhân nhập tiếp được vào lô này.
+       <b>Các bao đã CHỐT CA vẫn giữ nguyên khoá</b> — muốn sửa một bao cũ thì sửa
+       thẳng bao đó, đừng mở cả lô.</p>
+    <div id="mlMaLo" class="o-chi-doc">—</div>
+    <label class="o-tich" for="tichMoLai">
+      <input type="checkbox" id="tichMoLai" onchange="doiTichMoLaiLo()">
+      <span>Tôi xác nhận mở lại lô này.</span>
+    </label>
+    <label class="nhan">Lý do mở lại <span class="bat-buoc">*</span></label>
+    <input id="mlLyDo" type="text" class="o-nhap"
+           placeholder="VD: lô còn bao chưa chạy hết, phải mở lại">
+    <div id="loiMoLai" class="loi-inline an"></div>
+    <button id="btnXacNhanMoLai" class="nut-lon nut-xanh" onclick="xacNhanMoLaiLo()" disabled>MỞ LẠI LÔ</button>
+    <button class="nut-lon nut-xam" onclick="dongHopMoLaiLo()">Huỷ</button>
+  </div>
+</div>
+
+<!-- ══════════════ HỘP THOẠI CHỐT CA ══════════════ -->
+<div id="lopChotCa" class="lop-phu an" onclick="dongHopChotCa(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3>✔ Chốt ca</h3>
+    <div class="canh-bao-cam">
+      <b>KHOÁ PHẦN BẠN VỪA NHẬP.</b>
+      <div id="tomTatChotCa">—</div>
+    </div>
+    <p class="ghi-chu-hop">Toàn bộ bao <b>do bạn nhập trong lô này</b> mà chưa chốt sẽ
+       bị khoá, không sửa được nữa. Lô vẫn mở để ca sau nhập tiếp.
+       Lô khác bạn đang nhập dở KHÔNG bị ảnh hưởng.</p>
+    <label class="nhan">Lô sắp chốt ca</label>
+    <div id="maLoChot" class="o-chi-doc">—</div>
+    <label class="o-tich" for="tichChotCa">
+      <input type="checkbox" id="tichChotCa" onchange="doiTichChotCa()">
+      <span>Tôi đã xem lại danh sách bao và xác nhận chốt ca.</span>
+    </label>
+    <div id="loiChotCa" class="loi-inline an"></div>
+    <button id="btnXacNhanChot" class="nut-lon nut-cam" onclick="xacNhanChotCa()" disabled>CHỐT CA</button>
+    <button class="nut-lon nut-xam" onclick="dongHopChotCa()">Huỷ</button>
+  </div>
+</div>
+
+<!-- ══════════════ HỘP THOẠI ĐÓNG LÔ ══════════════ -->
+<div id="lopDongLo" class="lop-phu an" onclick="dongHopDongLo(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3>■ Đóng lô</h3>
+    <div class="canh-bao-do">
+      <b>ĐÓNG LÔ LÀ KHOÁ VĨNH VIỄN.</b>
+      <div id="tomTatDongLo">—</div>
+    </div>
+    <p class="ghi-chu-hop">Sau khi đóng, không ai thêm hay sửa bao của lô này được nữa —
+       kể cả người tạo lô. Mở lại phải nhờ quản lý.
+       Lô còn chạy sang ca sau thì chỉ bấm CHỐT CA, đừng đóng lô.</p>
+    <label class="nhan">Lô sắp đóng</label>
+    <div id="maLoDong" class="o-chi-doc">—</div>
+
+    <!-- Bản 1.6: tích ô thay cho gõ lại mã lô. Ô tích không bắt được lỗi "đóng nhầm
+         lô bên cạnh" như gõ tay, nên mã lô được in TO ngay phía trên, và nút chỉ
+         sáng lên sau khi đã tích. -->
+    <label class="o-tich" for="tichDongLo">
+      <input type="checkbox" id="tichDongLo" onchange="doiTichDongLo()">
+      <span>Tôi đã xem lại số liệu và xác nhận <b>đóng hẳn</b> lô này.</span>
+    </label>
+    <div id="loiDongLo" class="loi-inline an"></div>
+    <button id="btnXacNhanDong" class="nut-lon nut-do-dac" onclick="xacNhanDongLo()" disabled>ĐÓNG LÔ NÀY</button>
+    <button class="nut-lon nut-xam" onclick="dongHopDongLo()">Huỷ</button>
+  </div>
+</div>
+
+<!-- ══════════════ THÔNG BÁO NỔI ══════════════ -->
+<div id="toast" class="toast an"></div>
+<div id="manCho" class="man-cho an"><div class="vong-xoay"></div></div>
+
+<?!= include('Script'); ?>
+</body>
+</html>

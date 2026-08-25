@@ -1,0 +1,1934 @@
+/* Bộ giả lập Apps Script để kiểm tra logic nghiệp vụ ngoài Google */
+const fs = require('fs');
+
+// ---- Giả lập bảng tính trong bộ nhớ ----
+const DB = {};           // ten sheet -> mảng 2 chiều (gồm cả hàng tiêu đề)
+function mkSheet(name, header) { DB[name] = [header.slice()]; }
+
+class Range {
+  constructor(sh, r, c, nr, nc) { Object.assign(this, { sh, r, c, nr, nc }); }
+  getValues() {
+    const out = [];
+    for (let i = 0; i < this.nr; i++) {
+      const row = DB[this.sh][this.r - 1 + i] || [];
+      const line = [];
+      for (let j = 0; j < this.nc; j++) line.push(row[this.c - 1 + j] === undefined ? '' : row[this.c - 1 + j]);
+      out.push(line);
+    }
+    return out;
+  }
+  setValues(v) {
+    // Google Sheets thật NÉM LỖI khi dữ liệu lệch chiều với vùng ghi.
+    // Bộ giả lập trước đây ghi bừa nên đã bỏ lọt lỗi dữ liệu mẫu thiếu cột kl_vao
+    // (menu "Tạo dữ liệu mẫu" hỏng từ bản 1.3 mà 176 kiểm thử không hề biết).
+    if (!Array.isArray(v)) {
+      throw new Error('setValues: dữ liệu phải là mảng 2 chiều.');
+    }
+    if (v.length !== this.nr) {
+      throw new Error('The number of rows in the data does not match the number of rows in the range. '
+        + 'The data has ' + v.length + ' but the range has ' + this.nr + '. '
+        + '[sheet ' + this.sh + ']');
+    }
+    for (let q = 0; q < v.length; q++) {
+      if (!Array.isArray(v[q])) {
+        throw new Error('setValues: dòng ' + (q + 1) + ' không phải mảng. [sheet ' + this.sh + ']');
+      }
+      if (v[q].length !== this.nc) {
+        throw new Error('The number of columns in the data does not match the number of columns in the range. '
+          + 'The data has ' + v[q].length + ' but the range has ' + this.nc + '. '
+          + '[sheet ' + this.sh + ', dòng dữ liệu thứ ' + (q + 1) + ']');
+      }
+    }
+    for (let i = 0; i < v.length; i++) {
+      const idx = this.r - 1 + i;
+      while (DB[this.sh].length <= idx) DB[this.sh].push([]);
+      for (let j = 0; j < v[i].length; j++) DB[this.sh][idx][this.c - 1 + j] = v[i][j];
+    }
+    return this;
+  }
+  clearContent() {
+    for (let i = 0; i < this.nr; i++) {
+      const idx = this.r - 1 + i;
+      if (DB[this.sh][idx]) for (let j = 0; j < this.nc; j++) DB[this.sh][idx][this.c - 1 + j] = '';
+    }
+    return this;
+  }
+  setFontWeight() { return this; } setBackground() { return this; }
+  setFontColor() { return this; } setVerticalAlignment() { return this; }
+  /* Ghi lại định dạng số để kiểm thử soát được: trước bản 1.6 bộ giả lập KHÔNG có
+     hai hàm này, nên cả khối định dạng cột trong 02_Setup.gs (nằm trong try/catch)
+     ném lỗi rồi bị nuốt — tức kiểm thử chưa từng chạy qua nó lấy một lần. */
+  setNumberFormat(f) {
+    for (let i = 0; i < this.nr; i++) {
+      for (let j = 0; j < this.nc; j++) DINH_DANG[this.sh + '!' + (this.r + i) + ',' + (this.c + j)] = f;
+    }
+    return this;
+  }
+}
+const DINH_DANG = {};
+
+class Sheet {
+  constructor(name) { this.name = name; }
+  getRange(r, c, nr, nc) { return new Range(this.name, r, c, nr || 1, nc || 1); }
+  getLastRow() { return DB[this.name].length; }
+  getLastColumn() { return DB[this.name][0].length; }
+  appendRow(row) { DB[this.name].push(row.slice()); }
+  deleteRow(n) { DB[this.name].splice(n - 1, 1); }
+  setFrozenRows() {} setRowHeight() {} setColumnWidth() {}
+  getMaxRows() { return Math.max(1000, DB[this.name].length); }
+  getProtections() { return []; }
+  protect() { return { setDescription() { return this; }, setWarningOnly() { return this; } }; }
+}
+
+/* ---- Giả lập hộp thoại của Google Sheets ----
+   Mặc định TẮT: getUi() ném lỗi, đúng như khi chạy hàm từ trình soạn thảo Apps Script.
+   Bật lên (UI.bat = true) để kiểm thử được các hàm trong 02_Setup.gs — trước bản 1.5
+   cả file đó KHÔNG có kiểm thử nào, đó là lý do lỗi dữ liệu mẫu thiếu cột lọt lưới. */
+const UI = { bat: false, nut: 'OK', chu: '', daHien: [] };
+function _uiGia() {
+  const menu = { addItem: () => menu, addSeparator: () => menu, addToUi: () => menu };
+  return {
+    createMenu: () => menu,
+    alert: function () {
+      UI.daHien.push(Array.prototype.slice.call(arguments).filter(x => typeof x === 'string').join(' | '));
+      return UI.nut;
+    },
+    prompt: function () {
+      UI.daHien.push(Array.prototype.slice.call(arguments).filter(x => typeof x === 'string').join(' | '));
+      return { getSelectedButton: () => UI.nut, getResponseText: () => UI.chu };
+    },
+    ButtonSet: { OK_CANCEL: 'OK_CANCEL', YES_NO: 'YES_NO' },
+    Button: { OK: 'OK', CANCEL: 'CANCEL', YES: 'YES', NO: 'NO' }
+  };
+}
+
+global.SpreadsheetApp = {
+  getActive: () => ({
+    getSheetByName: (n) => (DB[n] ? new Sheet(n) : null),
+    insertSheet: (n) => { DB[n] = [[]]; return new Sheet(n); }
+  }),
+  getUi: () => {
+    if (!UI.bat) throw new Error('no ui');
+    return _uiGia();
+  },
+  ProtectionType: { SHEET: 'SHEET' }
+};
+
+let uuidN = 0;
+global.Utilities = {
+  getUuid: () => 'id-' + (++uuidN),
+  formatDate: (d, tz, f) => {
+    const p = (n) => String(n).padStart(2, '0');
+    return f.replace('yyyy', d.getFullYear()).replace('MM', p(d.getMonth() + 1))
+      .replace('dd', p(d.getDate())).replace('HH', p(d.getHours()))
+      .replace('mm', p(d.getMinutes())).replace('ss', p(d.getSeconds()));
+  },
+  computeHmacSha256Signature: (s) => Array.from(require('crypto').createHmac('sha256', 'k').update(s).digest()),
+  base64EncodeWebSafe: (s) => Buffer.from(s).toString('base64url'),
+  base64DecodeWebSafe: (s) => Buffer.from(s, 'base64url'),
+  newBlob: (b) => ({ getDataAsString: () => Buffer.from(b).toString() })
+};
+
+// Múi giờ của project (đọc từ appsscript.json trên Apps Script thật).
+// Bộ giả lập đọc THẲNG file appsscript.json để tuKiemTra canh được lệch múi giờ.
+const _tzProject = (() => {
+  try { return JSON.parse(fs.readFileSync(__dirname + '/appsscript.json', 'utf8')).timeZone; }
+  catch (e) { return 'KHONG_DOC_DUOC'; }
+})();
+global.Session = { getScriptTimeZone: () => _tzProject };
+
+global.LockService = { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) };
+const _props = {};
+global.PropertiesService = { getScriptProperties: () => ({
+  getProperty: k => (_props[k] === undefined ? null : _props[k]),
+  setProperty: (k, v) => { _props[k] = v; },
+  deleteProperty: (k) => { delete _props[k]; }
+}) };
+const _cache = {};
+global.CacheService = { getScriptCache: () => ({ get: k => _cache[k], put: (k, v) => { _cache[k] = v; }, remove: k => { delete _cache[k]; } }) };
+global.console = console;
+
+// ---- Nạp code thật ----
+// Mặc định đọc thẳng các file .gs nằm cùng thư mục với chính file kiểm thử này,
+// nên chạy được ngay: node 9_KIEMTHU_LOGIC.js.txt
+const NGUON = process.env.M1B_NGUON || (__dirname + '/');
+const DUOI  = process.env.M1B_DUOI  || '.gs';
+const src = ['00_Config', '01_Util', '02_Setup', '03_Auth', '04_Api', '05_Report', '06_WebApp']
+  .map(f => fs.readFileSync(NGUON + f + DUOI, 'utf8')).join('\n;\n');
+(0, eval)(src); // eval gián tiếp -> khai báo vào phạm vi toàn cục
+
+// ---- Tạo sheet ----
+/* Hàng tiêu đề phải giống HỆT thứ taoCauTrucSheet ghi ra: từ bản 1.6 có cột mang
+   nhãn tiếng Việt và cột để trống hẳn. Dựng sheet bằng tên cột trong mã là bộ giả lập
+   DỄ HƠN Google, và tuKiemTra sẽ báo lệch cột ở mọi lần chạy. */
+Object.keys(SHEETS).forEach(k =>
+  mkSheet(SHEETS[k], COLS[SHEETS[k]].map(c => nhanCot_(SHEETS[k], c))));
+CAU_HINH_MAC_DINH.forEach(r => DB[SHEETS.CAU_HINH].push(r.slice()));
+DB[SHEETS.NGUOI_DUNG].push(['CN01', 'Cong nhan 1', '1111', 'CONG_NHAN', 'CO']);
+DB[SHEETS.NGUOI_DUNG].push(['CN02', 'Cong nhan 2', '2222', 'CONG_NHAN', 'CO']);
+DB[SHEETS.NGUOI_DUNG].push(['TK01', 'Thong ke', '9999', 'THONG_KE', 'CO']);
+
+// ---- Khung kiểm thử ----
+let pass = 0, fail = 0;
+function T(ten, dk, chiTiet) {
+  if (dk) { pass++; console.log('  ✅ ' + ten); }
+  else { fail++; console.log('  ❌ ' + ten + (chiTiet !== undefined ? '  →  ' + JSON.stringify(chiTiet) : '')); }
+}
+
+console.log('\n=== 1. SUY RA KÝ HIỆU TỪ MÃ LÔ ===');
+T('T0748LA -> A', kyHieuTuMaLo_('T0748LA') === 'A', kyHieuTuMaLo_('T0748LA'));
+T('D0912MB -> B', kyHieuTuMaLo_('D0912MB') === 'B', kyHieuTuMaLo_('D0912MB'));
+T('chữ thường t0748la -> A', kyHieuTuMaLo_('t0748la') === 'A');
+T('X1234 -> không hợp lệ', kyHieuTuMaLo_('X1234') === '');
+T('chuẩn hoá " t0748la " -> T0748LA', chuanHoaMaLo_(' t0748la ') === 'T0748LA');
+T('làm tròn 49.84 -> 49.8', lamTronKl_(49.84) === 49.8, lamTronKl_(49.84));
+
+console.log('\n=== 2. ĐĂNG NHẬP ===');
+let r = apiDangNhap('CN01', '0000');
+T('PIN sai bị từ chối', r.ok === false, r);
+r = apiDangNhap('CN01', '1111');
+T('PIN đúng đăng nhập được', r.ok === true, r);
+const VE1 = r.data.ve, PHIEN1 = r.data.phien;
+r = apiDangNhap('CN02', '2222');
+const VE2 = r.data.ve, PHIEN2 = r.data.phien;
+T('người thứ 2 đăng nhập được', r.ok === true);
+T('vé hỏng bị từ chối', apiKiemTraVe('rac.rac').ok === false);
+
+console.log('\n=== 3. TẠO LÔ ===');
+r = apiTaoLo(VE1, 'X9999', 10, '');
+T('mã lô sai tiền tố bị chặn', r.ok === false, r.error);
+r = apiTaoLo(VE1, 't0748la', 163, 'lô thử');
+T('tạo lô T0748LA thành công', r.ok === true, r);
+T('ký hiệu tự suy ra = A', r.ok && r.data.ky_hieu === 'A', r.data);
+r = apiTaoLo(VE1, 'T0748LA', 163, '');
+T('tạo trùng mã lô bị chặn', r.ok === false, r.error);
+r = apiTaoLo(VE1, 'D0912MB', '', '');
+T('lô D -> ký hiệu B, số bao vào để trống được', r.ok && r.data.ky_hieu === 'B', r);
+
+console.log('\n=== 4. LƯU BAO ===');
+r = apiLuuBao(VE1, { ma_lo: 'T0748LA', loai: '1', stt_bao: 2590, khoi_luong: 49.8, phien: PHIEN1, client_id: 'c1' });
+T('lưu bao đầu tiên', r.ok === true, r);
+T('gợi ý số bao tiếp = 2591', r.ok && r.data.goi_y_stt_tiep === 2591, r.data);
+
+r = apiLuuBao(VE1, { ma_lo: 'T0748LA', loai: '1', stt_bao: 2590, khoi_luong: 43.1, phien: PHIEN1, client_id: 'c2' });
+T('trùng số bao cùng nhóm A1 bị chặn', r.ok === false && r.code === 'TRUNG_SO_BAO', r.error);
+
+r = apiLuuBao(VE1, { ma_lo: 'T0748LA', loai: '2', stt_bao: 2590, khoi_luong: 85, phien: PHIEN1, client_id: 'c3' });
+T('cùng số 2590 nhưng khác LOẠI thì cho phép', r.ok === true, r.error);
+
+r = apiLuuBao(VE1, { ma_lo: 'T0748LA', loai: '1', stt_bao: 2591, khoi_luong: 498, phien: PHIEN1, client_id: 'c4' });
+T('khối lượng 498 kg (gõ thiếu dấu chấm) bị chặn', r.ok === false, r.error);
+
+r = apiLuuBao(VE1, { ma_lo: 'T0748LA', loai: '1', stt_bao: 2591, khoi_luong: 43.1, phien: PHIEN1, client_id: 'c5' });
+T('lưu bao thứ 2 nhóm A1', r.ok === true);
+
+r = apiLuuBao(VE1, { ma_lo: 'T0748LA', loai: '1', stt_bao: 2591, khoi_luong: 43.1, phien: PHIEN1, client_id: 'c5' });
+T('gửi lại cùng client_id -> bỏ qua, KHÔNG tạo dòng trùng', r.ok === true && r.data.trung_lap_bo_qua === true, r.data);
+
+r = apiLuuBao(VE1, { ma_lo: 'T0748LA', loai: '1', stt_bao: 3000, khoi_luong: 50, phien: PHIEN1, client_id: 'c6' });
+T('nhảy số xa -> vẫn lưu nhưng có cảnh báo', r.ok === true && !!r.data.canh_bao, r.data);
+
+r = apiLuuBao(VE1, { ma_lo: 'T0748LA', loai: '4', stt_bao: 1, khoi_luong: 50, phien: PHIEN1, client_id: 'c7' });
+T('loại 4 không tồn tại bị chặn', r.ok === false, r.error);
+
+console.log('\n=== 5. GỢI Ý SỐ BAO THEO TỪNG NHÓM ===');
+r = apiMoLo(VE1, 'T0748LA', PHIEN1);
+T('mở lô thành công', r.ok === true);
+T('gợi ý nhóm A1 = 3001 (max 3000 +1)', r.data.goi_y_stt['1'] === 3001, r.data.goi_y_stt);
+T('gợi ý nhóm A2 = 2591 (max 2590 +1)', r.data.goi_y_stt['2'] === 2591, r.data.goi_y_stt);
+T('gợi ý nhóm A3 = null (chưa có bao nào)', r.data.goi_y_stt['3'] === null, r.data.goi_y_stt);
+
+console.log('\n=== 6. QUYỀN SỬA / XOÁ ===');
+const dsBao = docBang_(SHEETS.BAO);
+const baoCuaCN01 = dsBao[0];
+r = apiSuaBao(VE2, baoCuaCN01.id, 2590, 45);
+T('CN02 KHÔNG sửa được bao của CN01', r.ok === false && r.code === 'KHONG_DUOC_SUA', r.error);
+r = apiXoaBao(VE2, baoCuaCN01.id);
+T('CN02 KHÔNG xoá được bao của CN01', r.ok === false, r.error);
+r = apiSuaBao(VE1, baoCuaCN01.id, 2590, 45.5);
+T('CN01 sửa được bao của chính mình khi chưa chốt', r.ok === true, r.error);
+r = apiSuaBao(VE1, baoCuaCN01.id, 2591, 45.5);
+T('sửa thành số bao đã tồn tại bị chặn', r.ok === false && r.code === 'TRUNG_SO_BAO', r.error);
+
+console.log('\n=== 7. CHỐT CA ===');
+r = apiChotCa(VE1, PHIEN1, 'T0748LA');
+T('chốt ca thành công', r.ok === true, r);
+T('chốt đúng 4 bao của CN01 (bản gửi lại không tính)', r.ok && r.data.so_bao === 4, r.data);
+r = apiSuaBao(VE1, baoCuaCN01.id, 2590, 60);
+T('sau khi chốt thì KHÔNG sửa được nữa', r.ok === false, r.error);
+r = apiXoaBao(VE1, baoCuaCN01.id);
+T('sau khi chốt thì KHÔNG xoá được nữa', r.ok === false, r.error);
+r = apiChotCa(VE1, PHIEN1, 'T0748LA');
+T('chốt lại lần 2 báo không có gì để chốt', r.ok === false && r.code === 'KHONG_CO_GI');
+
+console.log('\n=== 8. CA SAU VẪN NHẬP TIẾP ĐƯỢC VÀO CÙNG LÔ ===');
+r = apiLuuBao(VE2, { ma_lo: 'T0748LA', loai: '3', stt_bao: 6596, khoi_luong: 77.8, phien: PHIEN2, client_id: 'd1' });
+T('CN02 nhập tiếp vào lô đang chạy', r.ok === true, r.error);
+r = apiMoLo(VE2, 'T0748LA', PHIEN2);
+const baoDaChot = r.data.ds_bao.filter(b => b.trang_thai === 'DA_CHOT');
+const baoSuaDuoc = r.data.ds_bao.filter(b => b.sua_duoc);
+T('CN02 thấy 4 bao đã chốt của CN01 nhưng không sửa được', baoDaChot.length === 4 && baoSuaDuoc.length === 1,
+  { daChot: baoDaChot.length, suaDuoc: baoSuaDuoc.length });
+
+console.log('\n=== 9. ĐÓNG LÔ ===');
+r = apiDongLo(VE2, 'T0748LA', 'T0748LA');
+T('đóng lô thành công', r.ok === true, r);
+r = apiLuuBao(VE2, { ma_lo: 'T0748LA', loai: '1', stt_bao: 9999, khoi_luong: 50, phien: PHIEN2, client_id: 'd2' });
+T('lô đã đóng thì KHÔNG thêm bao được', r.ok === false && r.code === 'LO_DA_DONG', r.error);
+r = apiDongLo(VE2, 'T0748LA', 'T0748LA');
+T('đóng lại lô đã đóng bị chặn', r.ok === false);
+
+console.log('\n=== 10. TỔNG HỢP THEO LÔ & PHÂN QUYỀN ===');
+r = apiTongHopLo(VE1, '', '');
+T('công nhân KHÔNG xem được tổng hợp', r.ok === false && r.code === 'KHONG_CO_QUYEN');
+const veTK = apiDangNhap('TK01', '9999').data.ve;
+r = apiTongHopLo(veTK, '', '');
+T('thống kê xem được tổng hợp', r.ok === true, r.error);
+const loT = r.data.ds.filter(x => x.ma_lo === 'T0748LA')[0];
+T('tổng hợp: 5 bao ra', loT && loT.tong_so_bao_ra === 5, loT && loT.tong_so_bao_ra);
+T('tổng hợp: nhóm L1 có 3 bao', loT && loT.so_bao_L1 === 3, loT);
+T('tổng hợp: trạng thái Đã đóng', loT && loT.trang_thai === 'Đã đóng', loT && loT.trang_thai);
+const tongKl = 45.5 + 43.1 + 50 + 85 + 77.8;
+T('tổng hợp: tổng KL = ' + tongKl, loT && Math.abs(loT.tong_kl_ra - tongKl) < 0.05, loT && loT.tong_kl_ra);
+
+console.log('\n=== 11. NHẬT KÝ THAO TÁC ===');
+const log = docBang_(SHEETS.LOG);
+const hd = {};
+log.forEach(l => { hd[l.hanh_dong] = (hd[l.hanh_dong] || 0) + 1; });
+T('có ghi THEM_BAO (5 lần)', hd['THEM_BAO'] === 5, hd);
+T('có ghi SUA_BAO kèm giá trị cũ/mới', log.some(l => l.hanh_dong === 'SUA_BAO' && String(l.gia_tri_cu).indexOf('49.8') >= 0),
+  log.filter(l => l.hanh_dong === 'SUA_BAO').map(l => l.gia_tri_cu + ' -> ' + l.gia_tri_moi));
+T('có ghi CHOT_CA', hd['CHOT_CA'] === 1, hd);
+T('có ghi DONG_LO', hd['DONG_LO'] === 1, hd);
+T('có ghi DANG_NHAP_SAI', hd['DANG_NHAP_SAI'] === 1, hd);
+T('mọi dòng log đều có mã NV', log.every(l => String(l.ma_nv).length > 0));
+
+console.log('\n=== 12. CHỐNG DÒ PIN ===');
+for (let i = 0; i < 6; i++) apiDangNhap('CN02', '0000');
+r = apiDangNhap('CN02', '2222');
+T('sai quá số lần -> khoá tạm dù PIN đúng', r.ok === false && r.code === 'BI_KHOA', r.error);
+
+
+console.log('\n=== 13. CÁC LỖI ĐÃ SỬA (bản v1.1) ===');
+
+// 13.1 Dấu phẩy thập phân (bàn phím tiếng Việt)
+T('soTu_("49,8") = 49.8', soTu_('49,8') === 49.8, soTu_('49,8'));
+T('soTu_("49.8") = 49.8', soTu_('49.8') === 49.8);
+T('soTu_("abc") = NaN', isNaN(soTu_('abc')));
+T('soTu_("") = NaN', isNaN(soTu_('')));
+r = apiTaoLo(VE1, 'T1111AA', 10, '');
+r = apiLuuBao(VE1, { ma_lo:'T1111AA', loai:'1', stt_bao:'5001', khoi_luong:'49,8', phien:PHIEN1, client_id:'v1' });
+T('lưu được khối lượng gõ dấu phẩy "49,8"', r.ok === true && r.data.khoi_luong === 49.8, r.ok ? r.data.khoi_luong : r.error);
+
+// 13.2 Mã lô có ký tự lạ
+r = apiTaoLo(VE1, "T'X<script>", 1, '');
+T('mã lô chứa ký tự lạ bị chặn', r.ok === false, r.error);
+r = apiTaoLo(VE1, 'TA', 1, '');
+T('mã lô quá ngắn bị chặn', r.ok === false, r.error);
+
+// 13.3 PIN mất số 0 đứng đầu do Google Sheets lưu dạng Số
+DB[SHEETS.NGUOI_DUNG].push(['CN09', 'Cong nhan 9', 472, 'CONG_NHAN', 'CO']);
+xoaCacheCauHinh();
+r = apiDangNhap('CN09', '0472');
+T('PIN 0472 lưu thành số 472 vẫn đăng nhập được', r.ok === true, r.error);
+r = apiDangNhap('CN09', '472');
+T('PIN gõ thiếu số 0 bị từ chối', r.ok === false, r.error);
+
+// 13.4 Cột dang_dung viết có dấu
+DB[SHEETS.NGUOI_DUNG].push(['CN10', 'Da nghi viec', '1234', 'CONG_NHAN', 'Không']);
+T('dang_dung = "Không" (có dấu) -> khoá tài khoản', apiDangNhap('CN10', '1234').ok === false);
+T('dangDung_("") = đang dùng', dangDung_('') === true);
+T('dangDung_("CO") = đang dùng', dangDung_('CO') === true);
+T('dangDung_("KHONG") = ngừng', dangDung_('KHONG') === false);
+
+// 13.5 Google Sheets tự đổi chuỗi thời gian thành ô Date
+T('tgChuoi_ với Date object', tgChuoi_(new Date(2026,7,19,7,24,15)) === '2026-08-19 07:24:15', tgChuoi_(new Date(2026,7,19,7,24,15)));
+T('tgChuoi_ với chuỗi giữ nguyên', tgChuoi_('2026-08-19 07:24:15') === '2026-08-19 07:24:15');
+T('tgChuoi_ với ô trống', tgChuoi_('') === '');
+
+// 13.6 Tự khoá sau TU_KHOA_SAU_GIO giờ dù chưa chốt ca
+r = apiTaoLo(VE1, 'T2222BB', 5, '');
+r = apiLuuBao(VE1, { ma_lo:'T2222BB', loai:'1', stt_bao:7001, khoi_luong:50, phien:'PHIEN_CU', client_id:'v2' });
+const idCu = r.data.id;
+// giả lập bao được nhập từ 20 giờ trước
+(function(){
+  const ds = docBang_(SHEETS.BAO);
+  for (const b of ds) if (String(b.id) === idCu) {
+    const cu = new Date(new Date().getTime() - 20*3600*1000);
+    const p = n => String(n).padStart(2,'0');
+    suaDong_(SHEETS.BAO, b._row, { tg_nhap: cu.getFullYear()+'-'+p(cu.getMonth()+1)+'-'+p(cu.getDate())+' '+p(cu.getHours())+':'+p(cu.getMinutes())+':'+p(cu.getSeconds()) });
+  }
+})();
+T('quaHanSua_ nhận diện bao 20 giờ trước', quaHanSua_(docBang_(SHEETS.BAO).filter(b=>String(b.id)===idCu)[0].tg_nhap) === true);
+r = apiSuaBao(VE1, idCu, 7001, 55);
+T('bao quá 12 giờ tự khoá, không sửa được dù chưa chốt ca', r.ok === false, r.error);
+r = apiMoLo(VE1, 'T2222BB', PHIEN1);
+T('màn hình cũng báo bao đó không sửa được', r.data.ds_bao.filter(b=>b.id===idCu)[0].sua_duoc === false);
+
+// 13.7 CHỐT CA quét cả bao từ phiên cũ TRONG CÙNG LÔ (công nhân quên chốt hôm trước)
+apiLuuBao(VE1, { ma_lo:'T2222BB', loai:'1', stt_bao:7002, khoi_luong:51, phien:'PHIEN_CU_2', client_id:'v2b' });
+r = apiChotCa(VE1, 'PHIEN_MOI_HOAN_TOAN', 'T2222BB');
+T('CHỐT CA khoá cả 2 bao thuộc phiên cũ khác nhau trong cùng lô',
+  r.ok === true && r.data.so_bao === 2, r.ok ? r.data : r.error);
+r = apiMoLo(VE1, 'T2222BB', PHIEN1);
+T('sau chốt, không còn bao nào sửa được', r.data.ds_bao.every(b => b.sua_duoc === false));
+
+// 13.8 Không đóng lô khi người khác còn bao chưa chốt
+r = apiTaoLo(VE1, 'T3333CC', 5, '');
+apiLuuBao(VE2, { ma_lo:'T3333CC', loai:'1', stt_bao:8001, khoi_luong:60, phien:PHIEN2, client_id:'v3' });
+r = apiDongLo(VE1, 'T3333CC', 'T3333CC');
+T('CN01 KHÔNG đóng được lô khi CN02 còn bao chưa chốt', r.ok === false && r.code === 'CON_NGUOI_KHAC', r.error);
+apiChotCa(VE2, PHIEN2, 'T3333CC');
+r = apiDongLo(VE1, 'T3333CC', 'T3333CC');
+T('sau khi CN02 chốt ca thì đóng lô được', r.ok === true, r.error);
+
+// 13.9 Danh sách người dùng không lộ PIN
+r = apiDanhSachNguoiDung();
+T('API danh sách trả về đúng cấu trúc mới', r.ok && Array.isArray(r.data.ds) && r.data.pin_do_dai === 4, r.data);
+T('API danh sách KHÔNG chứa mã PIN', JSON.stringify(r.data.ds).indexOf('1111') < 0 && JSON.stringify(r.data.ds).indexOf('pin') < 0);
+T('người đã khoá không hiện trong danh sách', r.data.ds.every(u => u.ma_nv !== 'CN10'));
+
+// 13.10 Không rò rỉ PIN qua các API khác
+const chuoiTrangChu = JSON.stringify(apiTrangChu(VE1));
+T('apiTrangChu không có trường pin', chuoiTrangChu.indexOf('"pin"') < 0 && chuoiTrangChu.indexOf('_pin') < 0);
+T('apiTrangChu không có trường _row', chuoiTrangChu.indexOf('_row') < 0);
+
+console.log('\n=== 14. CÁC LỖI ĐÃ SỬA (bản v1.2) ===');
+
+// 14.1 L1 — gõ sai cột vai_tro KHÔNG được mở màn hình thống kê
+T('vaiTroChuan_("Công nhân") -> CONG_NHAN', vaiTroChuan_('Công nhân') === 'CONG_NHAN');
+T('vaiTroChuan_("CONGNHAN")  -> CONG_NHAN', vaiTroChuan_('CONGNHAN') === 'CONG_NHAN');
+T('vaiTroChuan_("")          -> CONG_NHAN', vaiTroChuan_('') === 'CONG_NHAN');
+T('vaiTroChuan_(" thong_ke ")-> THONG_KE',  vaiTroChuan_(' thong_ke ') === 'THONG_KE');
+T('vaiTroChuan_("QUAN_LY")   -> QUAN_LY',   vaiTroChuan_('QUAN_LY') === 'QUAN_LY');
+
+[['CN21','6001','Công nhân'], ['CN22','6002','CONGNHAN'], ['CN23','6003','']].forEach(function (u) {
+  DB[SHEETS.NGUOI_DUNG].push([u[0], 'Tho thu ' + u[0], u[1], u[2], 'CO']);
+  const ve = apiDangNhap(u[0], u[1]).data.ve;
+  T('vai_tro "' + u[2] + '" KHÔNG xem được tổng hợp',
+    apiTongHopLo(ve, '', '').code === 'KHONG_CO_QUYEN');
+});
+DB[SHEETS.NGUOI_DUNG].push(['TK02', 'Thong ke 2', '6004', 'THONG_KE', 'CO']);
+T('THONG_KE vẫn xem được tổng hợp',
+  apiTongHopLo(apiDangNhap('TK02', '6004').data.ve, '', '').ok === true);
+
+// 14.2 L2 — chốt ca ở lô này KHÔNG được khoá lô đang nhập song song
+DB[SHEETS.NGUOI_DUNG].push(['CN20', 'Cong nhan 20', '7777', 'CONG_NHAN', 'CO']);
+const VE20 = apiDangNhap('CN20', '7777').data.ve;
+apiTaoLo(VE20, 'T7001AA', 5, ''); apiTaoLo(VE20, 'T7002AA', 5, '');
+apiLuuBao(VE20, { ma_lo:'T7001AA', loai:'1', stt_bao:8801, khoi_luong:50, phien:'P20', client_id:'w1' });
+r = apiLuuBao(VE20, { ma_lo:'T7002AA', loai:'1', stt_bao:8802, khoi_luong:50, phien:'P20', client_id:'w2' });
+const idSongSong = r.data.id;
+
+r = apiChotCa(VE20, 'P20', 'T7001AA');
+T('chốt ca chỉ tính bao của ĐÚNG lô đó', r.ok === true && r.data.so_bao === 1, r.ok ? r.data : r.error);
+T('chốt ca KHÔNG đụng vào lô đang nhập song song', r.ok && r.data.so_bao_lo_khac === 0, r.data);
+r = apiMoLo(VE20, 'T7002AA', 'P20');
+T('bao ở lô song song VẪN sửa được sau khi chốt lô kia',
+  r.data.ds_bao.filter(b => b.id === idSongSong)[0].sua_duoc === true);
+
+// 14.2b Bao quá hạn ở lô khác thì vẫn được quét dọn (không để lại dòng mồ côi)
+(function () {
+  const ds = docBang_(SHEETS.BAO);
+  for (const b of ds) if (String(b.id) === idSongSong) {
+    const cu = new Date(new Date().getTime() - 20 * 3600 * 1000);
+    const q = n => String(n).padStart(2, '0');
+    suaDong_(SHEETS.BAO, b._row, { tg_nhap: cu.getFullYear() + '-' + q(cu.getMonth()+1) + '-' +
+      q(cu.getDate()) + ' ' + q(cu.getHours()) + ':' + q(cu.getMinutes()) + ':' + q(cu.getSeconds()) });
+  }
+})();
+apiTaoLo(VE20, 'T7003AA', 5, '');
+apiLuuBao(VE20, { ma_lo:'T7003AA', loai:'1', stt_bao:8803, khoi_luong:50, phien:'P21', client_id:'w3' });
+r = apiChotCa(VE20, 'P21', 'T7003AA');
+T('bao QUÁ HẠN ở lô khác vẫn bị quét dọn',
+  r.ok === true && r.data.so_bao === 1 && r.data.so_bao_lo_khac === 1, r.ok ? r.data : r.error);
+
+// 14.3 L2 — app bản cũ gọi thiếu mã lô thì bị từ chối, không âm thầm khoá hết
+T('chốt ca thiếu mã lô -> báo lỗi rõ ràng', apiChotCa(VE20, 'P22').code === 'THIEU_MA_LO');
+
+console.log('\n=== 15. TÍNH NĂNG MỚI (bản 1.3) ===');
+
+DB[SHEETS.NGUOI_DUNG].push(['CN30', 'Cong nhan 30', '8888', 'CONG_NHAN', 'CO']);
+const VE30 = apiDangNhap('CN30', '8888').data.ve;
+
+// ---- 15.1 Khối lượng đầu vào của lô ----
+r = apiTaoLo(VE30, 'T8001AA', 50, '', 1000);
+T('tạo lô kèm khối lượng đầu vào', r.ok === true && r.data.kl_vao === 1000, r.ok ? r.data : r.error);
+T('kl_vao được ghi vào sheet LO',
+  docBang_(SHEETS.LO).filter(l => l.ma_lo === 'T8001AA')[0].kl_vao === 1000);
+
+r = apiTaoLo(VE30, 'T8002AA', 50, '', 0);
+T('kl_vao = 0 bị chặn', r.ok === false, r.error);
+r = apiTaoLo(VE30, 'T8002AA', 50, '', 'abc');
+T('kl_vao không phải số bị chặn', r.ok === false, r.error);
+r = apiTaoLo(VE30, 'T8002AA', 50, '', '');
+T('kl_vao để trống vẫn tạo được lô', r.ok === true, r.error);
+
+r = apiCapNhatKlVao(VE30, 'T8002AA', '1200,5');
+T('bổ sung kl_vao sau, nhận dấu phẩy "1200,5"', r.ok === true && r.data.kl_vao === 1200.5,
+  r.ok ? r.data : r.error);
+T('sửa kl_vao có ghi nhật ký cũ -> mới',
+  DB[SHEETS.LOG].some(x => String(x[3]) === 'SUA_KL_VAO' && String(x[7]).indexOf('1200.5') >= 0));
+r = apiCapNhatKlVao(VE30, 'T8002AA', -5);
+T('kl_vao âm bị chặn', r.ok === false, r.error);
+
+// ---- 15.2 Tỉ lệ thu hồi và hao hụt ----
+// Lô T8001AA: vào 1000 kg. L1 = 2x50 = 100 kg, L2 = 2x100 = 200, L3 = 5x100 = 500
+[['1',30001,50],['1',30002,50],['2',30003,100],['2',30004,100],
+ ['3',30005,100],['3',30006,100],['3',30007,100],['3',30008,100],['3',30009,100]
+].forEach(function (x, k) {
+  apiLuuBao(VE30, { ma_lo:'T8001AA', loai:x[0], stt_bao:x[1], khoi_luong:x[2],
+                    phien:'P30', client_id:'k'+k });
+});
+r = apiXemTruocKetQua(VE30, 'T8001AA');
+const tl = {};
+r.data.ds_loai.forEach(x => tl[x.loai] = x.ti_le);
+T('tỉ lệ thu hồi loại 1 = 10.00%', tl['1'] === 10, tl);
+T('tỉ lệ thu hồi loại 2 = 20.00%', tl['2'] === 20, tl);
+T('tỉ lệ thu hồi loại 3 = 50.00%', tl['3'] === 50, tl);
+T('tổng thu hồi = 80%', r.data.tong_ti_le_thu_hoi === 80, r.data.tong_ti_le_thu_hoi);
+T('hao hụt = 100% - tổng thu hồi = 20%', r.data.ti_le_hao_hut === 20, r.data.ti_le_hao_hut);
+T('hao hụt đúng 20% (bằng ngưỡng dưới) thì KHÔNG cảnh báo', r.data.canh_bao === '', r.data.canh_bao);
+T('3 tỉ lệ + hao hụt cộng lại đúng 100',
+  tl['1'] + tl['2'] + tl['3'] + r.data.ti_le_hao_hut === 100);
+
+// Làm tròn 2 số lẻ: vào 300 kg, ra 100 kg loại 1 -> 33.33%
+apiTaoLo(VE30, 'T8003AA', 5, '', 300);
+apiLuuBao(VE30, { ma_lo:'T8003AA', loai:'1', stt_bao:30101, khoi_luong:100, phien:'P30', client_id:'k30' });
+r = apiXemTruocKetQua(VE30, 'T8003AA');
+T('làm tròn 2 số lẻ: 100/300 = 33.33%', r.data.ds_loai[0].ti_le === 33.33, r.data.ds_loai[0].ti_le);
+T('hao hụt 66.67% -> cảnh báo CAO',
+  r.data.canh_bao.indexOf('CAO') >= 0, r.data.canh_bao);
+
+// Hao hụt thấp bất thường
+apiTaoLo(VE30, 'T8004AA', 5, '', 100);
+apiLuuBao(VE30, { ma_lo:'T8004AA', loai:'1', stt_bao:30201, khoi_luong:90, phien:'P30', client_id:'k31' });
+r = apiXemTruocKetQua(VE30, 'T8004AA');
+T('hao hụt 10% -> cảnh báo THẤP', r.data.ti_le_hao_hut === 10 &&
+  r.data.canh_bao.indexOf('THẤP') >= 0, r.data.canh_bao);
+
+// Chưa nhập khối lượng đầu vào -> không tính được, KHÔNG được sập
+apiTaoLo(VE30, 'T8005AA', 5, '');
+apiLuuBao(VE30, { ma_lo:'T8005AA', loai:'1', stt_bao:30301, khoi_luong:50, phien:'P30', client_id:'k32' });
+r = apiXemTruocKetQua(VE30, 'T8005AA');
+T('chưa có kl_vao: báo thiếu, không chia cho 0',
+  r.ok === true && r.data.co_kl_vao === false && r.data.ti_le_hao_hut === null, r.data);
+T('chưa có kl_vao: vẫn hiện đúng tổng KL ra', r.data.tong_kl_ra === 50, r.data.tong_kl_ra);
+
+// Cảnh báo KHÔNG được chặn đóng lô
+r = apiDongLo(VE30, 'T8004AA', 'T8004AA');
+T('cảnh báo hao hụt KHÔNG chặn đóng lô', r.ok === true, r.error);
+
+// Hao hụt ÂM: ra nhiều hơn vào -> phải nói rõ là số liệu sai, không nói "thấp bất thường"
+apiTaoLo(VE30, 'T8006AA', 5, '', 50);
+apiLuuBao(VE30, { ma_lo:'T8006AA', loai:'1', stt_bao:30401, khoi_luong:80, phien:'P30', client_id:'k33' });
+r = apiXemTruocKetQua(VE30, 'T8006AA');
+T('hao hụt âm được tính đúng (-60%)', r.data.ti_le_hao_hut === -60, r.data.ti_le_hao_hut);
+T('hao hụt âm: báo là số liệu SAI, không phải "thấp bất thường"',
+  r.data.canh_bao.indexOf('NHIỀU HƠN') >= 0 && r.data.canh_bao.indexOf('THẤP') < 0, r.data.canh_bao);
+
+// ---- 15.3 Lưu nhiều bao cùng lúc ----
+apiTaoLo(VE30, 'T8010AA', 20, '', 500);
+const demTruoc = () => docBang_(SHEETS.BAO).length;
+
+r = apiLuuNhieuBao(VE30, { ma_lo:'T8010AA', loai:'1', phien:'P31', danh_sach:[
+  { stt_bao:31001, khoi_luong:50, client_id:'m1' },
+  { stt_bao:31002, khoi_luong:'49,8', client_id:'m2' },
+  { stt_bao:31003, khoi_luong:60, client_id:'m3' }
+]});
+T('lưu 3 bao cùng lúc', r.ok === true && r.data.da_luu.length === 3, r.ok ? r.data : r.error);
+T('lưu nhiều bao vẫn nhận dấu phẩy thập phân',
+  r.ok && r.data.da_luu[1].khoi_luong === 49.8, r.ok ? r.data.da_luu : r.error);
+T('gợi ý số bao tiếp theo = số lớn nhất + 1', r.data.goi_y_stt_tiep === 31004, r.data.goi_y_stt_tiep);
+
+let n0 = demTruoc();
+r = apiLuuNhieuBao(VE30, { ma_lo:'T8010AA', loai:'1', phien:'P31', danh_sach:[
+  { stt_bao:31010, khoi_luong:50, client_id:'m10' },
+  { stt_bao:31010, khoi_luong:51, client_id:'m11' }
+]});
+T('trùng số bao NGAY TRONG danh sách vừa gõ bị chặn',
+  r.ok === false && r.code === 'TRUNG_SO_BAO', r.error);
+T('lỗi trùng trong danh sách -> KHÔNG ghi dòng nào', demTruoc() === n0);
+
+n0 = demTruoc();
+r = apiLuuNhieuBao(VE30, { ma_lo:'T8010AA', loai:'1', phien:'P31', danh_sach:[
+  { stt_bao:31020, khoi_luong:50, client_id:'m20' },
+  { stt_bao:31001, khoi_luong:51, client_id:'m21' }
+]});
+T('trùng với bao đã có trên sheet bị chặn',
+  r.ok === false && r.code === 'TRUNG_SO_BAO', r.error);
+T('ĐƯỢC ĂN CẢ NGÃ VỀ KHÔNG: 1 dòng sai thì không dòng nào được ghi', demTruoc() === n0);
+
+n0 = demTruoc();
+r = apiLuuNhieuBao(VE30, { ma_lo:'T8010AA', loai:'2', phien:'P31', danh_sach:[
+  { stt_bao:31030, khoi_luong:50, client_id:'m30' },
+  { stt_bao:31031, khoi_luong:498, client_id:'m31' }
+]});
+T('khối lượng ngoài khoảng bị chặn, có nói rõ DÒNG nào',
+  r.ok === false && r.error.indexOf('Dòng 2') >= 0, r.error);
+T('lỗi khối lượng -> không ghi dòng nào', demTruoc() === n0);
+
+r = apiLuuNhieuBao(VE30, { ma_lo:'T8010AA', loai:'1', phien:'P31', danh_sach:[
+  { stt_bao:31001, khoi_luong:50, client_id:'m1' },
+  { stt_bao:31002, khoi_luong:49.8, client_id:'m2' }
+]});
+T('gửi lại đúng danh sách cũ (mạng chập chờn) -> bỏ qua, không tạo bản sao',
+  r.ok === true && r.data.bo_qua_trung === 2 && r.data.da_luu.length === 0,
+  r.ok ? r.data : r.error);
+
+const qua = [];
+for (let k = 0; k < 21; k++) qua.push({ stt_bao: 32000 + k, khoi_luong: 50, client_id: 'q' + k });
+r = apiLuuNhieuBao(VE30, { ma_lo:'T8010AA', loai:'3', phien:'P31', danh_sach: qua });
+T('quá 20 bao một lần bị chặn', r.ok === false && r.error.indexOf('20') >= 0, r.error);
+r = apiLuuNhieuBao(VE30, { ma_lo:'T8010AA', loai:'3', phien:'P31', danh_sach: qua.slice(0, 20) });
+T('đúng 20 bao một lần thì lưu được', r.ok === true && r.data.da_luu.length === 20,
+  r.ok ? r.data.da_luu.length : r.error);
+
+// ---- 15.4 Bảng TỔNG HỢP có thêm cột tỉ lệ ----
+r = tinhTongHopLo_().filter(x => x.ma_lo === 'T8001AA')[0];
+T('bảng tổng hợp có cột kl_vao', r.kl_vao === 1000, r.kl_vao);
+T('bảng tổng hợp có tỉ lệ từng loại', r.ti_le_L1 === 10 && r.ti_le_L2 === 20 && r.ti_le_L3 === 50,
+  [r.ti_le_L1, r.ti_le_L2, r.ti_le_L3]);
+T('bảng tổng hợp có tỉ lệ hao hụt', r.ti_le_hao_hut === 20, r.ti_le_hao_hut);
+
+console.log('\n=== 16. SỬA MÃ LÔ / XOÁ LÔ (bản 1.4) ===');
+
+DB[SHEETS.NGUOI_DUNG].push(['CN40','Cong nhan 40','4040','CONG_NHAN','CO']);
+DB[SHEETS.NGUOI_DUNG].push(['CN41','Cong nhan 41','4141','CONG_NHAN','CO']);
+DB[SHEETS.NGUOI_DUNG].push(['QL01','Quan ly','4242','QUAN_LY','CO']);
+const VE40 = apiDangNhap('CN40','4040').data.ve;
+const VE41 = apiDangNhap('CN41','4141').data.ve;
+const VEQL = apiDangNhap('QL01','4242').data.ve;
+
+// ---- 16.1 Sửa mã lô: bao phải ĐI THEO, không được mồ côi ----
+apiTaoLo(VE40, 'T9001AA', 10, '', 500);
+apiLuuNhieuBao(VE40, { ma_lo:'T9001AA', loai:'1', phien:'P40', danh_sach:[
+  { stt_bao:40001, khoi_luong:50, client_id:'m16_s1' },
+  { stt_bao:40002, khoi_luong:60, client_id:'m16_s2' }]});
+
+r = apiSuaMaLo(VE40, 'T9001AA', 'T9002AA');
+T('người tạo lô sửa được mã lô', r.ok === true, r.error);
+T('sửa mã lô kéo theo đúng 2 dòng ở sheet BAO', r.ok && r.data.so_bao_doi === 2, r.data);
+T('KHÔNG còn dòng BAO nào mang mã cũ',
+  docBang_(SHEETS.BAO).filter(b => String(b.ma_lo) === 'T9001AA').length === 0);
+T('2 bao đã chuyển sang mã mới, không mồ côi',
+  docBang_(SHEETS.BAO).filter(b => String(b.ma_lo) === 'T9002AA').length === 2);
+r = apiXemTruocKetQua(VE40, 'T9002AA');
+T('mở lô theo mã mới vẫn thấy đủ 110 kg', r.ok && r.data.tong_kl_ra === 110, r.ok ? r.data.tong_kl_ra : r.error);
+T('có ghi nhật ký SUA_MA_LO kèm mã cũ → mã mới',
+  DB[SHEETS.LOG].some(x => String(x[3])==='SUA_MA_LO' && String(x[6]).indexOf('T9001AA')>=0
+                        && String(x[7]).indexOf('T9002AA')>=0));
+
+// ---- 16.2 Phân quyền ----
+r = apiSuaMaLo(VE41, 'T9002AA', 'T9003AA');
+T('người KHÁC không sửa được mã lô', r.ok === false && r.code === 'KHONG_CO_QUYEN', r.error);
+r = apiSuaMaLo(VEQL, 'T9002AA', 'T9003AA');
+T('QUẢN LÝ sửa được mã lô của người khác', r.ok === true, r.error);
+
+// ---- 16.3 Các mã lô không hợp lệ ----
+r = apiSuaMaLo(VE40, 'T9003AA', 'X123');
+T('mã mới sai tiền tố bị chặn', r.ok === false, r.error);
+r = apiSuaMaLo(VE40, 'T9003AA', 'T@#');
+T('mã mới có ký tự lạ bị chặn', r.ok === false, r.error);
+apiTaoLo(VE40, 'T9500AA', 1, '', 100);
+r = apiSuaMaLo(VE40, 'T9003AA', 'T9500AA');
+T('đổi sang mã lô đã tồn tại bị chặn', r.ok === false && r.code === 'TRUNG_MA_LO', r.error);
+r = apiSuaMaLo(VE40, 'T9003AA', 'T9003AA');
+T('mã mới trùng mã cũ bị chặn', r.ok === false, r.error);
+
+// ---- 16.4 Đổi chữ đầu T→D làm ký hiệu đổi A→B ----
+apiTaoLo(VE40, 'D8001BB', 5, '', 100);
+apiLuuBao(VE40, { ma_lo:'D8001BB', loai:'1', stt_bao:40001, khoi_luong:50, phien:'P40', client_id:'m16_s9' });
+r = apiSuaMaLo(VE40, 'T9003AA', 'D9003BB');
+T('đổi T→D bị chặn vì bao 40001 trùng số ở nhóm B1',
+  r.ok === false && r.code === 'TRUNG_SO_BAO', r.error);
+T('bị chặn thì mã lô GIỮ NGUYÊN, không sửa nửa vời',
+  docBang_(SHEETS.LO).filter(l => String(l.ma_lo)==='T9003AA').length === 1);
+
+apiTaoLo(VE40, 'T9600AA', 5, '', 100);
+apiLuuBao(VE40, { ma_lo:'T9600AA', loai:'2', stt_bao:45001, khoi_luong:50, phien:'P40', client_id:'m16_s10' });
+r = apiSuaMaLo(VE40, 'T9600AA', 'D9600BB');
+T('đổi T→D được khi không đụng số bao nào', r.ok === true && r.data.ky_hieu === 'B', r.ok ? r.data : r.error);
+T('ký hiệu của bao cũng đổi sang B',
+  docBang_(SHEETS.BAO).filter(b => String(b.ma_lo)==='D9600BB')[0].ky_hieu === 'B');
+
+// ---- 16.5 Xoá lô ----
+apiTaoLo(VE40, 'T9700AA', 5, '', 100);
+apiLuuNhieuBao(VE40, { ma_lo:'T9700AA', loai:'3', phien:'P40', danh_sach:[
+  { stt_bao:47001, khoi_luong:30, client_id:'m16_d1' },
+  { stt_bao:47002, khoi_luong:40, client_id:'m16_d2' }]});
+
+r = apiXoaLo(VE40, 'T9700AA', 'SAI_MA');
+T('xoá lô không xác nhận đúng mã thì bị chặn', r.ok === false && r.code === 'CHUA_XAC_NHAN', r.error);
+T('bị chặn thì lô vẫn còn nguyên', docBang_(SHEETS.LO).filter(l=>String(l.ma_lo)==='T9700AA').length === 1);
+
+r = apiXoaLo(VE41, 'T9700AA', 'T9700AA');
+T('người KHÁC không xoá được lô', r.ok === false && r.code === 'KHONG_CO_QUYEN', r.error);
+
+r = apiXoaLo(VE40, 'T9700AA', 'T9700AA');
+T('người tạo lô xoá được lô của mình', r.ok === true && r.data.so_bao_da_xoa === 2, r.ok ? r.data : r.error);
+T('xoá lô: dòng lô biến mất', docBang_(SHEETS.LO).filter(l=>String(l.ma_lo)==='T9700AA').length === 0);
+T('xoá lô: mọi bao của lô cũng biến mất',
+  docBang_(SHEETS.BAO).filter(b=>String(b.ma_lo)==='T9700AA').length === 0);
+T('xoá lô: KHÔNG đụng vào bao của lô khác',
+  docBang_(SHEETS.BAO).filter(b=>String(b.ma_lo)==='D9600BB').length === 1);
+T('xoá lô: nhật ký chụp lại số liệu trước khi xoá',
+  DB[SHEETS.LOG].some(x => String(x[3])==='XOA_LO' && String(x[6]).indexOf('47001=30')>=0
+                        && String(x[6]).indexOf('47002=40')>=0));
+
+// ---- 16.6 Không xoá được phần của người khác / phần đã chốt ----
+apiTaoLo(VE40, 'T9800AA', 5, '', 100);
+apiLuuBao(VE40, { ma_lo:'T9800AA', loai:'1', stt_bao:48001, khoi_luong:50, phien:'P40', client_id:'m16_e1' });
+apiLuuBao(VE41, { ma_lo:'T9800AA', loai:'1', stt_bao:48002, khoi_luong:50, phien:'P41', client_id:'m16_e2' });
+r = apiXoaLo(VE40, 'T9800AA', 'T9800AA');
+T('công nhân KHÔNG xoá được lô có bao của người khác',
+  r.ok === false && r.code === 'CO_NGUOI_KHAC', r.error);
+r = apiXoaLo(VEQL, 'T9800AA', 'T9800AA');
+T('QUẢN LÝ xoá được lô có bao của nhiều người', r.ok === true && r.data.so_bao_da_xoa === 2,
+  r.ok ? r.data : r.error);
+
+apiTaoLo(VE40, 'T9900AA', 5, '', 100);
+apiLuuBao(VE40, { ma_lo:'T9900AA', loai:'1', stt_bao:49001, khoi_luong:50, phien:'P40', client_id:'m16_f1' });
+apiChotCa(VE40, 'P40', 'T9900AA');
+r = apiXoaLo(VE40, 'T9900AA', 'T9900AA');
+T('công nhân KHÔNG xoá được lô đã có bao CHỐT CA', r.ok === false && r.code === 'DA_CHOT', r.error);
+r = apiXoaLo(VEQL, 'T9900AA', 'T9900AA');
+T('QUẢN LÝ xoá được lô đã chốt ca', r.ok === true, r.error);
+
+// ---- 16.7 Lô đã ĐÓNG thì khoá cả sửa lẫn xoá ----
+apiTaoLo(VE40, 'T9950AA', 5, '', 100);
+apiLuuBao(VE40, { ma_lo:'T9950AA', loai:'1', stt_bao:49501, khoi_luong:50, phien:'P40', client_id:'m16_g1' });
+apiDongLo(VE40, 'T9950AA', 'T9950AA');
+r = apiSuaMaLo(VE40, 'T9950AA', 'T9951AA');
+T('lô đã ĐÓNG thì không sửa được mã', r.ok === false && r.code === 'LO_DA_DONG', r.error);
+r = apiXoaLo(VE40, 'T9950AA', 'T9950AA');
+T('lô đã ĐÓNG thì không xoá được', r.ok === false && r.code === 'LO_DA_DONG', r.error);
+/*
+ * ĐỔI LUẬT Ở BẢN 1.6 (Andy duyệt 22/08/2026, mục 5 của phạm vi đợt C).
+ * Trước 1.6: KHÔNG AI xoá được lô đã đóng, kể cả quản lý — phải vào Google Sheets.
+ * Từ 1.6:    quản lý xoá được, nhưng vẫn phải GÕ LẠI MÃ LÔ và thêm LÝ DO.
+ * Ca kiểm thử cũ ở đây khẳng định luật cũ nên được viết lại, không phải bị bỏ.
+ */
+r = apiXoaLo(VEQL, 'T9950AA', 'T9950AA');
+T('1.6: quản lý xoá lô đã đóng mà thiếu lý do -> vẫn bị chặn',
+  r.ok === false && r.code === 'THIEU_LY_DO', r);
+r = apiXoaLo(VEQL, 'T9950AA', 'T9950AA', 'lô nhập nhầm, Andy yêu cầu xoá');
+T('1.6: quản lý xoá được lô đã đóng khi gõ đúng mã và có lý do', r.ok === true, r);
+T('lô đã đóng bị xoá thì biến mất hẳn', timLo_('T9950AA') === null);
+
+// 14.4 L5 — xoá toàn bộ dữ liệu phải GIỮ LẠI nhật ký LOG  (ĐỂ CUỐI: phá dữ liệu)
+const soDongLogTruoc = DB[SHEETS.LOG].length;
+// Dùng bộ giả lập hộp thoại dùng chung, và TRẢ LẠI trạng thái sau khi xong.
+// Trước bản 1.5 chỗ này ghi đè VĨNH VIỄN SpreadsheetApp.getUi bằng một bản giả
+// nghèo nàn, nên mọi kiểm thử đặt SAU nó lặng lẽ không gọi được hộp thoại nữa —
+// một cái bẫy im lặng cho người viết kiểm thử về sau.
+UI.bat = true; UI.nut = 'OK'; UI.chu = 'XOA';
+xoaToanBoDuLieu();
+UI.bat = false;
+T('xoá dữ liệu: sheet BAO đã sạch', docBang_(SHEETS.BAO).length === 0);
+T('xoá dữ liệu: sheet LO đã sạch', docBang_(SHEETS.LO).length === 0);
+T('xoá dữ liệu: nhật ký LOG được GIỮ LẠI', DB[SHEETS.LOG].length >= soDongLogTruoc, DB[SHEETS.LOG].length);
+T('xoá dữ liệu: có ghi lại chính hành động xoá',
+  DB[SHEETS.LOG].some(row => String(row[3]) === 'XOA_TOAN_BO'));
+
+// 14.5 L6 (v1.2.1) — doGet KHÔNG được chết vì một thẻ meta bị Google từ chối.
+// Đây là lỗi đã làm công nhân mở link ra chỉ thấy trang trắng ở BƯỚC 8.
+(function () {
+  const CHO_PHEP = ['viewport', 'mobile-web-app-capable',
+                    'apple-mobile-web-app-capable', 'google-site-verification'];
+  let daThem = [], daTuChoi = [];
+
+  function mkOut() {
+    const o = {
+      setTitle() { return o; },
+      setXFrameOptionsMode() { return o; },
+      addMetaTag(ten) {
+        if (CHO_PHEP.indexOf(ten) < 0) {
+          daTuChoi.push(ten);
+          throw new Error('The meta tag you specified is not allowed in this context.');
+        }
+        daThem.push(ten);
+        return o;
+      }
+    };
+    return o;
+  }
+
+  global.HtmlService = {
+    createTemplateFromFile: () => ({ evaluate: () => mkOut() }),
+    XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' }
+  };
+
+  let kq = null, nem = null;
+  try { kq = doGet({}); } catch (err) { nem = err; }
+
+  T('doGet chạy được, không ném lỗi', nem === null, nem && nem.message);
+  T('doGet trả về trang, không phải trang trắng', kq !== null && typeof kq.addMetaTag === 'function');
+  T('doGet KHÔNG gửi thẻ meta ngoài danh sách Google cho phép',
+    daTuChoi.length === 0, daTuChoi);
+  T('doGet vẫn gắn đủ 3 thẻ meta hợp lệ', daThem.length === 3, daThem);
+
+  // Google siết danh sách trong tương lai -> app vẫn phải mở được
+  const CHI_CON_VIEWPORT = ['viewport'];
+  daThem = []; daTuChoi = [];
+  const luu = CHO_PHEP.splice(1, CHO_PHEP.length - 1);
+  nem = null;
+  try { doGet({}); } catch (err) { nem = err; }
+  T('Google siết danh sách meta -> doGet VẪN mở được app', nem === null, nem && nem.message);
+  T('thẻ bị từ chối chỉ bị bỏ qua, không làm sập trang', daTuChoi.length === 2, daTuChoi);
+  CHO_PHEP.push.apply(CHO_PHEP, luu);
+})();
+
+console.log('\n=== 17. BẢN 1.5 — MENU CÀI ĐẶT (02_Setup.gs) ===');
+(function () {
+  // Trước 1.5 cả file 02_Setup.gs không có kiểm thử nào. Lỗi dữ liệu mẫu thiếu cột
+  // kl_vao (thêm ở bản 1.3) vì thế nằm im suốt 2 phiên bản.
+  const luuLO = DB[SHEETS.LO].slice();
+  const luuND = DB[SHEETS.NGUOI_DUNG].slice();
+  DB[SHEETS.LO].length = 1;            // chỉ giữ hàng tiêu đề -> ép chạy nhánh tạo mẫu
+  DB[SHEETS.NGUOI_DUNG].length = 1;
+
+  UI.bat = true; UI.nut = 'YES'; UI.daHien = [];
+  let nem = null;
+  try { taoDuLieuMau(); } catch (e) { nem = e; }
+  UI.bat = false;
+
+  T('menu "Tạo dữ liệu mẫu" chạy được, không ném lỗi', nem === null, nem && nem.message);
+  T('dữ liệu mẫu LO ghi đủ ' + COLS.LO.length + ' cột',
+    DB[SHEETS.LO].length === 3 && DB[SHEETS.LO][1].length === COLS.LO.length,
+    DB[SHEETS.LO][1] && DB[SHEETS.LO][1].length);
+  T('dữ liệu mẫu NGUOI_DUNG ghi đủ ' + COLS.NGUOI_DUNG.length + ' cột',
+    DB[SHEETS.NGUOI_DUNG].length === 5 &&
+    DB[SHEETS.NGUOI_DUNG][1].length === COLS.NGUOI_DUNG.length,
+    DB[SHEETS.NGUOI_DUNG].length + ' dòng / ' +
+    (DB[SHEETS.NGUOI_DUNG][1] && DB[SHEETS.NGUOI_DUNG][1].length) + ' cột');
+  T('dữ liệu mẫu có sẵn 1 tài khoản QUẢN LÝ để thử phân quyền',
+    DB[SHEETS.NGUOI_DUNG].some(r => vaiTroChuan_(r[3]) === VAI_TRO.QUAN_LY));
+  T('lô mẫu do CÔNG NHÂN tạo (mới thử được nút sửa mã lô / xoá lô)',
+    String(DB[SHEETS.LO][1][COLS.LO.indexOf('nguoi_mo')]) === 'CN01',
+    DB[SHEETS.LO][1][COLS.LO.indexOf('nguoi_mo')]);
+
+  // Canh chung: MỌI mảng dữ liệu mẫu phải khớp số cột, kể cả khi sau này thêm cột mới.
+  let lech = [];
+  [[SHEETS.LO, 1], [SHEETS.NGUOI_DUNG, 1]].forEach(function (mp) {
+    for (let i = mp[1]; i < DB[mp[0]].length; i++) {
+      if (DB[mp[0]][i].length !== COLS[mp[0]].length) {
+        lech.push(mp[0] + ' dòng ' + (i + 1) + ': ' + DB[mp[0]][i].length + '/' + COLS[mp[0]].length);
+      }
+    }
+  });
+  T('không dòng mẫu nào lệch số cột', lech.length === 0, lech);
+
+  DB[SHEETS.LO].length = 0; luuLO.forEach(r => DB[SHEETS.LO].push(r));
+  DB[SHEETS.NGUOI_DUNG].length = 0; luuND.forEach(r => DB[SHEETS.NGUOI_DUNG].push(r));
+})();
+
+console.log('\n=== 18. BẢN 1.5 — ĐỌC SỐ CÓ DẤU PHÂN CÁCH NGHÌN (mục #4) ===');
+(function () {
+  // Khối lượng 1 BAO: dấu phẩy LUÔN là thập phân. Đây là lỗi số 1 của bản v1.1,
+  // tuyệt đối không được đổi -> canh lại cho chắc.
+  T('soTu_ giữ nguyên "49,8" = 49.8 (khối lượng bao)', soTu_('49,8') === 49.8, soTu_('49,8'));
+  T('soTu_ giữ nguyên "49.8" = 49.8', soTu_('49.8') === 49.8, soTu_('49.8'));
+
+  // Khối lượng ĐẦU VÀO CẢ LÔ: hiểu dấu phân cách nghìn.
+  const dung = [
+    ['1000', 1000], ['1.000', 1000], ['1,000', 1000], ['1 000', 1000],
+    ['1.234.567', 1234567], ['1,234,567', 1234567],
+    ['1.234,5', 1234.5],            // kiểu Việt: chấm nghìn, phẩy thập phân
+    ['1,234.5', 1234.5],            // kiểu Anh:  phẩy nghìn, chấm thập phân
+    ['1000,5', 1000.5], ['1000.5', 1000.5],
+    ['49,8', 49.8], ['800', 800], ['12.500', 12500]
+  ];
+  dung.forEach(function (c) {
+    T('soLonTu_("' + c[0] + '") = ' + c[1], soLonTu_(c[0]) === c[1], soLonTu_(c[0]));
+  });
+
+  // Không chắc chắn thì PHẢI trả NaN, không được đoán bừa.
+  const tuChoi = ['12.34.56', '1.23.4', 'abc', '', '1..2', '1,2,3', '.500', '1.2.3.4'];
+  tuChoi.forEach(function (c) {
+    T('soLonTu_("' + c + '") từ chối, không đoán bừa', isNaN(soLonTu_(c)), soLonTu_(c));
+  });
+
+  // docKlVao_ — cửa soát dùng chung
+  T('docKlVao_ để trống là hợp lệ', docKlVao_('').loi === '' && docKlVao_('').gia_tri === '');
+  T('docKlVao_("1.000") ra 1000 kg', docKlVao_('1.000').gia_tri === 1000, docKlVao_('1.000'));
+  T('docKlVao_ chặn số 0 và số âm',
+    docKlVao_('0').loi !== '' && docKlVao_('-5').loi !== '');
+  T('docKlVao_ chặn vượt KL_VAO_MAX (gõ thừa số 0)',
+    docKlVao_(String(Number(cfg('KL_VAO_MAX')) + 1)).loi !== '',
+    docKlVao_(String(Number(cfg('KL_VAO_MAX')) + 1)).loi);
+  T('docKlVao_ chặn chuỗi không đọc được', docKlVao_('12.34.56').loi !== '');
+
+  // Đi hết đường thật: tạo lô với khối lượng đầu vào gõ kiểu "1.000"
+  let rr = apiDangNhap('CN01', '1111');
+  const VE50 = rr.data.ve;
+  rr = apiTaoLo(VE50, 'T5001AA', 100, 'thử dấu nghìn', '1.000');
+  T('tạo lô: gõ "1.000" kg vào ô đầu vào -> lưu đúng 1000 kg',
+    rr.ok === true && rr.data.kl_vao === 1000, rr.ok ? rr.data : rr.error);
+  rr = apiCapNhatKlVao(VE50, 'T5001AA', '2.500,5');
+  T('sửa khối lượng đầu vào "2.500,5" -> 2500.5 kg',
+    rr.ok === true && rr.data.kl_vao === 2500.5, rr.ok ? rr.data.kl_vao : rr.error);
+  rr = apiCapNhatKlVao(VE50, 'T5001AA', '12.34.56');
+  T('khối lượng đầu vào không đọc được thì BÁO LỖI, không ghi bừa', rr.ok === false, rr);
+})();
+
+console.log('\n=== 19. BẢN 1.5 — KHOẢNG KHỐI LƯỢNG THẬT 1–200 kg (Andy xác nhận 21/08/2026) ===');
+(function () {
+  T('KL_MAX mặc định là 200 kg', Number(cfg('KL_MAX')) === 200, cfg('KL_MAX'));
+  T('KL_MIN mặc định là 1 kg', Number(cfg('KL_MIN')) === 1, cfg('KL_MIN'));
+
+  let rr = apiDangNhap('CN01', '1111');
+  const VE51 = rr.data.ve, PH51 = rr.data.phien;
+  apiTaoLo(VE51, 'T5100AA', 50, 'thử 200kg', 5000);
+
+  rr = apiLuuBao(VE51, { ma_lo: 'T5100AA', loai: '1', stt_bao: 900001,
+                         khoi_luong: 150, phien: PH51, client_id: 'k150' });
+  T('bao 150 kg được chấp nhận (trước 1.5 bị chặn oan)', rr.ok === true, rr.error);
+  rr = apiLuuBao(VE51, { ma_lo: 'T5100AA', loai: '1', stt_bao: 900002,
+                         khoi_luong: 200, phien: PH51, client_id: 'k200' });
+  T('bao đúng 200 kg — sát mép trên — được chấp nhận', rr.ok === true, rr.error);
+  rr = apiLuuBao(VE51, { ma_lo: 'T5100AA', loai: '1', stt_bao: 900003,
+                         khoi_luong: 200.1, phien: PH51, client_id: 'k201' });
+  T('bao 200.1 kg bị chặn', rr.ok === false, rr);
+  rr = apiLuuBao(VE51, { ma_lo: 'T5100AA', loai: '1', stt_bao: 900004,
+                         khoi_luong: 0.9, phien: PH51, client_id: 'k09' });
+  T('bao 0.9 kg bị chặn', rr.ok === false, rr);
+})();
+
+console.log('\n=== 20. BẢN 1.5 — ĐÓNG LÔ PHẢI GÕ LẠI MÃ LÔ (mục #3, phương án b) ===');
+(function () {
+  // Người dùng riêng: CN02 đã bị khoá vĩnh viễn ở mục 12 (bộ nhớ đệm giả lập
+  // không tự hết hạn), nên các mục sau phải tự tạo tài khoản của mình.
+  DB[SHEETS.NGUOI_DUNG].push(['CN50', 'Cong nhan 50', '5050', 'CONG_NHAN', 'CO']);
+  DB[SHEETS.NGUOI_DUNG].push(['CN51', 'Cong nhan 51', '5151', 'CONG_NHAN', 'CO']);
+  let rr = apiDangNhap('CN50', '5050');
+  const VEA = rr.data.ve, PHA = rr.data.phien;
+  rr = apiDangNhap('CN51', '5151');
+  const VEB = rr.data.ve, PHB = rr.data.phien;
+
+  apiTaoLo(VEA, 'T5200AA', 10, 'lô của CN50', 500);
+  apiLuuBao(VEA, { ma_lo: 'T5200AA', loai: '1', stt_bao: 910001,
+                   khoi_luong: 50, phien: PHA, client_id: 'd1' });
+
+  // Bấm nhầm / app cũ không gửi xác nhận -> phải bị chặn
+  rr = apiDongLo(VEA, 'T5200AA');
+  T('không gõ xác nhận thì KHÔNG đóng được lô',
+    rr.ok === false && rr.code === 'CHUA_XAC_NHAN', rr);
+  rr = apiDongLo(VEA, 'T5200AA', 'T5200AB');
+  T('gõ sai mã xác nhận thì không đóng được',
+    rr.ok === false && rr.code === 'CHUA_XAC_NHAN', rr);
+  T('lô vẫn đang chạy sau 2 lần bấm hụt',
+    timLo_('T5200AA').trang_thai === LO_TRANG_THAI.DANG_CHAY);
+
+  // Phương án (b): người KHÁC vẫn đóng được, miễn gõ đúng mã và không ai còn bao treo
+  apiChotCa(VEA, PHA, 'T5200AA');
+  rr = apiDongLo(VEB, 'T5200AA', 't5200aa');     // gõ chữ thường vẫn tính là đúng
+  T('người khác đóng được lô khi đã gõ đúng mã (phương án b)', rr.ok === true, rr.error);
+  T('lô đã chuyển sang ĐÃ ĐÓNG', timLo_('T5200AA').trang_thai === LO_TRANG_THAI.DA_DONG);
+  T('có ghi nhật ký DONG_LO kèm tên người đóng',
+    DB[SHEETS.LOG].some(r => String(r[3]) === 'DONG_LO' && String(r[5]) === 'T5200AA' &&
+                             String(r[1]) === 'CN51'));
+
+  // Vẫn giữ nguyên chốt chặn cũ: người khác còn bao treo thì không ai đóng được
+  apiTaoLo(VEA, 'T5201AA', 10, '', 500);
+  apiLuuBao(VEB, { ma_lo: 'T5201AA', loai: '2', stt_bao: 910101,
+                   khoi_luong: 60, phien: PHB, client_id: 'd2' });
+  rr = apiDongLo(VEA, 'T5201AA', 'T5201AA');
+  T('gõ đúng mã nhưng người khác còn bao chưa chốt -> vẫn chặn',
+    rr.ok === false && rr.code === 'CON_NGUOI_KHAC', rr);
+})();
+
+console.log('\n=== 21. BẢN 1.5 — HÀM tuKiemTra CANH ĐƯỢC LỖI CÀI ĐẶT (mục #19) ===');
+(function () {
+  // tuKiemTra tự in bảng kết quả của nó ra log; ở đây tắt tiếng để output kiểm thử
+  // không bị lặp hai bảng dài.
+  const logThat = console.log;
+  const imLang = function () { console.log = function () {}; };
+  const noiLai = function () { console.log = logThat; };
+
+  imLang();
+  const kq = tuKiemTra();
+  noiLai();
+  const loi = kq.filter(d => d.indexOf('❌') === 0);
+  T('tuKiemTra chạy trọn vẹn, không mục nào ❌', loi.length === 0, loi);
+  T('tuKiemTra có canh đủ code đã dán',
+    kq.some(d => d.indexOf('Đã dán đủ code') >= 0));
+  T('tuKiemTra có canh MÚI GIỜ project khớp code',
+    kq.some(d => d.indexOf('Múi giờ project') >= 0), kq.filter(d => d.indexOf('Múi giờ') >= 0));
+  T('tuKiemTra có canh khoảng khối lượng',
+    kq.some(d => d.indexOf('Khoảng khối lượng 1 bao') >= 0));
+  T('tuKiemTra nhận ra 2 hàm mới của bản 1.5 (soLonTu_, docKlVao_)',
+    kq.some(d => d.indexOf('✅ Đã dán đủ code') === 0),
+    kq.filter(d => d.indexOf('dán đủ code') >= 0));
+
+  // Múi giờ lệch PHẢI bị bắt — đây là lỗi âm thầm nguy hiểm nhất khi cài đặt
+  const tzThat = Session.getScriptTimeZone;
+  Session.getScriptTimeZone = () => 'America/New_York';
+  imLang();
+  const kq2 = tuKiemTra();
+  noiLai();
+  T('múi giờ lệch thì tuKiemTra BÁO ĐỎ',
+    kq2.some(d => d.indexOf('❌') === 0 && d.indexOf('Múi giờ project') >= 0),
+    kq2.filter(d => d.indexOf('Múi giờ') >= 0));
+  Session.getScriptTimeZone = tzThat;
+})();
+
+console.log('\n=== 22. BẢN 1.5 — BAO KHÔNG GỬI ĐƯỢC PHẢI ĐỂ LẠI DẤU VẾT (mục #2) ===');
+(function () {
+  DB[SHEETS.NGUOI_DUNG].push(['CN60', 'Cong nhan 60', '6060', 'CONG_NHAN', 'CO']);
+  let rr = apiDangNhap('CN60', '6060');
+  const VE60 = rr.data.ve, PH60 = rr.data.phien;
+
+  apiTaoLo(VE60, 'T6000AA', 10, '', 500);
+  apiLuuBao(VE60, { ma_lo: 'T6000AA', loai: '1', stt_bao: 920001,
+                    khoi_luong: 50, phien: PH60, client_id: 'x1' });
+
+  // Dựng lại đúng tình huống thật: bao nằm hàng đợi offline, gửi lên thì TRÙNG SỐ BAO
+  const baoTrung = { ma_lo: 'T6000AA', ky_hieu: 'A', loai: '1', stt_bao: 920001,
+                     khoi_luong: 47.5, phien: PH60, client_id: 'x2',
+                     ma_nv: 'CN60', ten_nguoi: 'Cong nhan 60' };
+  rr = apiLuuBao(VE60, baoTrung);
+  T('bao trùng số vẫn bị máy chủ từ chối (không đổi hành vi cũ)',
+    rr.ok === false && rr.code === 'TRUNG_SO_BAO', rr);
+
+  const logTruoc = DB[SHEETS.LOG].length;
+  rr = apiGhiBaoLoi(VE60, baoTrung, 'Số bao 920001 đã nhập rồi', 'TREO');
+  T('ghi được nhật ký bao bị treo', rr.ok === true, rr);
+  T('nhật ký có dòng BAO_LOI_TREO',
+    DB[SHEETS.LOG].some(r => String(r[3]) === 'BAO_LOI_TREO'));
+  T('nhật ký treo có đủ mã lô, số bao và khối lượng',
+    DB[SHEETS.LOG].some(r => String(r[3]) === 'BAO_LOI_TREO' &&
+      String(r[6]).indexOf('T6000AA') >= 0 &&
+      String(r[6]).indexOf('920001') >= 0 &&
+      String(r[6]).indexOf('47.5') >= 0),
+    DB[SHEETS.LOG].filter(r => String(r[3]) === 'BAO_LOI_TREO').map(r => r[6]));
+  T('nhật ký treo ghi rõ máy chủ từ chối vì lý do gì',
+    DB[SHEETS.LOG].some(r => String(r[3]) === 'BAO_LOI_TREO' &&
+      String(r[8]).indexOf('đã nhập rồi') >= 0));
+
+  rr = apiGhiBaoLoi(VE60, baoTrung, 'Số bao 920001 đã nhập rồi', 'BO');
+  T('ghi được nhật ký công nhân BỎ HẲN bao', rr.ok === true && rr.data.bo === true, rr);
+  T('nhật ký có dòng BAO_LOI_BO kèm TÊN người bỏ',
+    DB[SHEETS.LOG].some(r => String(r[3]) === 'BAO_LOI_BO' && String(r[1]) === 'CN60'));
+  T('nhật ký ghi 2 dòng mới, không nuốt dòng nào',
+    DB[SHEETS.LOG].length === logTruoc + 2, DB[SHEETS.LOG].length - logTruoc);
+
+  T('vé hỏng thì không ghi bừa vào nhật ký được',
+    apiGhiBaoLoi('rac.rac', baoTrung, 'x', 'BO').ok === false);
+
+  // Bao bị từ chối KHÔNG được lọt vào sheet BAO
+  T('bao bị từ chối tuyệt đối không có trong sheet BAO',
+    docBang_(SHEETS.BAO).filter(b => String(b.client_id) === 'x2').length === 0);
+})();
+
+console.log('\n=== 23. BẢN 1.5 — BẢNG CHỈ SỐ & ĐƯỜNG NHANH (1000 bao/ngày) ===');
+(function () {
+  /** Số bao lớn nhất THẬT của một nhóm, tính bằng cách quét sheet BAO. */
+  function maxThat(nhom) {
+    var m = null;
+    docBang_(SHEETS.BAO).forEach(function (b) {
+      var n = String(b.ky_hieu).trim().toUpperCase() + String(b.loai).trim();
+      if (n !== nhom) return;
+      var v = Number(b.stt_bao);
+      if (!isNaN(v) && (m === null || v > m)) m = v;
+    });
+    return m;
+  }
+  /** BẤT BIẾN: stt_max của MỌI nhóm phải ≥ số bao lớn nhất đang có thật. */
+  function batBienGiuDuoc() {
+    var cs = docChiSo_(), xau = [];
+    dsNhom_().forEach(function (n) {
+      var that = maxThat(n);
+      if (that === null) return;
+      var ghi = cs[n] ? cs[n].stt_max : null;
+      if (ghi === null || ghi < that) xau.push(n + ': chỉ số=' + ghi + ' < thật=' + that);
+    });
+    return xau;
+  }
+
+  DB[SHEETS.NGUOI_DUNG].push(['CN70', 'Cong nhan 70', '7070', 'CONG_NHAN', 'CO']);
+  let rr = apiDangNhap('CN70', '7070');
+  const VE70 = rr.data.ve, PH70 = rr.data.phien;
+
+  dungLaiChiSo_();
+  T('dựng lại chỉ số: có đủ 6 nhóm A1 A2 A3 B1 B2 B3',
+    dsNhom_().every(n => docChiSo_()[n] !== undefined), Object.keys(docChiSo_()));
+  T('chỉ số vừa dựng khớp dữ liệu thật', batBienGiuDuoc().length === 0, batBienGiuDuoc());
+
+  apiTaoLo(VE70, 'T7000AA', 10, '', 5000);
+
+  // --- Đường nhanh: số bao lớn hơn mọi số đã dùng ---
+  const truoc = docChiSo_()['A1'].stt_max;
+  rr = apiLuuBao(VE70, { ma_lo: 'T7000AA', loai: '1', stt_bao: 930001,
+                         khoi_luong: 55, phien: PH70, client_id: 'i1' });
+  T('đường nhanh: lưu được bao có số lớn hơn mọi số đã dùng', rr.ok === true, rr.error);
+  T('chỉ số A1 tăng lên đúng số vừa lưu', docChiSo_()['A1'].stt_max === 930001,
+    docChiSo_()['A1']);
+  T('số bao đã lưu của nhóm tăng thêm 1', docChiSo_()['A1'].so_bao >= 1);
+
+  // --- Đường quét: gõ lại đúng số đó -> PHẢI bị chặn ---
+  rr = apiLuuBao(VE70, { ma_lo: 'T7000AA', loai: '1', stt_bao: 930001,
+                         khoi_luong: 60, phien: PH70, client_id: 'i2' });
+  T('đường quét vẫn chặn được số bao trùng',
+    rr.ok === false && rr.code === 'TRUNG_SO_BAO', rr);
+
+  // --- Gửi lại đúng bao cũ (mạng chập chờn) -> nhận ra là trùng lặp, không tạo dòng mới ---
+  rr = apiLuuBao(VE70, { ma_lo: 'T7000AA', loai: '1', stt_bao: 930001,
+                         khoi_luong: 55, phien: PH70, client_id: 'i1' });
+  T('gửi lại cùng client_id: nhận ra trùng lặp, không tạo dòng mới',
+    rr.ok === true && rr.data.trung_lap_bo_qua === true, rr);
+  T('sheet BAO chỉ có ĐÚNG 1 dòng client_id i1',
+    docBang_(SHEETS.BAO).filter(b => String(b.client_id) === 'i1').length === 1);
+
+  // --- Lưu nhiều bao: cả mẻ đều lớn hơn -> đường nhanh ---
+  rr = apiLuuNhieuBao(VE70, { ma_lo: 'T7000AA', loai: '1', phien: PH70, danh_sach: [
+    { stt_bao: 930002, khoi_luong: 50, client_id: 'i3' },
+    { stt_bao: 930003, khoi_luong: 51, client_id: 'i4' },
+    { stt_bao: 930004, khoi_luong: 52, client_id: 'i5' }
+  ]});
+  T('lưu mẻ 3 bao qua đường nhanh', rr.ok === true && rr.data.da_luu.length === 3, rr.error);
+  T('chỉ số theo kịp mẻ vừa lưu', docChiSo_()['A1'].stt_max === 930004, docChiSo_()['A1']);
+
+  // --- Mẻ có 1 dòng tụt xuống dưới -> cả mẻ phải đi đường quét và bị chặn ---
+  rr = apiLuuNhieuBao(VE70, { ma_lo: 'T7000AA', loai: '1', phien: PH70, danh_sach: [
+    { stt_bao: 930005, khoi_luong: 50, client_id: 'i6' },
+    { stt_bao: 930002, khoi_luong: 51, client_id: 'i7' }   // đã tồn tại
+  ]});
+  T('mẻ có 1 dòng trùng -> chặn cả mẻ (được ăn cả, ngã về không)',
+    rr.ok === false && rr.code === 'TRUNG_SO_BAO', rr);
+  T('không dòng nào của mẻ hỏng lọt vào sheet',
+    docBang_(SHEETS.BAO).filter(b => ['i6', 'i7'].indexOf(String(b.client_id)) >= 0).length === 0);
+
+  // --- XOÁ bao: KHÔNG được hạ stt_max ---
+  const truocXoa = docChiSo_()['A1'].stt_max;
+  const baoCuoi = docBang_(SHEETS.BAO).filter(b => String(b.client_id) === 'i5')[0];
+  rr = apiXoaBao(VE70, baoCuoi.id);
+  T('xoá được bao vừa nhập', rr.ok === true, rr.error);
+  T('xoá bao KHÔNG hạ stt_max (giữ an toàn cho đường nhanh)',
+    docChiSo_()['A1'].stt_max === truocXoa, docChiSo_()['A1']);
+  T('bất biến vẫn giữ sau khi xoá', batBienGiuDuoc().length === 0, batBienGiuDuoc());
+
+  // --- SỬA bao lên số cao hơn: chỉ số phải theo kịp ---
+  const baoSua = docBang_(SHEETS.BAO).filter(b => String(b.client_id) === 'i3')[0];
+  rr = apiSuaBao(VE70, baoSua.id, 999001, 53);
+  T('sửa số bao lên 999001', rr.ok === true, rr.error);
+  T('chỉ số theo kịp số bao vừa sửa', docChiSo_()['A1'].stt_max === 999001, docChiSo_()['A1']);
+  T('bất biến vẫn giữ sau khi sửa', batBienGiuDuoc().length === 0, batBienGiuDuoc());
+
+  // Và đường nhanh KHÔNG được cho lọt số trùng sau khi sửa
+  rr = apiLuuBao(VE70, { ma_lo: 'T7000AA', loai: '1', stt_bao: 999001,
+                         khoi_luong: 44, phien: PH70, client_id: 'i8' });
+  T('sau khi sửa, số bao đó vẫn bị chặn trùng',
+    rr.ok === false && rr.code === 'TRUNG_SO_BAO', rr);
+
+  // --- ĐỔI KÝ HIỆU A->B: cả lô nhảy nhóm, chỉ số phải dựng lại đúng ---
+  apiTaoLo(VE70, 'T7100AA', 5, '', 500);
+  apiLuuNhieuBao(VE70, { ma_lo: 'T7100AA', loai: '2', phien: PH70, danh_sach: [
+    { stt_bao: 940001, khoi_luong: 40, client_id: 'j1' },
+    { stt_bao: 940002, khoi_luong: 41, client_id: 'j2' }
+  ]});
+  rr = apiSuaMaLo(VE70, 'T7100AA', 'D7100AA');
+  T('đổi mã lô T->D (ký hiệu A->B)', rr.ok === true && rr.data.ky_hieu === 'B', rr.error);
+  T('chỉ số B2 nhận đúng số bao vừa chuyển sang',
+    docChiSo_()['B2'].stt_max === 940002, docChiSo_()['B2']);
+  T('bất biến giữ được ở CẢ 6 nhóm sau khi đổi ký hiệu',
+    batBienGiuDuoc().length === 0, batBienGiuDuoc());
+
+  // Số bao vừa chuyển sang nhóm B2 phải bị chặn nếu gõ lại
+  apiTaoLo(VE70, 'D7200AA', 5, '', 500);
+  rr = apiLuuBao(VE70, { ma_lo: 'D7200AA', loai: '2', stt_bao: 940001,
+                         khoi_luong: 42, phien: PH70, client_id: 'j3' });
+  T('số bao đã chuyển sang nhóm B2 vẫn bị chặn trùng',
+    rr.ok === false && rr.code === 'TRUNG_SO_BAO', rr);
+
+  // --- XOÁ LÔ: dựng lại chỉ số, bất biến phải giữ ---
+  rr = apiXoaLo(VE70, 'D7200AA', 'D7200AA');
+  T('xoá được lô rỗng', rr.ok === true, rr.error);
+  T('bất biến giữ được sau khi xoá lô', batBienGiuDuoc().length === 0, batBienGiuDuoc());
+})();
+
+console.log('\n=== 24. BẢN 1.5 — BỘ ĐẾM SẴN CỦA LÔ (mục #6) ===');
+(function () {
+  /** Đếm THẬT bằng cách quét sheet BAO — dùng để đối chiếu với cột đếm sẵn. */
+  function demThat(maLo) {
+    var bao = 0, kl = 0;
+    docBang_(SHEETS.BAO).forEach(function (b) {
+      if (chuanHoaMaLo_(b.ma_lo) !== chuanHoaMaLo_(maLo)) return;
+      bao++; kl += Number(b.khoi_luong) || 0;
+    });
+    return { bao: bao, kl: lamTronKl_(kl) };
+  }
+  /** Cột đếm sẵn của MỌI lô phải khớp dữ liệu gốc. */
+  function botDemKhop() {
+    var xau = [];
+    docBang_(SHEETS.LO).forEach(function (l) {
+      if (!l.ma_lo) return;
+      var t = demThat(l.ma_lo);
+      var b = Number(l.so_bao_ra) || 0, k = lamTronKl_(Number(l.kl_ra) || 0);
+      if (b !== t.bao || Math.abs(k - t.kl) > 0.05) {
+        xau.push(l.ma_lo + ': đếm sẵn=' + b + '/' + k + ' kg, thật=' + t.bao + '/' + t.kl + ' kg');
+      }
+    });
+    return xau;
+  }
+
+  DB[SHEETS.NGUOI_DUNG].push(['CN80', 'Cong nhan 80', '8080', 'CONG_NHAN', 'CO']);
+  let rr = apiDangNhap('CN80', '8080');
+  const VE80 = rr.data.ve, PH80 = rr.data.phien;
+
+  dungLaiSoBaoLo_();
+  T('dựng lại bộ đếm: mọi lô khớp dữ liệu gốc', botDemKhop().length === 0, botDemKhop());
+
+  apiTaoLo(VE80, 'T8000AA', 20, '', 2000);
+  T('lô mới bắt đầu với 0 bao ra', timLo_('T8000AA') && docBang_(SHEETS.LO)
+      .filter(l => chuanHoaMaLo_(l.ma_lo) === 'T8000AA')[0].so_bao_ra === 0);
+
+  apiLuuBao(VE80, { ma_lo: 'T8000AA', loai: '3', stt_bao: 950001,
+                    khoi_luong: 30, phien: PH80, client_id: 'p1' });
+  T('lưu 1 bao -> bộ đếm khớp', botDemKhop().length === 0, botDemKhop());
+
+  rr = apiLuuNhieuBao(VE80, { ma_lo: 'T8000AA', loai: '3', phien: PH80, danh_sach: [
+    { stt_bao: 950002, khoi_luong: 40, client_id: 'p2' },
+    { stt_bao: 950003, khoi_luong: 50.5, client_id: 'p3' }
+  ]});
+  T('lưu mẻ 2 bao -> bộ đếm khớp', botDemKhop().length === 0, botDemKhop());
+
+  // Màn hình danh sách lô phải hiện đúng con số này
+  const dsLo = layDanhSachLoDangChay_().filter(l => l.ma_lo === 'T8000AA')[0];
+  T('danh sách lô hiện đúng 3 bao ra', dsLo && dsLo.so_bao_ra === 3, dsLo);
+  T('danh sách lô hiện đúng 120.5 kg', dsLo && dsLo.tong_kl_ra === 120.5, dsLo);
+
+  // Sửa khối lượng
+  const b2 = docBang_(SHEETS.BAO).filter(b => String(b.client_id) === 'p2')[0];
+  rr = apiSuaBao(VE80, b2.id, 950002, 45);
+  T('sửa khối lượng bao', rr.ok === true, rr.error);
+  T('sửa khối lượng -> bộ đếm khớp', botDemKhop().length === 0, botDemKhop());
+
+  // Xoá bao
+  const b3 = docBang_(SHEETS.BAO).filter(b => String(b.client_id) === 'p3')[0];
+  rr = apiXoaBao(VE80, b3.id);
+  T('xoá bao', rr.ok === true, rr.error);
+  T('xoá bao -> bộ đếm khớp', botDemKhop().length === 0, botDemKhop());
+
+  // Sửa mã lô: bộ đếm phải đi theo lô
+  rr = apiSuaMaLo(VE80, 'T8000AA', 'T8009AA');
+  T('sửa mã lô', rr.ok === true, rr.error);
+  T('sửa mã lô -> bộ đếm vẫn khớp', botDemKhop().length === 0, botDemKhop());
+  const dsLo2 = layDanhSachLoDangChay_().filter(l => l.ma_lo === 'T8009AA')[0];
+  T('sau khi đổi mã, danh sách lô vẫn hiện 2 bao ra', dsLo2 && dsLo2.so_bao_ra === 2, dsLo2);
+
+  // Bộ đếm KHÔNG được âm dù có gọi trừ quá tay
+  congDonLo_(timLo_('T8009AA')._row, -999, -9999);
+  const l3 = docBang_(SHEETS.LO).filter(l => chuanHoaMaLo_(l.ma_lo) === 'T8009AA')[0];
+  T('bộ đếm không bao giờ xuống âm', Number(l3.so_bao_ra) === 0 && Number(l3.kl_ra) === 0,
+    [l3.so_bao_ra, l3.kl_ra]);
+  dungLaiSoBaoLo_();
+  T('dựng lại là chữa được ngay số đếm bị lệch', botDemKhop().length === 0, botDemKhop());
+})();
+
+console.log('\n=== 25. BẢN 1.5 — LƯỚI AN TOÀN KHI CHỈ SỐ BỊ PHÁ ===');
+(function () {
+  // Đường nhanh chỉ an toàn CHỪNG NÀO bất biến của CHI_SO còn đúng. Nếu ai đó sửa
+  // tay vào sheet CHI_SO cho nhỏ đi, đường nhanh sẽ cho lọt số bao trùng.
+  // Vì vậy phải chắc chắn tuKiemTra bắt được tình huống đó.
+  const logThat = console.log;
+
+  dungLaiChiSo_(); dungLaiSoBaoLo_();
+  console.log = function () {};
+  let kq = tuKiemTra();
+  console.log = logThat;
+  T('chỉ số lành lặn -> tuKiemTra báo an toàn',
+    kq.some(d => d.indexOf('✅ Bảng chỉ số CHI_SO còn an toàn') === 0),
+    kq.filter(d => d.indexOf('chỉ số') >= 0));
+  T('bộ đếm lành lặn -> tuKiemTra báo khớp',
+    kq.some(d => d.indexOf('✅ Bộ đếm số bao của từng lô khớp') === 0),
+    kq.filter(d => d.indexOf('Bộ đếm') >= 0));
+
+  // --- Phá hoại: hạ stt_max của mọi nhóm xuống 1 ---
+  const csRow = docChiSo_();
+  Object.keys(csRow).forEach(function (n) {
+    suaDong_(SHEETS.CHI_SO, csRow[n]._row, { stt_max: 1 });
+  });
+  console.log = function () {};
+  kq = tuKiemTra();
+  console.log = logThat;
+  T('chỉ số bị hạ thấp -> tuKiemTra BÁO ĐỎ',
+    kq.some(d => d.indexOf('❌') === 0 && d.indexOf('Bảng chỉ số CHI_SO') >= 0),
+    kq.filter(d => d.indexOf('CHI_SO') >= 0));
+  T('lời báo có chỉ đúng cách chữa (menu dựng lại)',
+    kq.some(d => d.indexOf('CHI_SO') >= 0 && d.indexOf('Dựng lại bảng đếm') >= 0));
+
+  // --- Phá hoại bộ đếm của lô ---
+  dungLaiChiSo_();
+  const loBK = docBang_(SHEETS.LO).filter(l => Number(l.so_bao_ra) > 0)[0];
+  if (loBK) {
+    suaDong_(SHEETS.LO, loBK._row, { so_bao_ra: 99999 });
+    console.log = function () {};
+    kq = tuKiemTra();
+    console.log = logThat;
+    T('bộ đếm lô bị sai -> tuKiemTra BÁO ĐỎ',
+      kq.some(d => d.indexOf('❌') === 0 && d.indexOf('Bộ đếm số bao') >= 0),
+      kq.filter(d => d.indexOf('Bộ đếm') >= 0));
+  }
+
+  // --- Menu dựng lại phải chữa được tất cả ---
+  UI.bat = true; UI.nut = 'OK'; UI.daHien = [];
+  dungLaiBoDem();
+  UI.bat = false;
+  console.log = function () {};
+  kq = tuKiemTra();
+  console.log = logThat;
+  T('chạy menu "Dựng lại bảng đếm & chỉ số" là mọi thứ khớp lại',
+    kq.filter(d => d.indexOf('❌') === 0).length === 0,
+    kq.filter(d => d.indexOf('❌') === 0));
+  T('menu dựng lại có báo kết quả cho người chạy', UI.daHien.length > 0, UI.daHien);
+})();
+
+console.log('\n=== 26. BẢN 1.6 ĐỢT A — TÍCH XÁC NHẬN · LỌC NGÀY · "BỤI + HAO HỤT" ===');
+(function () {
+  /*
+   * Andy chốt 22/08/2026: chốt ca và đóng lô đổi từ "gõ lại mã lô" sang "tích ô xác nhận".
+   *
+   * Điều được canh kỹ nhất trong mục này KHÔNG phải đường mới, mà là ĐƯỜNG CŨ:
+   * app bản 1.5 còn mở trên máy công nhân vẫn gửi MÃ LÔ lên. Nếu máy chủ mới không
+   * nhận kiểu đó nữa thì cả ca đó không đóng được lô cho tới khi từng người đóng hẳn
+   * app rồi mở lại — đúng sự cố bản 1.5 đã gây ra một lần (xem TIEN_DO.md).
+   */
+  DB[SHEETS.NGUOI_DUNG].push(['CN90', 'Cong nhan 90', '9090', 'CONG_NHAN', 'CO']);
+  DB[SHEETS.NGUOI_DUNG].push(['CN91', 'Cong nhan 91', '9191', 'CONG_NHAN', 'CO']);
+  let rr = apiDangNhap('CN90', '9090');
+  const VE90 = rr.data.ve, PH90 = rr.data.phien;
+  rr = apiDangNhap('CN91', '9191');
+  const VE91 = rr.data.ve, PH91 = rr.data.phien;
+
+  const soBaoChuaChot = function (maLo) {
+    return docBang_(SHEETS.BAO).filter(function (b) {
+      return chuanHoaMaLo_(b.ma_lo) === maLo &&
+             String(b.trang_thai).trim().toUpperCase() === BAO_TRANG_THAI.DANG_NHAP;
+    }).length;
+  };
+
+  // ---- 26.1 CHỐT CA: ô tích thay cho hộp confirm của trình duyệt ----
+  apiTaoLo(VE90, 'T6200AA', 10, '', 500);
+  apiLuuBao(VE90, { ma_lo: 'T6200AA', loai: '1', stt_bao: 960001,
+                    khoi_luong: 50, phien: PH90, client_id: 'a26_1' });
+
+  rr = apiChotCa(VE90, PH90, 'T6200AA', false);
+  T('chốt ca: chưa tích ô thì máy chủ TỪ CHỐI',
+    rr.ok === false && rr.code === 'CHUA_XAC_NHAN', rr);
+  rr = apiChotCa(VE90, PH90, 'T6200AA', 'linh tinh');
+  T('chốt ca: cờ xác nhận rác thì TỪ CHỐI',
+    rr.ok === false && rr.code === 'CHUA_XAC_NHAN', rr);
+  T('chốt ca: bao vẫn CHƯA bị khoá sau 2 lần bấm hụt',
+    soBaoChuaChot('T6200AA') === 1, soBaoChuaChot('T6200AA'));
+
+  rr = apiChotCa(VE90, PH90, 'T6200AA', 'XAC_NHAN');
+  T('chốt ca: tích ô rồi thì chốt được', rr.ok === true && rr.data.so_bao === 1, rr);
+  T('chốt ca: bao đã khoá thật', soBaoChuaChot('T6200AA') === 0);
+
+  // App bản 1.5 KHÔNG gửi tham số thứ 4 — đường cũ phải còn nguyên
+  apiLuuBao(VE90, { ma_lo: 'T6200AA', loai: '1', stt_bao: 960002,
+                    khoi_luong: 60, phien: PH90, client_id: 'a26_2' });
+  rr = apiChotCa(VE90, PH90, 'T6200AA');
+  T('chốt ca: app bản 1.5 (không gửi cờ) vẫn chốt được', rr.ok === true, rr);
+
+  // ---- 26.2 ĐÓNG LÔ: ô tích, nhưng app cũ gõ mã vẫn phải chạy ----
+  apiTaoLo(VE90, 'T6201AA', 10, '', 100);
+  apiLuuBao(VE90, { ma_lo: 'T6201AA', loai: '1', stt_bao: 960101,
+                    khoi_luong: 50, phien: PH90, client_id: 'a26_3' });
+
+  rr = apiDongLo(VE90, 'T6201AA');
+  T('đóng lô: không gửi xác nhận -> vẫn chặn (giữ nguyên chốt chặn của 1.5)',
+    rr.ok === false && rr.code === 'CHUA_XAC_NHAN', rr);
+  rr = apiDongLo(VE90, 'T6201AA', false);
+  T('đóng lô: chưa tích ô -> chặn', rr.ok === false && rr.code === 'CHUA_XAC_NHAN', rr);
+  rr = apiDongLo(VE90, 'T6201AA', 'T6299ZZ');
+  T('đóng lô: gõ nhầm mã của lô khác -> chặn',
+    rr.ok === false && rr.code === 'CHUA_XAC_NHAN', rr);
+  T('đóng lô: lô vẫn đang chạy sau 3 lần bấm hụt',
+    timLo_('T6201AA').trang_thai === LO_TRANG_THAI.DANG_CHAY);
+
+  rr = apiDongLo(VE90, 'T6201AA', 'XAC_NHAN');
+  T('đóng lô: tích ô rồi thì đóng được', rr.ok === true, rr);
+  T('đóng lô: lô đã chuyển sang ĐÃ ĐÓNG',
+    timLo_('T6201AA').trang_thai === LO_TRANG_THAI.DA_DONG);
+
+  apiTaoLo(VE90, 'T6202AA', 10, '', 100);
+  apiLuuBao(VE90, { ma_lo: 'T6202AA', loai: '1', stt_bao: 960201,
+                    khoi_luong: 50, phien: PH90, client_id: 'a26_4' });
+  rr = apiDongLo(VE90, 'T6202AA', 't6202aa');
+  T('đóng lô: app bản 1.5 gõ mã lô vẫn đóng được (không bỏ rơi app cũ)', rr.ok === true, rr);
+
+  apiTaoLo(VE90, 'T6203AA', 10, '', 100);
+  apiLuuBao(VE90, { ma_lo: 'T6203AA', loai: '1', stt_bao: 960301,
+                    khoi_luong: 50, phien: PH90, client_id: 'a26_5' });
+  rr = apiDongLo(VE90, 'T6203AA', true);
+  T('đóng lô: nhận cả cờ boolean true', rr.ok === true, rr);
+
+  // Chốt chặn cũ phải còn: người khác còn bao treo thì ô tích cũng không đóng được
+  apiTaoLo(VE90, 'T6204AA', 10, '', 100);
+  apiLuuBao(VE91, { ma_lo: 'T6204AA', loai: '2', stt_bao: 960401,
+                    khoi_luong: 60, phien: PH91, client_id: 'a26_6' });
+  rr = apiDongLo(VE90, 'T6204AA', 'XAC_NHAN');
+  T('đóng lô: tích ô nhưng người khác còn bao chưa chốt -> vẫn chặn',
+    rr.ok === false && rr.code === 'CON_NGUOI_KHAC', rr);
+
+  // ---- 26.3 Đổi tên "hao hụt" -> "Bụi + hao hụt" (Andy 22/08/2026) ----
+  // Ra bụi cũng là một nguyên nhân gây hao hụt; KHÔNG cân, vẫn chỉ là số tính ra.
+  apiTaoLo(VE90, 'T6210AA', 5, '', 300);
+  apiLuuBao(VE90, { ma_lo: 'T6210AA', loai: '1', stt_bao: 961001,
+                    khoi_luong: 100, phien: PH90, client_id: 'a26_7' });
+  rr = apiXemTruocKetQua(VE90, 'T6210AA');
+  T('cảnh báo gọi đúng tên mới "Bụi + hao hụt"',
+    rr.data.canh_bao.indexOf('Bụi + hao hụt') >= 0, rr.data.canh_bao);
+  T('cảnh báo vẫn giữ chữ CAO — công nhân phải biết lệch về hướng nào',
+    rr.data.canh_bao.indexOf('CAO') >= 0, rr.data.canh_bao);
+  T('tên trường ti_le_hao_hut GIỮ NGUYÊN (Excel của thống kê đang trỏ vào)',
+    rr.data.ti_le_hao_hut === 66.67, rr.data.ti_le_hao_hut);
+
+  apiTaoLo(VE90, 'T6211AA', 5, '', 100);
+  apiLuuBao(VE90, { ma_lo: 'T6211AA', loai: '1', stt_bao: 961101,
+                    khoi_luong: 90, phien: PH90, client_id: 'a26_8' });
+  rr = apiXemTruocKetQua(VE90, 'T6211AA');
+  T('cảnh báo THẤP cũng đổi tên, vẫn giữ chữ THẤP',
+    rr.data.canh_bao.indexOf('Bụi + hao hụt') >= 0 && rr.data.canh_bao.indexOf('THẤP') >= 0,
+    rr.data.canh_bao);
+
+  apiTaoLo(VE90, 'T6212AA', 5, '', 50);
+  apiLuuBao(VE90, { ma_lo: 'T6212AA', loai: '1', stt_bao: 961201,
+                    khoi_luong: 80, phien: PH90, client_id: 'a26_9' });
+  rr = apiXemTruocKetQua(VE90, 'T6212AA');
+  T('ra nhiều hơn vào: vẫn nói thẳng là số liệu SAI, không nói "thấp bất thường"',
+    rr.data.canh_bao.indexOf('NHIỀU HƠN') >= 0 && rr.data.canh_bao.indexOf('THẤP') < 0,
+    rr.data.canh_bao);
+
+  // ---- 26.4 Lọc theo ngày — nhưng KHÔNG được giấu lô đang chạy ----
+  /*
+   * Quản lý mở bảng này để nhìn "cái gì đang chạy". Lô chạy dài ngày lại chính là lô
+   * dễ quên nhất, nên bộ lọc ngày phải bỏ qua chúng — nếu không, thêm bộ lọc lại
+   * hoá ra giấu mất đúng thứ cần thấy.
+   */
+  apiTaoLo(VE90, 'T6220AA', 5, 'lô cũ ĐÃ ĐÓNG', 100);
+  apiLuuBao(VE90, { ma_lo: 'T6220AA', loai: '1', stt_bao: 962001,
+                    khoi_luong: 50, phien: PH90, client_id: 'a26_10' });
+  apiDongLo(VE90, 'T6220AA', 'XAC_NHAN');
+  suaDong_(SHEETS.LO, timLo_('T6220AA')._row, { tg_mo: '2020-01-01 08:00:00' });
+
+  apiTaoLo(VE90, 'T6221AA', 5, 'lô cũ VẪN CHẠY', 100);
+  apiLuuBao(VE90, { ma_lo: 'T6221AA', loai: '1', stt_bao: 962101,
+                    khoi_luong: 50, phien: PH90, client_id: 'a26_11' });
+  suaDong_(SHEETS.LO, timLo_('T6221AA')._row, { tg_mo: '2020-01-01 08:00:00' });
+
+  const dsLoc = tinhTongHopLo_('2026-01-01', '');
+  T('lọc ngày: lô ĐÃ ĐÓNG nằm ngoài khoảng thì bị ẩn',
+    dsLoc.filter(x => x.ma_lo === 'T6220AA').length === 0);
+  T('lọc ngày: lô ĐANG CHẠY nằm ngoài khoảng VẪN hiện',
+    dsLoc.filter(x => x.ma_lo === 'T6221AA').length === 1);
+
+  const dsHet = tinhTongHopLo_();
+  T('không lọc thì thấy cả hai lô cũ',
+    dsHet.filter(x => x.ma_lo === 'T6220AA').length === 1 &&
+    dsHet.filter(x => x.ma_lo === 'T6221AA').length === 1);
+  T('bảng tổng hợp nói rõ "Đang chạy" để giao diện tô màu được',
+    dsHet.filter(x => x.ma_lo === 'T6221AA')[0].trang_thai === 'Đang chạy',
+    dsHet.filter(x => x.ma_lo === 'T6221AA')[0].trang_thai);
+
+  // Bốn cột tỉ lệ mà bảng của quản lý sẽ hiện — phải có sẵn trong dữ liệu trả về
+  const mot = dsHet.filter(x => x.ma_lo === 'T6210AA')[0];
+  T('bảng tổng hợp có đủ 4 cột tỉ lệ cho màn hình quản lý',
+    mot.ti_le_L1 === 33.33 && mot.ti_le_L2 === 0 && mot.ti_le_L3 === 0 &&
+    mot.ti_le_hao_hut === 66.67,
+    [mot.ti_le_L1, mot.ti_le_L2, mot.ti_le_L3, mot.ti_le_hao_hut]);
+})();
+console.log('\n=== 27. BẢN 1.6 ĐỢT B — BẢNG TỈ LỆ ĐI KÈM apiMoLo (gộp màn hình) ===');
+(function () {
+  /*
+   * Bản 1.6 bỏ hẳn màn hình "Xem trước kết quả chạy máy", đưa bảng tỉ lệ về ngay
+   * màn hình nhập liệu. Muốn vậy apiMoLo phải trả kèm bảng tỉ lệ.
+   *
+   * Điều mục này canh: bảng tỉ lệ đi kèm apiMoLo phải GIỐNG HỆT bảng do
+   * apiXemTruocKetQua tính ra. Hai đường tính khác nhau mà ra hai con số khác nhau
+   * là kiểu lỗi công nhân sẽ không bao giờ báo — họ chỉ thấy màn hình này nói 25%,
+   * màn hình kia nói 24% rồi thôi không tin cả hai.
+   */
+  DB[SHEETS.NGUOI_DUNG].push(['CN95', 'Cong nhan 95', '9595', 'CONG_NHAN', 'CO']);
+  const rr0 = apiDangNhap('CN95', '9595');
+  const VE95 = rr0.data.ve, PH95 = rr0.data.phien;
+
+  // So sánh từng trường của hai gói kết quả, trừ mấy trường chỉ có ở gói đầy đủ.
+  const giong = function (a, b) {
+    if (!a || !b) return false;
+    return JSON.stringify(a) === JSON.stringify(b);
+  };
+
+  apiTaoLo(VE95, 'T6300AA', 20, '', 1000);
+  apiLuuNhieuBao(VE95, { ma_lo: 'T6300AA', loai: '1', phien: PH95, danh_sach: [
+    { stt_bao: 963001, khoi_luong: 100, client_id: 'b27_1' },
+    { stt_bao: 963002, khoi_luong: 50,  client_id: 'b27_2' }]});
+  apiLuuNhieuBao(VE95, { ma_lo: 'T6300AA', loai: '2', phien: PH95, danh_sach: [
+    { stt_bao: 963101, khoi_luong: 200, client_id: 'b27_3' }]});
+  apiLuuBao(VE95, { ma_lo: 'T6300AA', loai: '3', stt_bao: 963201,
+                    khoi_luong: 50, phien: PH95, client_id: 'b27_4' });
+
+  let rMo = apiMoLo(VE95, 'T6300AA', PH95);
+  let rXem = apiXemTruocKetQua(VE95, 'T6300AA');
+
+  T('apiMoLo trả kèm gói ket_qua', rMo.ok === true && !!rMo.data.ket_qua, rMo.ok ? Object.keys(rMo.data) : rMo.error);
+  T('ket_qua của apiMoLo GIỐNG HỆT apiXemTruocKetQua',
+    giong(rMo.data.ket_qua, rXem.data), [rMo.data.ket_qua, rXem.data]);
+
+  const kq = rMo.data.ket_qua;
+  T('tỉ lệ từng loại tính đúng (150/1000, 200/1000, 50/1000)',
+    kq.ds_loai[0].ti_le === 15 && kq.ds_loai[1].ti_le === 20 && kq.ds_loai[2].ti_le === 5,
+    kq.ds_loai.map(x => x.ti_le));
+  T('bụi + hao hụt = 100 − 40 = 60%', kq.ti_le_hao_hut === 60, kq.ti_le_hao_hut);
+  T('4 con số cộng lại đúng 100 — công nhân nhẩm lại được',
+    kq.ds_loai[0].ti_le + kq.ds_loai[1].ti_le + kq.ds_loai[2].ti_le + kq.ti_le_hao_hut === 100);
+  T('tổng khối lượng ra đúng 400 kg', kq.tong_kl_ra === 400, kq.tong_kl_ra);
+  T('ds_loai mang sẵn tên nhóm A1/A2/A3 để giao diện khỏi tự ghép',
+    kq.ds_loai.map(x => x.nhom).join(',') === 'A1,A2,A3', kq.ds_loai.map(x => x.nhom));
+
+  // Sửa khối lượng đầu vào -> mở lại lô là thấy số mới ngay, không phải gọi thêm lượt nào
+  apiCapNhatKlVao(VE95, 'T6300AA', '2.000');
+  rMo = apiMoLo(VE95, 'T6300AA', PH95);
+  T('sửa khối lượng đầu vào thì ket_qua của apiMoLo đổi theo',
+    rMo.data.ket_qua.kl_vao === 2000 && rMo.data.ket_qua.ds_loai[0].ti_le === 7.5,
+    [rMo.data.ket_qua.kl_vao, rMo.data.ket_qua.ds_loai[0].ti_le]);
+
+  // Lô CHƯA có khối lượng đầu vào: không được chia cho 0, cũng không được sập
+  apiTaoLo(VE95, 'T6301AA', 20, '');
+  apiLuuBao(VE95, { ma_lo: 'T6301AA', loai: '1', stt_bao: 963301,
+                    khoi_luong: 40, phien: PH95, client_id: 'b27_5' });
+  rMo = apiMoLo(VE95, 'T6301AA', PH95);
+  T('lô chưa cân đầu vào: ket_qua vẫn về, co_kl_vao = false',
+    rMo.ok === true && rMo.data.ket_qua.co_kl_vao === false &&
+    rMo.data.ket_qua.ti_le_hao_hut === null, rMo.data.ket_qua);
+  T('lô chưa cân đầu vào: vẫn hiện đúng tổng khối lượng ra',
+    rMo.data.ket_qua.tong_kl_ra === 40, rMo.data.ket_qua.tong_kl_ra);
+  T('lô chưa cân đầu vào: không có cảnh báo giả',
+    rMo.data.ket_qua.canh_bao === '', rMo.data.ket_qua.canh_bao);
+
+  // Lô TRỐNG: mở ra phải là 0, không phải NaN
+  apiTaoLo(VE95, 'T6302AA', 20, '', 500);
+  rMo = apiMoLo(VE95, 'T6302AA', PH95);
+  T('lô chưa có bao nào: mọi số là 0, không phải NaN',
+    rMo.data.ket_qua.tong_so_bao_ra === 0 && rMo.data.ket_qua.tong_kl_ra === 0 &&
+    rMo.data.ket_qua.ds_loai.every(x => x.so_bao === 0 && x.ti_le === 0),
+    rMo.data.ket_qua);
+
+  // Lô đã ĐÓNG vẫn mở xem được (đợt C sẽ dùng lại đúng đường này)
+  apiDongLo(VE95, 'T6300AA', 'XAC_NHAN');
+  rMo = apiMoLo(VE95, 'T6300AA', PH95);
+  T('lô đã đóng vẫn mở xem được và vẫn có bảng tỉ lệ',
+    rMo.ok === true && rMo.data.ket_qua.trang_thai === LO_TRANG_THAI.DA_DONG &&
+    rMo.data.ket_qua.tong_kl_ra === 400, rMo.ok ? rMo.data.ket_qua.trang_thai : rMo.error);
+  T('lô đã đóng: mọi bao đều KHÔNG sửa được',
+    rMo.data.ds_bao.every(b => b.sua_duoc === false), rMo.data.ds_bao.map(b => b.sua_duoc));
+})();
+
+console.log('\n=== 28. BẢN 1.6 ĐỢT C — XEM LẠI LÔ ĐÃ ĐÓNG & QUYỀN QUẢN LÝ ===');
+(function () {
+  DB[SHEETS.NGUOI_DUNG].push(['CN96', 'Cong nhan 96', '9696', 'CONG_NHAN', 'CO']);
+  DB[SHEETS.NGUOI_DUNG].push(['CN97', 'Cong nhan 97', '9797', 'CONG_NHAN', 'CO']);
+  DB[SHEETS.NGUOI_DUNG].push(['QL96', 'Quan ly 96', '9696', 'QUAN_LY', 'CO']);
+  let r = apiDangNhap('CN96', '9696');
+  const V96 = r.data.ve, P96 = r.data.phien;
+  r = apiDangNhap('CN97', '9797');
+  const V97 = r.data.ve, P97 = r.data.phien;
+  const VQ = apiDangNhap('QL96', '9696').data.ve;
+
+  const doc = function (ma) { return timLo_(ma); };
+  const cotLo = function (ma, ten) {
+    return DB[SHEETS.LO][doc(ma)._row - 1][COLS.LO.indexOf(ten)];
+  };
+
+  /* ---- 28.1 Cột ds_nguoi_nhap trên sheet LO ---- */
+  T('sheet LO có cột ds_nguoi_nhap ở CUỐI mảng cột',
+    COLS.LO[COLS.LO.length - 1] === 'ds_nguoi_nhap', COLS.LO);
+
+  apiTaoLo(V96, 'T6400AA', 20, '', 1000);
+  apiLuuBao(V96, { ma_lo: 'T6400AA', loai: '1', stt_bao: 964001,
+                   khoi_luong: 100, phien: P96, client_id: 'c28_1' });
+  T('lưu bao xong thì lô ghi nhận người nhập',
+    String(cotLo('T6400AA', 'ds_nguoi_nhap')) === 'CN96', cotLo('T6400AA', 'ds_nguoi_nhap'));
+
+  apiLuuNhieuBao(V97, { ma_lo: 'T6400AA', loai: '2', phien: P97, danh_sach: [
+    { stt_bao: 964101, khoi_luong: 200, client_id: 'c28_2' }]});
+  T('người thứ hai nhập vào cùng lô -> ghi thêm, không ghi đè',
+    String(cotLo('T6400AA', 'ds_nguoi_nhap')) === 'CN96,CN97', cotLo('T6400AA', 'ds_nguoi_nhap'));
+
+  apiLuuBao(V96, { ma_lo: 'T6400AA', loai: '1', stt_bao: 964002,
+                   khoi_luong: 50, phien: P96, client_id: 'c28_3' });
+  T('cùng một người nhập tiếp -> KHÔNG ghi trùng tên',
+    String(cotLo('T6400AA', 'ds_nguoi_nhap')) === 'CN96,CN97', cotLo('T6400AA', 'ds_nguoi_nhap'));
+
+  // Dữ liệu cũ (nâng cấp từ 1.5) chưa có cột này -> menu dựng lại phải điền được
+  suaDong_(SHEETS.LO, doc('T6400AA')._row, { ds_nguoi_nhap: '' });
+  dungLaiSoBaoLo_();
+  T('menu dựng lại điền được ds_nguoi_nhap cho dữ liệu cũ',
+    String(cotLo('T6400AA', 'ds_nguoi_nhap')) === 'CN96,CN97', cotLo('T6400AA', 'ds_nguoi_nhap'));
+
+  /* ---- 28.2 Danh sách lô đã đóng ---- */
+  apiTaoLo(V97, 'T6401AA', 10, 'lô chỉ CN97 nhập', 500);
+  apiLuuBao(V97, { ma_lo: 'T6401AA', loai: '1', stt_bao: 964201,
+                   khoi_luong: 100, phien: P97, client_id: 'c28_4' });
+  apiChotCa(V96, P96, 'T6400AA', 'XAC_NHAN');
+  apiChotCa(V97, P97, 'T6400AA', 'XAC_NHAN');
+  apiDongLo(V96, 'T6400AA', 'XAC_NHAN');
+  apiDongLo(V97, 'T6401AA', 'XAC_NHAN');
+
+  let ds96 = apiLoDaDong(V96, '', '');
+  let ds97 = apiLoDaDong(V97, '', '');
+  let dsQ  = apiLoDaDong(VQ, '', '');
+  const co = function (kq, ma) { return kq.ok && kq.data.ds.some(x => x.ma_lo === ma); };
+
+  T('công nhân thấy lô MÌNH CÓ NHẬP BAO', co(ds96, 'T6400AA'), ds96);
+  T('công nhân KHÔNG thấy lô mình không nhập bao nào',
+    !co(ds96, 'T6401AA'), ds96.ok ? ds96.data.ds.map(x => x.ma_lo) : ds96);
+  T('người kia thấy cả hai lô vì có nhập bao ở cả hai',
+    co(ds97, 'T6400AA') && co(ds97, 'T6401AA'), ds97.ok ? ds97.data.ds.map(x => x.ma_lo) : ds97);
+  T('quản lý thấy tất cả lô đã đóng',
+    co(dsQ, 'T6400AA') && co(dsQ, 'T6401AA'), dsQ.ok ? dsQ.data.ds.map(x => x.ma_lo) : dsQ);
+  T('danh sách chỉ gồm lô ĐÃ ĐÓNG',
+    dsQ.data.ds.every(x => x.trang_thai === LO_TRANG_THAI.DA_DONG),
+    dsQ.data.ds.map(x => x.trang_thai));
+  T('mỗi dòng mang sẵn số bao ra / khối lượng ra để khỏi đọc sheet BAO',
+    ds96.data.ds.filter(x => x.ma_lo === 'T6400AA')[0].so_bao_ra === 3,
+    ds96.data.ds.filter(x => x.ma_lo === 'T6400AA')[0]);
+
+  /* ---- 28.3 Công nhân vẫn bị chặn y như cũ (ĐỐI CHỨNG) ---- */
+  const baoDaChot = docBang_(SHEETS.BAO).filter(b => chuanHoaMaLo_(b.ma_lo) === 'T6400AA' &&
+                                                     Number(b.stt_bao) === 964001)[0];
+  r = apiSuaBao(V96, baoDaChot.id, 964001, 111);
+  T('ĐỐI CHỨNG: công nhân KHÔNG sửa được bao đã chốt',
+    r.ok === false && r.code === 'KHONG_DUOC_SUA', r);
+  r = apiXoaBao(V96, baoDaChot.id);
+  T('ĐỐI CHỨNG: công nhân KHÔNG xoá được bao đã chốt', r.ok === false, r);
+  r = apiSuaMaLo(V96, 'T6400AA', 'T6409AA');
+  T('ĐỐI CHỨNG: công nhân KHÔNG sửa được mã lô đã đóng',
+    r.ok === false && r.code === 'LO_DA_DONG', r);
+  r = apiXoaLo(V96, 'T6400AA', 'T6400AA');
+  T('ĐỐI CHỨNG: công nhân KHÔNG xoá được lô đã đóng',
+    r.ok === false && r.code === 'LO_DA_DONG', r);
+  r = apiMoLaiLo(V96, 'T6400AA', 'XAC_NHAN', 'thử mở');
+  T('ĐỐI CHỨNG: công nhân KHÔNG mở lại được lô',
+    r.ok === false && r.code === 'KHONG_CO_QUYEN', r);
+
+  /* ---- 28.4 Quản lý vượt được, nhưng PHẢI có lý do ---- */
+  r = apiSuaBao(VQ, baoDaChot.id, 964001, 111, '');
+  T('quản lý sửa bao đã chốt mà KHÔNG ghi lý do -> bị từ chối',
+    r.ok === false && r.code === 'THIEU_LY_DO', r);
+  r = apiSuaBao(VQ, baoDaChot.id, 964001, 111, '   ');
+  T('lý do chỉ toàn khoảng trắng cũng bị từ chối',
+    r.ok === false && r.code === 'THIEU_LY_DO', r);
+
+  const klRaTruoc = Number(cotLo('T6400AA', 'kl_ra'));
+  r = apiSuaBao(VQ, baoDaChot.id, 964001, 111, 'cân lại thấy ghi nhầm 100 thành 111');
+  T('quản lý sửa được bao đã chốt khi có lý do', r.ok === true, r);
+  T('bộ đếm khối lượng của lô chỉnh theo đúng phần chênh',
+    Number(cotLo('T6400AA', 'kl_ra')) === klRaTruoc + 11,
+    [klRaTruoc, cotLo('T6400AA', 'kl_ra')]);
+  T('nhật ký ghi QL_SUA_BAO kèm nguyên văn lý do',
+    DB[SHEETS.LOG].some(x => String(x[3]) === 'QL_SUA_BAO' && String(x[1]) === 'QL96' &&
+                             String(x[8]).indexOf('ghi nhầm 100 thành 111') >= 0),
+    DB[SHEETS.LOG].filter(x => String(x[3]).indexOf('QL_') === 0).map(x => [x[3], x[8]]));
+
+  const soBaoTruoc = Number(cotLo('T6400AA', 'so_bao_ra'));
+  r = apiXoaBao(VQ, baoDaChot.id, 'bao này cân trùng, đã ghi 2 lần');
+  T('quản lý xoá được bao đã chốt khi có lý do', r.ok === true, r);
+  T('xoá xong bộ đếm số bao của lô giảm đúng 1',
+    Number(cotLo('T6400AA', 'so_bao_ra')) === soBaoTruoc - 1, cotLo('T6400AA', 'so_bao_ra'));
+  T('nhật ký ghi QL_XOA_BAO kèm lý do',
+    DB[SHEETS.LOG].some(x => String(x[3]) === 'QL_XOA_BAO' &&
+                             String(x[8]).indexOf('cân trùng') >= 0));
+
+  /* ---- 28.5 Sửa thông tin lô (số bao vào / khối lượng vào / ghi chú) ---- */
+  r = apiSuaLo(VQ, 'T6400AA', { so_bao_vao: 25, kl_vao: '1.200', ghi_chu: 'sửa lại theo phiếu giấy' }, '');
+  T('sửa thông tin lô ĐÃ ĐÓNG mà không có lý do -> từ chối',
+    r.ok === false && r.code === 'THIEU_LY_DO', r);
+  r = apiSuaLo(VQ, 'T6400AA', { so_bao_vao: 25, kl_vao: '1.200', ghi_chu: 'sửa lại theo phiếu giấy' },
+               'đối chiếu phiếu giấy thấy ghi thiếu 5 bao vào');
+  T('quản lý sửa được thông tin lô đã đóng', r.ok === true, r);
+  T('số bao vào đổi đúng', doc('T6400AA').so_bao_vao === 25, doc('T6400AA').so_bao_vao);
+  T('khối lượng vào đọc được cả dấu phân cách nghìn (1.200 -> 1200)',
+    doc('T6400AA').kl_vao === 1200, doc('T6400AA').kl_vao);
+  T('ghi chú đổi đúng', doc('T6400AA').ghi_chu === 'sửa lại theo phiếu giấy', doc('T6400AA').ghi_chu);
+  T('sửa khối lượng vào xong thì tỉ lệ tính lại theo mẫu số mới',
+    apiXemTruocKetQua(VQ, 'T6400AA').data.kl_vao === 1200);
+  r = apiSuaLo(V96, 'T6400AA', { ghi_chu: 'công nhân thử sửa' }, 'thử');
+  T('ĐỐI CHỨNG: công nhân KHÔNG sửa được thông tin lô đã đóng', r.ok === false, r);
+
+  /* ---- 28.6 Sửa mã lô / xoá lô đã đóng ---- */
+  r = apiSuaMaLo(VQ, 'T6400AA', 'T6408AA', '');
+  T('quản lý sửa mã lô đã đóng mà thiếu lý do -> từ chối',
+    r.ok === false && r.code === 'THIEU_LY_DO', r);
+  r = apiSuaMaLo(VQ, 'T6400AA', 'T6408AA', 'công nhân gõ nhầm tên lô rồi đóng lô');
+  T('quản lý sửa được mã lô ĐÃ ĐÓNG', r.ok === true, r);
+  T('bao của lô đi theo mã mới, không mồ côi',
+    docBang_(SHEETS.BAO).filter(b => chuanHoaMaLo_(b.ma_lo) === 'T6408AA').length === 2 &&
+    docBang_(SHEETS.BAO).filter(b => chuanHoaMaLo_(b.ma_lo) === 'T6400AA').length === 0);
+
+  /* ---- 28.7 Mở lại lô ---- */
+  r = apiMoLaiLo(VQ, 'T6408AA', 'XAC_NHAN', '');
+  T('mở lại lô mà thiếu lý do -> từ chối', r.ok === false && r.code === 'THIEU_LY_DO', r);
+  r = apiMoLaiLo(VQ, 'T6408AA', '', 'lô còn bao chưa chạy hết, phải mở lại');
+  T('mở lại lô mà chưa tích ô xác nhận -> từ chối',
+    r.ok === false && r.code === 'CHUA_XAC_NHAN', r);
+  r = apiMoLaiLo(VQ, 'T6408AA', 'XAC_NHAN', 'lô còn bao chưa chạy hết, phải mở lại');
+  T('quản lý mở lại được lô đã đóng', r.ok === true, r);
+  T('lô về trạng thái ĐANG CHẠY', doc('T6408AA').trang_thai === LO_TRANG_THAI.DANG_CHAY);
+  T('xoá luôn dấu người đóng / thời gian đóng',
+    String(cotLo('T6408AA', 'nguoi_dong')) === '' && String(cotLo('T6408AA', 'tg_dong')) === '');
+  T('nhật ký ghi QL_MO_LAI_LO kèm lý do',
+    DB[SHEETS.LOG].some(x => String(x[3]) === 'QL_MO_LAI_LO' &&
+                             String(x[8]).indexOf('chưa chạy hết') >= 0));
+  T('bao đã CHỐT CA vẫn khoá sau khi mở lại lô',
+    docBang_(SHEETS.BAO).filter(b => chuanHoaMaLo_(b.ma_lo) === 'T6408AA')
+      .every(b => String(b.trang_thai) === BAO_TRANG_THAI.DA_CHOT));
+  r = apiLuuBao(V96, { ma_lo: 'T6408AA', loai: '3', stt_bao: 964801,
+                       khoi_luong: 30, phien: P96, client_id: 'c28_9' });
+  T('mở lại lô xong thì công nhân nhập tiếp được', r.ok === true, r);
+
+  r = apiMoLaiLo(VQ, 'T6408AA', 'XAC_NHAN', 'thử mở lại lần nữa');
+  T('lô đang chạy thì không có gì để mở lại', r.ok === false, r);
+
+  /* ---- 28.8 Xoá cả lô đã đóng ---- */
+  apiChotCa(V96, P96, 'T6408AA', 'XAC_NHAN');
+  apiDongLo(VQ, 'T6408AA', 'XAC_NHAN');
+  r = apiXoaLo(VQ, 'T6408AA', 'T6408AA', '');
+  T('quản lý xoá lô đã đóng mà thiếu lý do -> từ chối',
+    r.ok === false && r.code === 'THIEU_LY_DO', r);
+  r = apiXoaLo(VQ, 'T6408AA', 'SAI_MA', 'lô nhập trùng với lô khác');
+  T('vẫn phải gõ đúng mã lô mới xoá được — đây là thao tác không hoàn tác',
+    r.ok === false && r.code === 'CHUA_XAC_NHAN', r);
+  r = apiXoaLo(VQ, 'T6408AA', 'T6408AA', 'lô nhập trùng với lô khác');
+  T('quản lý xoá được lô ĐÃ ĐÓNG khi gõ đúng mã và có lý do', r.ok === true, r);
+  T('lô biến mất khỏi sheet LO', timLo_('T6408AA') === null);
+  T('toàn bộ bao của lô cũng bị xoá',
+    docBang_(SHEETS.BAO).filter(b => chuanHoaMaLo_(b.ma_lo) === 'T6408AA').length === 0);
+  T('nhật ký XOA_LO có chụp lại số liệu và kèm lý do',
+    DB[SHEETS.LOG].some(x => String(x[3]) === 'XOA_LO' && String(x[5]) === 'T6408AA' &&
+                             String(x[8]).indexOf('nhập trùng') >= 0),
+    DB[SHEETS.LOG].filter(x => String(x[3]) === 'XOA_LO').map(x => [x[5], x[8]]));
+
+  /* ---- 28.9 apiMoLo mở đường cho màn hình chi tiết lô ---- */
+  const rQ = apiMoLo(VQ, 'T6401AA', 'PQ');
+  const rC = apiMoLo(V96, 'T6401AA', P96);
+  T('quản lý mở lô đã đóng: được đánh dấu là quản lý',
+    rQ.ok === true && rQ.data.la_quan_ly === true, rQ.ok ? rQ.data.la_quan_ly : rQ.error);
+  T('quản lý mở lô đã đóng: MỌI bao đều sửa được',
+    rQ.data.ds_bao.length > 0 && rQ.data.ds_bao.every(b => b.sua_duoc === true),
+    rQ.data.ds_bao.map(b => b.sua_duoc));
+  T('quản lý mở lô đã đóng: vẫn sửa được thông tin lô',
+    rQ.data.duoc_sua_lo === true, rQ.data.duoc_sua_lo);
+  T('ĐỐI CHỨNG: công nhân mở lô đã đóng thì KHÔNG bao nào sửa được',
+    rC.data.ds_bao.every(b => b.sua_duoc === false), rC.data.ds_bao.map(b => b.sua_duoc));
+  T('ĐỐI CHỨNG: công nhân không được đánh dấu là quản lý',
+    rC.data.la_quan_ly === false, rC.data.la_quan_ly);
+  T('ĐỐI CHỨNG: công nhân không sửa được thông tin lô đã đóng',
+    rC.data.duoc_sua_lo === false, rC.data.duoc_sua_lo);
+})();
+
+console.log('\n=== 29. BẢN 1.6 ĐỢT D — 6 CỘT XEM NHANH P–U TRÊN SHEET BAO ===');
+(function () {
+  /*
+   * Andy chốt 22/08/2026: sheet BAO có thêm 6 cột "sạch" để BÔI ĐEN DÁN THẲNG SANG EXCEL.
+   *   P mã lô   = cột B          S Số thứ tự    = ghép C+D+"-"+E   (VD A1-1234)
+   *   Q Loại    = "A1/B1"…       T Thời gian    = Ô NGÀY GIỜ THẬT lấy từ J, bỏ giây
+   *   R khối lượng = cột F       U Tình trạng lô = cột H (mã máy)
+   * N và O cố ý để trống cho dễ nhìn.
+   *
+   * Điều mục này canh gắt nhất: 6 cột đó phải ĐỔI THEO mọi lần dữ liệu gốc đổi.
+   * Một bảng "sạch" nói dối lặng lẽ còn nguy hiểm hơn không có bảng nào.
+   */
+  const vt = function (ten) { return COLS.BAO.indexOf(ten); };
+  const oBao = function (row, ten) { return DB[SHEETS.BAO][row - 1][vt(ten)]; };
+
+  // ---- 29.1 Vị trí cột và tiêu đề ----
+  T('sheet BAO có đúng 21 cột (13 gốc + 2 trống + 6 xem nhanh)',
+    COLS.BAO.length === 21, COLS.BAO.length);
+  T('cột P là mã lô (vị trí 16)', vt('v_ma_lo') === 15, vt('v_ma_lo') + 1);
+  T('cột Q là Loại (17)', vt('v_loai') === 16);
+  T('cột R là khối lượng (18)', vt('v_khoi_luong') === 17);
+  T('cột S là Số thứ tự (19)', vt('v_stt') === 18);
+  T('cột T là Thời gian (20)', vt('v_thoi_gian') === 19);
+  T('cột U là Tình trạng lô (21)', vt('v_tinh_trang') === 20);
+  T('13 cột gốc KHÔNG bị xê dịch',
+    COLS.BAO.slice(0, 13).join(',') ===
+    'id,ma_lo,ky_hieu,loai,stt_bao,khoi_luong,phien,trang_thai,nguoi_nhap,tg_nhap,nguoi_sua,tg_sua,client_id');
+
+  T('tiêu đề hiện ra là TIẾNG VIỆT, không phải tên cột trong mã',
+    nhanCot_(SHEETS.BAO, 'v_ma_lo') === 'mã lô' &&
+    nhanCot_(SHEETS.BAO, 'v_loai') === 'Loại' &&
+    nhanCot_(SHEETS.BAO, 'v_khoi_luong') === 'khối lượng' &&
+    nhanCot_(SHEETS.BAO, 'v_stt') === 'Số thứ tự' &&
+    nhanCot_(SHEETS.BAO, 'v_thoi_gian') === 'Thời gian' &&
+    nhanCot_(SHEETS.BAO, 'v_tinh_trang') === 'Tình trạng lô');
+  T('hai cột N, O có tiêu đề TRỐNG',
+    nhanCot_(SHEETS.BAO, COLS.BAO[13]) === '' && nhanCot_(SHEETS.BAO, COLS.BAO[14]) === '');
+  T('cột nào không có nhãn riêng thì giữ nguyên tên trong mã',
+    nhanCot_(SHEETS.BAO, 'ma_lo') === 'ma_lo' && nhanCot_(SHEETS.LO, 'kl_vao') === 'kl_vao');
+
+  // ---- 29.2 Menu tạo cấu trúc ghi đúng hàng tiêu đề ----
+  UI.bat = true; UI.nut = 'OK'; UI.daHien = [];
+  let nem = null;
+  try { taoCauTrucSheet(); } catch (e) { nem = e; }
+  UI.bat = false;
+  T('menu "Tạo / kiểm tra cấu trúc sheet" chạy được, không ném lỗi', nem === null, nem && nem.message);
+  T('hàng tiêu đề sheet BAO ghi đúng 6 nhãn tiếng Việt ở P–U',
+    DB[SHEETS.BAO][0].slice(15, 21).join('|') === 'mã lô|Loại|khối lượng|Số thứ tự|Thời gian|Tình trạng lô',
+    DB[SHEETS.BAO][0].slice(13, 21));
+  T('ô N1 và O1 để trống',
+    String(DB[SHEETS.BAO][0][13] || '') === '' && String(DB[SHEETS.BAO][0][14] || '') === '');
+  T('cột Thời gian được đặt định dạng ngày giờ (không phải VĂN BẢN như cột J)',
+    String(DINH_DANG[SHEETS.BAO + '!2,' + (vt('v_thoi_gian') + 1)] || '').indexOf('yyyy') >= 0,
+    DINH_DANG[SHEETS.BAO + '!2,' + (vt('v_thoi_gian') + 1)]);
+  T('cột J vẫn là VĂN BẢN, không bị đợt D làm đổi',
+    DINH_DANG[SHEETS.BAO + '!2,' + (vt('tg_nhap') + 1)] === '@');
+
+  // ---- 29.3 Lưu bao thì 6 cột được ghi ngay ----
+  DB[SHEETS.NGUOI_DUNG].push(['CN98', 'Cong nhan 98', '9898', 'CONG_NHAN', 'CO']);
+  const r98 = apiDangNhap('CN98', '9898');
+  const V98 = r98.data.ve, P98 = r98.data.phien;
+
+  apiTaoLo(V98, 'T6500AA', 10, '', 1000);
+  let r = apiLuuBao(V98, { ma_lo: 'T6500AA', loai: '1', stt_bao: 965001,
+                           khoi_luong: 120, phien: P98, client_id: 'd29_1' });
+  T('lưu 1 bao: ok', r.ok === true, r);
+  let dong = docBang_(SHEETS.BAO).filter(b => String(b.id) === String(r.data.id))[0];
+  T('P = mã lô', dong.v_ma_lo === 'T6500AA', dong.v_ma_lo);
+  T('Q = "A1/B1" cho hàng loại 1', dong.v_loai === 'A1/B1', dong.v_loai);
+  T('R = khối lượng', dong.v_khoi_luong === 120, dong.v_khoi_luong);
+  T('S = ký hiệu + loại + gạch ngang + số bao', dong.v_stt === 'A1-965001', dong.v_stt);
+  T('U = trạng thái bao, ghi bằng mã máy', dong.v_tinh_trang === 'DANG_NHAP', dong.v_tinh_trang);
+
+  T('T là Ô NGÀY GIỜ THẬT, không phải chuỗi',
+    Object.prototype.toString.call(dong.v_thoi_gian) === '[object Date]',
+    typeof dong.v_thoi_gian);
+  const goc = String(dong.tg_nhap);   // 'yyyy-MM-dd HH:mm:ss'
+  const d = dong.v_thoi_gian;
+  T('T khớp ĐÚNG TỪNG THÀNH PHẦN với cột J (bẫy lệch 7 tiếng)',
+    d.getFullYear() === Number(goc.substring(0, 4)) &&
+    d.getMonth() + 1 === Number(goc.substring(5, 7)) &&
+    d.getDate() === Number(goc.substring(8, 10)) &&
+    d.getHours() === Number(goc.substring(11, 13)) &&
+    d.getMinutes() === Number(goc.substring(14, 16)),
+    [goc, d.toString()]);
+  T('T CẮT GIÂY — Andy chỉ cần ngày tháng năm, giờ phút',
+    d.getSeconds() === 0 && d.getMilliseconds() === 0, d.getSeconds());
+
+  // Lô ký hiệu B: cột Q vẫn là "A2/B2", KHÔNG đổi theo ký hiệu
+  apiTaoLo(V98, 'D6500BB', 10, '', 1000);
+  r = apiLuuBao(V98, { ma_lo: 'D6500BB', loai: '2', stt_bao: 965101,
+                       khoi_luong: 80, phien: P98, client_id: 'd29_2' });
+  dong = docBang_(SHEETS.BAO).filter(b => String(b.id) === String(r.data.id))[0];
+  T('lô ký hiệu B: Q vẫn ghi "A2/B2" (chỉ đọc cột D, đúng như Andy chốt)',
+    dong.v_loai === 'A2/B2', dong.v_loai);
+  T('lô ký hiệu B: S dùng ký hiệu THẬT của lô', dong.v_stt === 'B2-965101', dong.v_stt);
+
+  // Lưu MẺ nhiều bao cũng phải có đủ 6 cột
+  r = apiLuuNhieuBao(V98, { ma_lo: 'T6500AA', loai: '3', phien: P98, danh_sach: [
+    { stt_bao: 965201, khoi_luong: 40, client_id: 'd29_3' },
+    { stt_bao: 965202, khoi_luong: 45, client_id: 'd29_4' }]});
+  const dsMe = docBang_(SHEETS.BAO).filter(b => String(b.loai) === '3' &&
+                                                chuanHoaMaLo_(b.ma_lo) === 'T6500AA');
+  T('lưu cả mẻ: mọi dòng đều có đủ 6 cột',
+    dsMe.length === 2 && dsMe.every(b => b.v_ma_lo === 'T6500AA' && b.v_loai === 'A3/B3' &&
+                                         String(b.v_stt).indexOf('A3-') === 0),
+    dsMe.map(b => [b.v_ma_lo, b.v_loai, b.v_stt]));
+
+  // ---- 29.4 Sáu cột phải ĐỔI THEO khi dữ liệu gốc đổi ----
+  const baoSua = docBang_(SHEETS.BAO).filter(b => Number(b.stt_bao) === 965001)[0];
+  apiSuaBao(V98, baoSua.id, 965009, 130);
+  dong = docBang_(SHEETS.BAO).filter(b => String(b.id) === String(baoSua.id))[0];
+  T('sửa bao: R đổi theo khối lượng mới', dong.v_khoi_luong === 130, dong.v_khoi_luong);
+  T('sửa bao: S đổi theo số bao mới', dong.v_stt === 'A1-965009', dong.v_stt);
+
+  apiChotCa(V98, P98, 'T6500AA', 'XAC_NHAN');
+  const sauChot = docBang_(SHEETS.BAO).filter(b => chuanHoaMaLo_(b.ma_lo) === 'T6500AA');
+  T('chốt ca: U đổi sang DA_CHOT cho MỌI bao vừa khoá',
+    sauChot.every(b => b.v_tinh_trang === 'DA_CHOT'), sauChot.map(b => b.v_tinh_trang));
+  T('chốt ca: U khớp đúng cột H gốc',
+    sauChot.every(b => b.v_tinh_trang === b.trang_thai));
+
+  apiSuaMaLo(V98, 'T6500AA', 'D6509BB');
+  const sauDoiMa = docBang_(SHEETS.BAO).filter(b => chuanHoaMaLo_(b.ma_lo) === 'D6509BB');
+  T('sửa mã lô: P đổi theo mã mới',
+    sauDoiMa.length === 3 && sauDoiMa.every(b => b.v_ma_lo === 'D6509BB'),
+    sauDoiMa.map(b => b.v_ma_lo));
+  T('sửa mã lô T→D: S đổi ký hiệu A→B theo',
+    sauDoiMa.every(b => String(b.v_stt).charAt(0) === 'B'), sauDoiMa.map(b => b.v_stt));
+  T('sửa mã lô: Q KHÔNG đổi (chỉ phụ thuộc cột D)',
+    sauDoiMa.filter(b => String(b.loai) === '1')[0].v_loai === 'A1/B1',
+    sauDoiMa.map(b => b.v_loai));
+  T('sửa mã lô: S vẫn khớp ký hiệu + loại + số bao thật',
+    sauDoiMa.every(b => b.v_stt === String(b.ky_hieu) + String(b.loai) + '-' + Number(b.stt_bao)),
+    sauDoiMa.map(b => [b.v_stt, b.ky_hieu, b.loai, b.stt_bao]));
+
+  // ---- 29.5 Menu điền lại cho dữ liệu cũ (nâng cấp từ 1.5) ----
+  // Giả lập đúng trạng thái sau khi dán mã 1.6 lên: 13 cột gốc có, 6 cột kia trống trơn.
+  DB[SHEETS.BAO].slice(1).forEach(function (row) {
+    for (let c = 13; c < 21; c++) row[c] = '';
+  });
+  T('trước khi điền: 6 cột đang trống',
+    docBang_(SHEETS.BAO).every(b => b.v_ma_lo === '' || b.v_ma_lo === undefined));
+
+  UI.bat = true; UI.nut = 'OK'; UI.daHien = [];
+  nem = null;
+  try { dienCotXemNhanh(); } catch (e) { nem = e; }
+  UI.bat = false;
+  T('menu "Điền 6 cột xem nhanh" chạy được', nem === null, nem && nem.message);
+  T('menu điền lại có báo kết quả cho người chạy', UI.daHien.length > 0, UI.daHien);
+
+  const sauDien = docBang_(SHEETS.BAO);
+  T('điền lại: MỌI dòng đều khớp dữ liệu gốc',
+    sauDien.length > 0 && sauDien.every(function (b) {
+      const x = coXemNhanh_(b);
+      return b.v_ma_lo === x.v_ma_lo && b.v_loai === x.v_loai &&
+             b.v_khoi_luong === x.v_khoi_luong && b.v_stt === x.v_stt &&
+             b.v_tinh_trang === x.v_tinh_trang;
+    }),
+    sauDien.slice(0, 3).map(b => [b.v_ma_lo, b.v_loai, b.v_stt, b.v_tinh_trang]));
+  T('điền lại: cột T vẫn là ô ngày giờ thật',
+    sauDien.every(b => b.tg_nhap === '' ||
+                       Object.prototype.toString.call(b.v_thoi_gian) === '[object Date]'));
+
+  // Chạy lần hai phải ra ĐÚNG kết quả cũ — nếu không thì không dám bảo ai chạy lại
+  const anh1 = JSON.stringify(DB[SHEETS.BAO].map(r => r.slice(15, 21).map(String)));
+  UI.bat = true; dienCotXemNhanh(); UI.bat = false;
+  const anh2 = JSON.stringify(DB[SHEETS.BAO].map(r => r.slice(15, 21).map(String)));
+  T('chạy menu điền lại lần thứ hai cho ra ĐÚNG kết quả cũ', anh1 === anh2);
+
+  // ---- 29.6 tuKiemTra canh được 6 cột lệch dữ liệu gốc ----
+  const logThat = console.log;
+  console.log = function () {};
+  let kq = tuKiemTra();
+  console.log = logThat;
+  T('6 cột khớp thì tuKiemTra KHÔNG báo đỏ',
+    kq.filter(x => x.indexOf('❌') === 0).length === 0,
+    kq.filter(x => x.indexOf('❌') === 0));
+  T('tuKiemTra có canh 6 cột xem nhanh',
+    kq.some(x => x.indexOf('6 cột xem nhanh') >= 0), kq.filter(x => x.indexOf('cột xem nhanh') >= 0));
+
+  // Phá một ô rồi soi lại
+  DB[SHEETS.BAO][DB[SHEETS.BAO].length - 1][vt('v_khoi_luong')] = 99999;
+  console.log = function () {};
+  kq = tuKiemTra();
+  console.log = logThat;
+  T('6 cột lệch dữ liệu gốc -> tuKiemTra BÁO ĐỎ',
+    kq.some(x => x.indexOf('❌') === 0 && x.indexOf('6 cột xem nhanh') >= 0),
+    kq.filter(x => x.indexOf('cột xem nhanh') >= 0));
+
+  UI.bat = true; dienCotXemNhanh(); UI.bat = false;
+  console.log = function () {};
+  kq = tuKiemTra();
+  console.log = logThat;
+  T('chạy menu điền lại là mọi thứ khớp lại',
+    kq.filter(x => x.indexOf('❌') === 0).length === 0,
+    kq.filter(x => x.indexOf('❌') === 0));
+})();
+
+console.log('\n────────────────────────────────');
+console.log('KẾT QUẢ:  ' + pass + ' đạt / ' + fail + ' lỗi');
+console.log('────────────────────────────────');
+process.exit(fail ? 1 : 0);

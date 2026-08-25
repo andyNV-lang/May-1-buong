@@ -1,0 +1,453 @@
+<style>
+/* ============================================================
+   Giao diện tối ưu cho công nhân dùng điện thoại trong nhà máy:
+   - Nút to, tương phản cao (xưởng thường thiếu sáng / đeo găng)
+   - Không có menu ẩn, không cuộn ngang, không thao tác thừa
+   ============================================================ */
+
+:root{
+  --xanh-dam:#1f3864;
+  --xanh-la:#137333;
+  --xanh-la-sang:#1e8e3e;
+  --cam:#e37400;
+  --do:#c5221f;
+  --xam-nen:#f1f3f4;
+  --xam-vien:#dadce0;
+  --xam-chu:#5f6368;
+  --den:#202124;
+  --trang:#ffffff;
+  --bo-goc:12px;
+
+  /* Màu riêng từng loại — Andy chốt 20/08/2026.
+     Loại 2 dùng chữ MÀU TỐI vì chữ trắng trên nền vàng đọc không nổi,
+     nhất là ngoài xưởng sáng chói. */
+  --loai1:#1565c0;      --loai1-chu:#ffffff;   --loai1-nhat:#e3f0fc;
+  --loai2:#f0b400;      --loai2-chu:#3d2f00;   --loai2-nhat:#fff6dd;
+  --loai3:#1b6e3c;      --loai3-chu:#ffffff;   --loai3-nhat:#e4f2e9;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+
+html,body{margin:0;padding:0;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--xam-nen);
+  color:var(--den);
+  font-size:17px;
+  line-height:1.45;
+  padding-bottom:40px;
+  -webkit-text-size-adjust:100%;
+}
+
+.an{display:none !important;}
+
+/* ---------- Thanh trên ---------- */
+header{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;gap:8px;
+  background:var(--xanh-dam);color:#fff;
+  padding:10px 8px;
+  box-shadow:0 2px 6px rgba(0,0,0,.25);
+}
+#tieuDe{flex:1;min-width:0;text-align:center;}
+#tieuDeChinh{font-weight:700;font-size:17px;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#tieuDePhu{font-size:13px;opacity:.85;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nut-icon{
+  background:rgba(255,255,255,.15);color:#fff;border:0;
+  width:46px;height:46px;border-radius:10px;
+  font-size:22px;line-height:1;cursor:pointer;flex:0 0 auto;
+}
+.nut-icon:active{background:rgba(255,255,255,.35);}
+
+/* ---------- Dải trạng thái ---------- */
+#daiTrangThai{
+  padding:8px 12px;font-size:14px;font-weight:600;text-align:center;
+}
+#daiTrangThai.cho{background:#fef7e0;color:#8a5300;}
+#daiTrangThai.loi{background:#fce8e6;color:#a50e0e;}
+#daiTrangThai.ok{background:#e6f4ea;color:#137333;}
+
+/* ---------- Bố cục ---------- */
+main{padding:14px 12px 60px;max-width:640px;margin:0 auto;}
+.man-hinh{animation:hien .15s ease-out;}
+@keyframes hien{from{opacity:.4}to{opacity:1}}
+
+.nhan{display:block;font-size:14px;font-weight:600;color:var(--xam-chu);
+  margin:16px 0 6px;text-transform:uppercase;letter-spacing:.3px;}
+.nhan-lon{font-size:17px;font-weight:700;margin:18px 0 10px;}
+.bat-buoc{color:var(--do);}
+.tuy-chon{color:var(--xam-chu);font-weight:400;text-transform:none;}
+.ghi-chu-mo{color:var(--xam-chu);font-size:15px;text-align:center;padding:20px 10px;}
+.phan-cach{height:1px;background:var(--xam-vien);margin:22px 0;}
+.chip{display:inline-block;background:var(--xanh-dam);color:#fff;
+  border-radius:20px;padding:1px 11px;font-size:14px;margin-left:6px;}
+
+/* ---------- Ô nhập ---------- */
+.o-nhap{
+  width:100%;border:2px solid var(--xam-vien);border-radius:var(--bo-goc);
+  padding:14px;font-size:19px;background:#fff;color:var(--den);
+  font-family:inherit;
+}
+.o-nhap:focus{outline:none;border-color:var(--xanh-dam);
+  box-shadow:0 0 0 3px rgba(31,56,100,.15);}
+.o-nhap-lon{font-size:28px;font-weight:700;text-align:center;padding:16px 12px;}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+input[type=number]{-moz-appearance:textfield;}
+
+.hang-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+/* ---------- Nút lớn ---------- */
+.nut-lon{
+  display:block;width:100%;border:0;border-radius:var(--bo-goc);
+  padding:17px 14px;margin-top:12px;
+  font-size:18px;font-weight:700;font-family:inherit;
+  color:#fff;cursor:pointer;
+}
+.nut-lon:active{transform:scale(.985);filter:brightness(.92);}
+.nut-xanh{background:var(--xanh-la-sang);}
+.nut-cam{background:var(--cam);}
+.nut-do{background:var(--do);}
+.nut-xam{background:#fff;color:var(--xam-chu);border:2px solid var(--xam-vien);}
+.nut-do-vien{background:#fff;color:var(--do);border:2px solid var(--do);}
+.nut-luu{font-size:22px;padding:22px 14px;margin-top:18px;
+  box-shadow:0 3px 0 #0d5522;}
+.nut-lon[disabled]{opacity:.5;pointer-events:none;}
+
+/* ---------- Đăng nhập ---------- */
+.logo-khoi{text-align:center;padding:18px 0 6px;}
+.logo-ten{font-size:26px;font-weight:800;color:var(--xanh-dam);}
+.logo-phu{font-size:15px;color:var(--xam-chu);}
+
+.luoi-nguoi{display:grid;grid-template-columns:1fr;gap:10px;}
+.nut-nguoi{
+  background:#fff;border:2px solid var(--xam-vien);border-radius:var(--bo-goc);
+  padding:18px;font-size:20px;font-weight:700;font-family:inherit;
+  color:var(--den);text-align:left;cursor:pointer;
+}
+.nut-nguoi:active{border-color:var(--xanh-dam);background:#eef2f9;}
+.nut-nguoi small{display:block;font-size:13px;font-weight:400;color:var(--xam-chu);}
+
+.o-pin{display:flex;justify-content:center;gap:14px;margin:22px 0 6px;}
+.o-pin span{
+  width:24px;height:24px;border-radius:50%;
+  border:2px solid var(--xanh-dam);background:#fff;
+}
+.o-pin span.day{background:var(--xanh-dam);}
+
+.ban-phim{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px;}
+.ban-phim button{
+  padding:20px 0;font-size:26px;font-weight:700;font-family:inherit;
+  background:#fff;border:2px solid var(--xam-vien);border-radius:var(--bo-goc);
+  color:var(--den);cursor:pointer;
+}
+.ban-phim button:active{background:#e8eaed;}
+.ban-phim button.phu{font-size:16px;color:var(--xam-chu);}
+
+/* ---------- Thẻ lô ---------- */
+.the-lo-ds{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  background:#fff;border:2px solid var(--xam-vien);border-left:7px solid var(--xanh-dam);
+  border-radius:var(--bo-goc);padding:15px;margin-bottom:10px;
+  cursor:pointer;
+}
+.the-lo-ds:active{background:#eef2f9;}
+.the-lo-ds .ma{font-size:21px;font-weight:800;}
+.the-lo-ds .phu{font-size:13px;color:var(--xam-chu);}
+.the-lo-ds .so{text-align:right;font-size:13px;color:var(--xam-chu);}
+.the-lo-ds .so b{display:block;font-size:22px;color:var(--den);}
+
+.the-lo{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--xanh-dam);color:#fff;border-radius:var(--bo-goc);
+  padding:14px 16px;margin-bottom:6px;
+}
+.the-lo-ma{font-size:23px;font-weight:800;letter-spacing:.5px;}
+.the-lo-phu{font-size:14px;opacity:.9;}
+.the-lo-so{text-align:right;}
+.the-lo-so>div:first-child{font-size:26px;font-weight:800;}
+.the-lo-nhan{font-size:12px;opacity:.85;}
+
+.xem-ky-hieu{
+  margin-top:8px;padding:11px;border-radius:var(--bo-goc);
+  background:#e8eaed;color:var(--xam-chu);font-weight:700;text-align:center;
+}
+.xem-ky-hieu.dung{background:#e6f4ea;color:#137333;}
+.xem-ky-hieu.sai{background:#fce8e6;color:#a50e0e;}
+
+/* ---------- Chọn loại ---------- */
+.chon-loai{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.nut-loai{
+  background:#fff;border:3px solid var(--xam-vien);border-radius:var(--bo-goc);
+  padding:14px 4px;font-family:inherit;color:var(--den);cursor:pointer;
+}
+.nut-loai b{display:block;font-size:32px;line-height:1.1;}
+.nut-loai span{display:block;font-size:12px;color:var(--xam-chu);}
+.nut-loai b{color:var(--mau-loai,var(--den));}
+
+/* Chưa chọn: viền + số mang màu của loại, để công nhân nhớ màu ngay từ đầu.
+   Đã chọn: tô kín cả nút. */
+.nut-loai[data-loai="1"]{--mau-loai:var(--loai1);--chu-loai:var(--loai1-chu);--nhat-loai:var(--loai1-nhat);}
+.nut-loai[data-loai="2"]{--mau-loai:var(--loai2);--chu-loai:var(--loai2-chu);--nhat-loai:var(--loai2-nhat);}
+.nut-loai[data-loai="3"]{--mau-loai:var(--loai3);--chu-loai:var(--loai3-chu);--nhat-loai:var(--loai3-nhat);}
+.nut-loai{border-color:var(--mau-loai);background:var(--nhat-loai);}
+.nut-loai.chon{
+  background:var(--mau-loai);border-color:var(--mau-loai);color:var(--chu-loai);
+  box-shadow:0 3px 0 rgba(0,0,0,.18);
+}
+.nut-loai.chon b{color:var(--chu-loai);}
+.nut-loai.chon span{color:var(--chu-loai);opacity:.85;}
+
+/* ---------- Danh sách bao ---------- */
+/* Huy hiệu A1/A2/A3 trong danh sách — cùng bảng màu với nút chọn loại,
+   để nhìn lướt là biết dòng nào thuộc loại nào. */
+.dong-bao[data-loai="1"] .nhom{background:var(--loai1);color:var(--loai1-chu);}
+.dong-bao[data-loai="2"] .nhom{background:var(--loai2);color:var(--loai2-chu);}
+.dong-bao[data-loai="3"] .nhom{background:var(--loai3);color:var(--loai3-chu);}
+.dong-bao[data-loai="1"]{border-left:6px solid var(--loai1);}
+.dong-bao[data-loai="2"]{border-left:6px solid var(--loai2);}
+.dong-bao[data-loai="3"]{border-left:6px solid var(--loai3);}
+
+.dong-bao{
+  display:flex;align-items:center;gap:10px;
+  background:#fff;border:1px solid var(--xam-vien);border-radius:10px;
+  padding:11px 13px;margin-bottom:7px;
+}
+.dong-bao .nhom{
+  flex:0 0 auto;background:var(--xanh-dam);color:#fff;
+  border-radius:7px;padding:5px 9px;font-weight:800;font-size:15px;
+}
+.dong-bao .giua{flex:1;min-width:0;}
+.dong-bao .stt{font-weight:700;font-size:17px;}
+.dong-bao .meta{font-size:12px;color:var(--xam-chu);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dong-bao .kl{font-size:20px;font-weight:800;white-space:nowrap;}
+.dong-bao .sua{
+  flex:0 0 auto;background:#fff;border:2px solid var(--xam-vien);
+  border-radius:9px;width:46px;height:46px;font-size:19px;cursor:pointer;
+}
+.dong-bao.khoa{background:#f8f9fa;opacity:.85;}
+.dong-bao.khoa .nhom{background:var(--xam-chu);}
+.dong-bao .khoa-icon{font-size:18px;flex:0 0 auto;color:var(--xam-chu);width:46px;text-align:center;}
+
+/* ---------- Thông báo ---------- */
+.loi-inline{
+  background:#fce8e6;color:#a50e0e;border-radius:10px;
+  padding:12px;margin-top:12px;font-size:15px;font-weight:600;
+  white-space:pre-line;
+}
+.canh-bao-inline{
+  background:#fef7e0;color:#8a5300;border-radius:10px;
+  padding:12px;margin-top:12px;font-size:15px;font-weight:600;
+  white-space:pre-line;
+}
+
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+  background:#202124;color:#fff;padding:14px 22px;border-radius:26px;
+  font-size:16px;font-weight:600;z-index:200;max-width:92vw;text-align:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.3);
+}
+.toast.xanh{background:var(--xanh-la);}
+.toast.do{background:var(--do);}
+
+/* ---------- Hộp thoại ---------- */
+.lop-phu{
+  position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;
+  display:flex;align-items:flex-end;justify-content:center;
+}
+.hop-thoai{
+  background:#fff;width:100%;max-width:640px;
+  border-radius:18px 18px 0 0;padding:20px 16px 26px;
+  max-height:92vh;overflow-y:auto;
+}
+.hop-thoai h3{margin:0 0 6px;font-size:20px;}
+
+/* ---------- Màn chờ ---------- */
+.man-cho{
+  position:fixed;inset:0;background:rgba(255,255,255,.65);z-index:300;
+  display:flex;align-items:center;justify-content:center;
+}
+.vong-xoay{
+  width:52px;height:52px;border:6px solid var(--xam-vien);
+  border-top-color:var(--xanh-dam);border-radius:50%;
+  animation:xoay .8s linear infinite;
+}
+@keyframes xoay{to{transform:rotate(360deg)}}
+
+/* ---------- Bảng thống kê ---------- */
+.cuon-ngang{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.cuon-ngang table{border-collapse:collapse;font-size:13px;width:100%;min-width:760px;background:#fff;}
+.cuon-ngang th,.cuon-ngang td{border:1px solid var(--xam-vien);padding:7px 9px;white-space:nowrap;}
+.cuon-ngang th{background:var(--xanh-dam);color:#fff;position:sticky;top:0;}
+.cuon-ngang td.so{text-align:right;}
+
+/* Bảng 19 cột của bản 1.6 (thêm KL vào + 4 cột tỉ lệ) — phải rộng hơn thì các cột
+   số mới không bị bóp lại thành hai dòng. Quản lý cuộn ngang, chấp nhận được. */
+.cuon-ngang table.bang-tk{min-width:1240px;}
+.cuon-ngang td.ti-le{font-variant-numeric:tabular-nums;color:var(--xam-chu);}
+.cuon-ngang td.ti-le.hao-hut{color:var(--den);font-weight:800;}
+
+/* Lô ĐANG CHẠY tô xanh lá nhạt — quản lý mở bảng này chủ yếu để nhìn cái gì còn chạy.
+   Dùng nền nhạt + vạch đậm ở cột đầu, không dùng nền đậm: chữ đen phải còn đọc được
+   dưới ánh sáng chói ngoài xưởng. */
+.cuon-ngang tr.lo-dang-chay td{background:#e6f4ea;}
+.cuon-ngang tr.lo-dang-chay td:first-child{box-shadow:inset 5px 0 0 var(--xanh-la);}
+
+/* Dòng bảng tổng hợp bấm được -> mở chi tiết lô (bản 1.6) */
+.cuon-ngang tr.bam-duoc{cursor:pointer;}
+.cuon-ngang tr.bam-duoc:active td{background:#dbe4f3;}
+
+/* ---------- Bộ lọc ngày của bảng tổng hợp ---------- */
+.hang-loc{display:flex;gap:6px;margin:0 0 8px;}
+.hang-loc button{
+  flex:1 1 0;min-height:44px;border:2px solid var(--xam-vien);background:#fff;
+  color:var(--xam-chu);border-radius:10px;font-size:14px;font-weight:700;
+  font-family:inherit;cursor:pointer;
+}
+.hang-loc button.chon{border-color:var(--xanh-dam);background:#eef2f9;color:var(--xanh-dam);}
+/* ============================================================
+   NHẬP NHIỀU BAO CÙNG LÚC
+   ============================================================ */
+.dau-bang-nhap{display:flex;align-items:center;justify-content:space-between;margin-top:14px;}
+.dau-bang-nhap .nhan{margin:0;}
+
+.dong-nhap{
+  display:flex;align-items:center;gap:8px;margin-bottom:8px;
+  background:#fff;border:1px solid var(--xam-vien);border-radius:10px;padding:7px 8px;
+  border-left:6px solid var(--mau-loai,var(--xam-vien));
+}
+.dong-nhap .so-dong{
+  flex:0 0 26px;text-align:center;font-weight:800;color:var(--xam-chu);font-size:15px;
+}
+.dong-nhap input{
+  flex:1 1 0;min-width:0;margin:0;padding:11px 8px;
+  font-size:21px;font-weight:700;text-align:center;
+  border:2px solid var(--xam-vien);border-radius:9px;background:#fff;
+  font-family:inherit;color:var(--den);
+}
+.dong-nhap input:focus{outline:none;border-color:var(--xanh-dam);}
+.dong-nhap input.sai{border-color:var(--do);background:#fce8e6;}
+.dong-nhap .bo-dong{
+  flex:0 0 44px;height:44px;border:0;background:#f1f3f4;color:var(--xam-chu);
+  border-radius:9px;font-size:19px;cursor:pointer;font-family:inherit;
+}
+.nut-them-dong{
+  width:100%;min-height:48px;margin-top:2px;
+  border:2px dashed var(--xanh-dam);background:#eef2f9;color:var(--xanh-dam);
+  border-radius:var(--bo-goc);font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;
+}
+.nut-them-dong:disabled{opacity:.45;border-style:solid;}
+
+/* ============================================================
+   XEM TRƯỚC KẾT QUẢ CHẠY MÁY
+   ============================================================ */
+.hang-klvao{display:flex;gap:8px;align-items:stretch;}
+.hang-klvao .o-nhap{flex:1 1 auto;margin:0;}
+.nut-luu-klvao{
+  flex:0 0 90px;border:0;border-radius:var(--bo-goc);background:var(--xanh-dam);color:#fff;
+  font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;
+}
+
+.bang-kq{width:100%;border-collapse:collapse;margin-top:16px;background:#fff;
+  border-radius:10px;overflow:hidden;}
+.bang-kq th,.bang-kq td{border:1px solid var(--xam-vien);padding:9px 8px;font-size:15px;}
+.bang-kq th{background:var(--xanh-dam);color:#fff;font-size:13px;}
+.bang-kq td.so{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+.bang-kq td.ti-le{text-align:right;font-weight:800;font-size:19px;font-variant-numeric:tabular-nums;}
+.bang-kq .o-nhom{font-weight:800;color:#fff;text-align:center;width:52px;}
+.bang-kq tr[data-loai="1"] .o-nhom{background:var(--loai1);color:var(--loai1-chu);}
+.bang-kq tr[data-loai="2"] .o-nhom{background:var(--loai2);color:var(--loai2-chu);}
+.bang-kq tr[data-loai="3"] .o-nhom{background:var(--loai3);color:var(--loai3-chu);}
+.bang-kq tr.tong td{background:#eef2f9;font-weight:800;}
+
+/* Dòng "Bụi + hao hụt" — bản 1.6 gộp ô số to cũ thành một dòng của chính bảng này.
+   Nằm trong khoảng thường gặp thì xanh lá, ra ngoài thì cam, để công nhân liếc một
+   cái là biết lô có bất thường không mà không phải đọc chữ. */
+.bang-kq tr.bui td{
+  background:#e6f4ea;font-weight:800;font-size:16px;
+  border-top:3px solid var(--xanh-la);
+}
+.bang-kq tr.bui td.ti-le{font-size:22px;color:var(--xanh-la);}
+.bang-kq tr.bui.lech td{background:#fef7e0;border-top-color:var(--cam);}
+.bang-kq tr.bui.lech td.ti-le{color:#b06000;}
+/* ---------- Sửa / xoá lô ---------- */
+.khu-quan-ly-lo{display:flex;gap:8px;margin:14px 0 4px;}
+.nut-nho-vien{
+  flex:1 1 0;min-height:46px;border:2px solid var(--xam-vien);background:#fff;
+  color:var(--xam-chu);border-radius:10px;font-size:15px;font-weight:700;
+  font-family:inherit;cursor:pointer;
+}
+.nut-nho-vien.nguy-hiem{border-color:#f2b8b5;color:var(--do);}
+.o-chi-doc{
+  background:#eef2f9;border:2px dashed var(--xanh-dam);border-radius:10px;
+  padding:12px;text-align:center;font-size:24px;font-weight:800;
+  letter-spacing:1px;color:var(--xanh-dam);margin-bottom:4px;
+}
+.ghi-chu-hop{font-size:14px;color:var(--xam-chu);margin:2px 0 12px;}
+.canh-bao-do{
+  background:#fce8e6;border:2px solid var(--do);border-radius:10px;
+  padding:12px;margin-bottom:12px;font-size:15px;color:#a50e0e;
+}
+.canh-bao-do div{margin-top:6px;font-weight:700;}
+.nut-do-dac{background:var(--do);color:#fff;}
+
+.canh-bao-cam{
+  background:#fef7e0;border:2px solid var(--cam);border-radius:10px;
+  padding:12px;margin-bottom:12px;font-size:15px;color:#8a4b00;
+}
+.canh-bao-cam div{margin-top:6px;font-weight:700;}
+
+/* ---------- Bảng "Thông tin lô" ở màn hình chi tiết (bản 1.6) ---------- */
+.bang-tt{background:#fff;border:1px solid var(--xam-vien);border-radius:10px;overflow:hidden;}
+.dong-tt{
+  display:flex;justify-content:space-between;gap:12px;align-items:baseline;
+  padding:10px 12px;border-bottom:1px solid var(--xam-vien);font-size:15px;
+}
+.dong-tt:last-child{border-bottom:0;}
+.dong-tt span{color:var(--xam-chu);}
+.dong-tt b{text-align:right;word-break:break-word;}
+
+/* ---------- Ô lý do bắt buộc của quản lý (bản 1.6) ----------
+   Viền cam để quản lý thấy ngay đây không phải ô tuỳ chọn: mọi thao tác vượt quyền
+   đều đi kèm một dòng lý do trong nhật ký. */
+.khu-ly-do{
+  background:#fff8e1;border:2px solid var(--cam);border-radius:10px;
+  padding:10px 12px 4px;margin:10px 0 12px;
+}
+.khu-ly-do .nhan{margin-top:0;}
+.khu-ly-do .ghi-chu-hop{margin-bottom:8px;}
+
+/* ---------- Ô tích xác nhận (bản 1.6) ----------
+   Thay cho việc gõ lại mã lô. Ô tích to 30px vì công nhân thường đeo găng;
+   cả khối là <label> nên chạm chỗ nào trong khung cũng tích được, không phải
+   nhắm đúng ô vuông. */
+.o-tich{
+  display:flex;align-items:flex-start;gap:12px;cursor:pointer;
+  background:#fff8e1;border:2px solid var(--cam);border-radius:10px;
+  padding:14px 12px;margin:6px 0 12px;font-size:15px;line-height:1.35;
+}
+.o-tich input[type=checkbox]{
+  flex:0 0 30px;width:30px;height:30px;margin:0;accent-color:var(--cam);
+}
+
+/* ── Khay bao lỗi (bản 1.5) ─────────────────────────────────
+   Bao ở đây là số liệu ĐANG CÓ NGUY CƠ MẤT, nên để viền đỏ đậm,
+   khác hẳn dải "chờ gửi" màu vàng vốn chỉ là chuyện bình thường khi mất mạng. */
+.bao-loi{
+  border:2px solid var(--do,#c62828); border-radius:10px;
+  padding:12px; margin-bottom:12px; background:rgba(198,40,40,.06);
+}
+.bao-loi-dau{ font-size:16px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.bao-loi-luc{ margin-left:auto; font-size:13px; opacity:.65; }
+.bao-loi-vi-sao{
+  color:var(--do,#c62828); font-size:14px; line-height:1.45;
+  margin:6px 0 10px; white-space:pre-line;
+}
+.bao-loi-sua{ display:flex; gap:8px; margin-bottom:10px; }
+.bao-loi-sua .o-nhap{ margin:0; flex:1; min-height:48px; font-size:18px; text-align:center; }
+.bao-loi-nut{ display:flex; gap:8px; }
+.bao-loi-nut .nut-nho-vien{ flex:1; margin:0; min-height:48px; }
+</style>

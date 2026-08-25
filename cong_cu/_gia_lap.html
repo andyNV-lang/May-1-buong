@@ -1,0 +1,39 @@
+<script>
+/* ===== Bộ giả lập Google Apps Script chạy trong trình duyệt =====
+   Mục đích: thử GIAO DIỆN THẬT chạy trên CODE MÁY CHỦ THẬT. */
+var DB = {};
+function mkSheet(n, h){ DB[n] = [h.slice()]; }
+function Range(sh,r,c,nr,nc){ this.sh=sh;this.r=r;this.c=c;this.nr=nr;this.nc=nc; }
+Range.prototype.getValues=function(){var o=[];for(var i=0;i<this.nr;i++){var row=DB[this.sh][this.r-1+i]||[];var L=[];for(var j=0;j<this.nc;j++){var v=row[this.c-1+j];L.push(v===undefined?'':v);}o.push(L);}return o;};
+Range.prototype.setValues=function(v){for(var i=0;i<v.length;i++){var idx=this.r-1+i;while(DB[this.sh].length<=idx)DB[this.sh].push([]);for(var j=0;j<v[i].length;j++)DB[this.sh][idx][this.c-1+j]=v[i][j];}return this;};
+Range.prototype.clearContent=function(){for(var i=0;i<this.nr;i++){var idx=this.r-1+i;if(DB[this.sh][idx])for(var j=0;j<this.nc;j++)DB[this.sh][idx][this.c-1+j]='';}return this;};
+['setFontWeight','setBackground','setFontColor','setVerticalAlignment','setNumberFormat'].forEach(function(m){Range.prototype[m]=function(){return this;};});
+function Sheet(n){ this.name=n; }
+Sheet.prototype.getRange=function(r,c,nr,nc){return new Range(this.name,r,c,nr||1,nc||1);};
+Sheet.prototype.getLastRow=function(){return DB[this.name].length;};
+Sheet.prototype.getLastColumn=function(){return DB[this.name][0].length;};
+Sheet.prototype.getMaxRows=function(){return 1000;};
+Sheet.prototype.appendRow=function(r){DB[this.name].push(r.slice());};
+Sheet.prototype.deleteRow=function(n){DB[this.name].splice(n-1,1);};
+['setFrozenRows','setRowHeight','setColumnWidth'].forEach(function(m){Sheet.prototype[m]=function(){};});
+Sheet.prototype.getProtections=function(){return [];};
+Sheet.prototype.protect=function(){return {setDescription:function(){return this;},setWarningOnly:function(){return this;}};};
+var SpreadsheetApp={getActive:function(){return {getSheetByName:function(n){return DB[n]?new Sheet(n):null;},insertSheet:function(n){DB[n]=[[]];return new Sheet(n);}};},getUi:function(){throw new Error('no ui');},ProtectionType:{SHEET:'SHEET'}};
+var _u=0;
+function p2(n){return (n<10?'0':'')+n;}
+var Utilities={
+  getUuid:function(){return 'id-'+(++_u)+'-'+Math.random().toString(36).slice(2,8);},
+  formatDate:function(d,tz,f){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+
+    (f.indexOf('HH')>=0?' '+p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds()):'');},
+  computeHmacSha256Signature:function(s){var a=[],h=0;for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0;}
+    for(var k=0;k<8;k++){a.push((h>>(k%4*8))&255);}return a;},
+  base64EncodeWebSafe:function(s){return btoa(s).replace(/\+/g,'-').replace(/\//g,'_');},
+  base64DecodeWebSafe:function(s){return atob(String(s).replace(/-/g,'+').replace(/_/g,'/'));},
+  newBlob:function(x){return {getDataAsString:function(){return x;}};}
+};
+var LockService={getScriptLock:function(){return {tryLock:function(){return true;},releaseLock:function(){}};}};
+var _pp={}; var PropertiesService={getScriptProperties:function(){return {getProperty:function(k){return _pp[k]===undefined?null:_pp[k];},setProperty:function(k,v){_pp[k]=v;},deleteProperty:function(k){delete _pp[k];}};}};
+var _cc={}; var CacheService={getScriptCache:function(){return {get:function(k){return _cc[k];},put:function(k,v){_cc[k]=v;},remove:function(k){delete _cc[k];}};}};
+var ScriptApp={getProjectTriggers:function(){return [];}};
+var HtmlService={createHtmlOutputFromFile:function(){return {getContent:function(){return '';}};}};
+</script>

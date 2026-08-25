@@ -1,0 +1,74 @@
+<script>
+/* Nạp dữ liệu mẫu rồi nối google.script.run vào chính các hàm api thật */
+/* Hàng tiêu đề phải giống HỆT thứ taoCauTrucSheet ghi ra: bản 1.6 có cột mang nhãn
+   tiếng Việt và cột để trống hẳn. Dựng bằng tên cột trong mã là bản mô phỏng DỄ HƠN
+   Google, và tuKiemTra sẽ báo lệch cột. */
+Object.keys(SHEETS).forEach(function(k){
+  mkSheet(SHEETS[k], COLS[SHEETS[k]].map(function(c){ return nhanCot_(SHEETS[k], c); }));
+});
+CAU_HINH_MAC_DINH.forEach(function(r){ DB[SHEETS.CAU_HINH].push(r.slice()); });
+DB[SHEETS.NGUOI_DUNG].push(['CN01','Nguyễn Văn Hiếu','1111','CONG_NHAN','CO']);
+DB[SHEETS.NGUOI_DUNG].push(['TK01','Chị Thống kê','9999','THONG_KE','CO']);
+DB[SHEETS.NGUOI_DUNG].push(['QL01','Quản lý (thử)','1234','QUAN_LY','CO']);
+DB[SHEETS.LO].push(['T07899A','A',50,'DANG_CHAY','','CN01','2026-08-20 09:00:00','','',1000]);
+DB[SHEETS.BAO].push(['b1','T07899A','A','1',1990,20,'P0','DANG_NHAP','CN01','2026-08-20 10:03:00','','','x1']);
+DB[SHEETS.BAO].push(['b2','T07899A','A','2',1991,30,'P0','DANG_NHAP','CN01','2026-08-20 10:04:00','','','x2']);
+DB[SHEETS.BAO].push(['b3','T07899A','A','3',1992,20,'P0','DANG_NHAP','CN01','2026-08-20 10:07:00','','','x3']);
+
+/*
+ * Hai lô CŨ (hơn 30 ngày) — để thử bộ lọc ngày của bản 1.6 ngay trên bản mô phỏng:
+ *   T07100A đã đóng   -> phải BIẾN MẤT khi lọc "30 ngày"
+ *   D06900B vẫn chạy  -> phải CÒN NGUYÊN và được tô xanh lá, dù mở từ tháng 6
+ * Không có hai lô này thì bộ lọc trông như không làm gì cả, và cái bẫy "lọc mất
+ * lô đang chạy" sẽ không lộ ra khi thử tay.
+ */
+DB[SHEETS.LO].push(['T07100A','A',60,'DA_DONG','','CN01','2026-06-01 08:00:00','CN01','2026-06-01 17:00:00',1000]);
+DB[SHEETS.BAO].push(['b4','T07100A','A','1',1801,300,'P0','DA_CHOT','CN01','2026-06-01 10:00:00','','','x4']);
+DB[SHEETS.BAO].push(['b5','T07100A','A','2',1802,250,'P0','DA_CHOT','CN01','2026-06-01 11:00:00','','','x5']);
+DB[SHEETS.BAO].push(['b6','T07100A','A','3',1803,150,'P0','DA_CHOT','CN01','2026-06-01 12:00:00','','','x6']);
+DB[SHEETS.LO].push(['D06900B','B',40,'DANG_CHAY','lô cũ chạy dài ngày','CN01','2026-06-02 08:00:00','','',800]);
+DB[SHEETS.BAO].push(['b7','D06900B','B','1',1701,200,'P0','DA_CHOT','CN01','2026-06-02 10:00:00','','','x7']);
+DB[SHEETS.BAO].push(['b8','D06900B','B','2',1702,180,'P0','DA_CHOT','CN01','2026-06-02 11:00:00','','','x8']);
+
+/*
+ * Seed đẩy thẳng dòng vào DB nên KHÔNG đi qua đường ghi thật của bản 1.5:
+ * hai cột đếm sẵn so_bao_ra/kl_ra trên sheet LO và bảng CHI_SO đều còn 0.
+ * Bỏ qua bước này thì bản mô phỏng khởi động ở đúng trạng thái "chưa chạy
+ * BƯỚC 4 sau khi nâng cấp" — danh sách lô hiện 0 bao cho lô đã có bao, và
+ * đường nhanh chống trùng số bao không được thử thật.
+ */
+dungLaiChiSo_();
+dungLaiSoBaoLo_();
+/*
+ * Seed đẩy thẳng 13 cột gốc vào sheet BAO nên 6 cột xem nhanh P–U (bản 1.6) còn trống,
+ * đúng trạng thái dữ liệu ngay sau khi dán mã 1.6 lên mà chưa chạy menu điền.
+ * Gọi luôn ở đây để bản mô phỏng KHÔNG dễ hơn Google — và để đường điền lại được
+ * chạy thật mỗi lần mở bản mô phỏng.
+ */
+dienCotXemNhanh_();
+
+window.google = { script: { run: (function(){
+  function mk(succ, fail){
+    var o = {};
+    ['apiDanhSachNguoiDung','apiDangNhap','apiKiemTraVe','apiTrangChu','apiMoLo','apiTaoLo',
+     'apiLuuBao','apiLuuNhieuBao','apiSuaBao','apiXoaBao','apiChotCa','apiDongLo',
+     'apiTongHopLo','apiXemTruocKetQua','apiCapNhatKlVao','apiSuaMaLo','apiXoaLo',
+     'apiGhiBaoLoi',
+     // Bản 1.6 — đợt C. Quên nối vào đây là nút bấm báo "Mất mạng" dù mã thật chạy
+     // đúng, đúng cái bẫy đã ghi ở mục 1d của TIEN_DO.md.
+     'apiLoDaDong','apiSuaLo','apiMoLaiLo'].forEach(function(ten){
+      o[ten] = function(){
+        var args = Array.prototype.slice.call(arguments);
+        setTimeout(function(){
+          try { succ(window[ten].apply(null, args)); }
+          catch(e){ (fail||function(){})(e); }
+        }, 30);
+      };
+    });
+    o.withSuccessHandler = function(f){ return mk(f, fail); };
+    o.withFailureHandler = function(f){ return mk(succ, f); };
+    return o;
+  }
+  return mk(function(){}, function(){});
+})() } };
+</script>
