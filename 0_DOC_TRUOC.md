@@ -15,6 +15,7 @@
 | **`1_HUONG_DAN_TRIEN_KHAI.md`** | **Đọc file này trước tiên.** 9 bước cài đặt | Andy |
 | `2_CAU_TRUC_SHEET.md` | Mô tả 6 sheet, ý nghĩa từng cột | Andy + thống kê |
 | `3_HUONG_DAN_CONG_NHAN.md` | 1 trang A4 in ra dán tại máy | Công nhân |
+| **`4_CACH_LAM_VIEC.md`** | Thư mục có file gì, quy trình sửa/nâng cấp an toàn 7 bước | Andy |
 | `appsscript.json` | Cấu hình project | (dán vào Apps Script) |
 | `00_Config.gs` | Hằng số, tên cột, cấu hình | |
 | `01_Util.gs` | Tiện ích, đọc/ghi sheet, khoá chống ghi đè | |
