@@ -1,0 +1,31 @@
+======================================================
+BỘ PROMPT (CÂU LỆNH MẪU) YÊU CẦU AI XỬ LÝ GIT/GITHUB
+Dành cho người không chuyên (Non-developer)
+======================================================
+
+1. KHỞI TẠO DỰ ÁN LẦN ĐẦU
+"Hãy làm việc số 1: Dựng Git cho dự án này và lưu mốc an toàn đầu tiên (commit) cho toàn bộ code hiện tại với tên 'Khởi tạo dự án'."
+
+2. LƯU LẠI (SAVE GAME) TRƯỚC KHI SỬA CODE
+"Trước khi bạn bắt đầu sửa code cho tính năng [TÊN_TÍNH_NĂNG], hãy đóng mốc (commit) lưu lại trạng thái hiện hành giúp tôi nhé. Ghi chú là: Trước khi làm [TÊN_TÍNH_NĂNG]."
+
+3. KIỂM TRA SAU KHI AI SỬA XONG
+"Hãy dùng Git kiểm tra xem bạn vừa thêm/bớt code ở những file nào, rồi tóm tắt lại cho tôi bằng tiếng Việt đơn giản."
+
+4. HOÀN TÁC (LOAD LẠI GAME) KHI CODE HỎNG
+"Code chạy bị lỗi rồi / Không đúng ý tôi. Hãy dùng lệnh Git hoàn tác (undo/restore) lại toàn bộ, vứt bỏ hết những thay đổi bạn vừa làm, và dọn dẹp file rác, đưa dự án quay trở về đúng mốc an toàn gần nhất."
+
+5. ĐÁNH DẤU PHIÊN BẢN (TAG) KHI CODE CHẠY NGON
+"Bản này chạy rất ngon, hãy dùng Git gắn nhãn (tag) là [TÊN_PHIÊN_BẢN_VD: v1.0] với ghi chú 'Bản chạy ổn định ngày [NGÀY_THÁNG]' giúp tôi."
+
+6. XEM LỊCH SỬ LÀM VIỆC
+"Hãy liệt kê cho tôi lịch sử 10 lần lưu (commit) gần nhất của dự án này để tôi xem chúng ta đã làm những gì."
+
+7. ĐẨY LÊN GITHUB (LƯU TRỮ ĐÁM MÂY)
+"Hãy giúp tôi tạo một repository trên GitHub cho dự án này (để chế độ riêng tư/private) và đẩy toàn bộ code cùng lịch sử Git lên đó. Hãy dùng Github CLI nếu có thể."
+
+======================================================
+MẸO NHỎ:
+- Bạn chỉ cần bôi đen, copy đoạn nội dung nằm trong dấu ngoặc kép "..." 
+- Thay thế các chữ trong ngoặc vuông [...] bằng nội dung thực tế của bạn.
+- Dán vào khung chat của Claude/AI để sử dụng.

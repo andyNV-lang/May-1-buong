@@ -1230,6 +1230,9 @@ git switch main                # quay về bản mới nhất
 
 ## 6. Câu mồi cho phiên trò chuyện mới
 
+> 📋 **Bản sao dễ copy nằm ở file `PROMPT_PHIEN_MOI.txt`** cùng thư mục — Andy mở file
+> đó là copy được ngay, không phải lội vào đây tìm. **Sửa câu mồi thì sửa CẢ HAI chỗ.**
+
 **Mở Claude Code ngay tại thư mục `~/Desktop/Hỗ trợ nhập liệu`**, rồi dán:
 
 ```
@@ -1242,18 +1245,20 @@ git switch main                # quay về bản mới nhất
 Thư mục "may1buong_appscript v1.5" là bản giải nén cũ để xem, ĐỪNG sửa vào đó.
 ⚠️ KHÔNG tạo file zip nén dự án nữa. Sửa thẳng vào thư mục, rồi liệt kê file cần dán lại.
 
-Bối cảnh: hệ thống ghi chép sản xuất máy 1 buồng chạy trên Google Apps Script,
-công nhân dùng điện thoại Android rẻ tiền. Tài khoản Gmail cá nhân miễn phí,
-ngân sách dưới 10 USD/tháng.
+Bối cảnh: hệ thống ghi chép sản xuất máy 1 buồng chạy trên Google Apps Script.
+Người nhập liệu dùng CẢ điện thoại Android giá rẻ LẪN iPhone — mọi thay đổi giao
+diện phải tính cho cả hai hệ. Tài khoản Gmail cá nhân miễn phí, ngân sách dưới
+10 USD/tháng. Tôi KHÔNG phải lập trình viên: giải thích bằng tiếng Việt đời thường.
 
-TRẠNG THÁI: bản 1.5 ĐANG CHẠY THẬT. Bản 1.6 đã xong đủ 6/6 yêu cầu tôi đưa
-ngày 22/08/2026 (4 đợt A/B/C/D), 431 kiểm thử xanh, đã bấm tay qua trình duyệt,
-nhưng CHƯA DÁN LÊN APPS SCRIPT.
+TRẠNG THÁI: bản 1.7 ĐANG CHẠY THẬT trên máy sản xuất (mốc git v1.7).
+Bản 1.8 đã xong code — 4 việc tôi duyệt ngày 29/08/2026 (luật đóng lô · cảnh báo
+trùng mã lô · sửa loại hàng · xoá nhiều bao), 558 kiểm thử xanh, đã thử tay trên
+bản mô phỏng — nhưng CHƯA DÁN LÊN APPS SCRIPT. Chi tiết ở mục 1n.
 
 Cách làm tôi muốn giữ nguyên:
 - Viết kiểm thử TRƯỚC, rồi mới sửa mã.
 - Chạy kiểm thử trước khi sửa bất cứ thứ gì:
-    bash may1buong_appscript/cong_cu/chay_kiemthu.sh     -> phải ra 431 đạt / 0 lỗi
+    bash may1buong_appscript/cong_cu/chay_kiemthu.sh     -> phải ra 558 đạt / 0 lỗi
 - Thử tay giao diện trên bản mô phỏng trước khi bảo tôi dán lên Google:
     python3 may1buong_appscript/cong_cu/tao_mo_phong.py
     (mở qua http://, và chạy localStorage.clear() trước khi tải lại — xem mục 5)
@@ -1262,17 +1267,18 @@ Cách làm tôi muốn giữ nguyên:
 - Sửa xong + kiểm thử xanh thì COMMIT ngay, message tiếng Việt có dấu.
   Cập nhật TIEN_DO.md trong CÙNG lần sửa đó — hai phiên ngày 25/08 quên việc này.
 - Nếu thiếu thông tin thì NÓI RÕ LÀ THIẾU, đừng tự suy đoán.
+- Việc nào có nhiều cách làm thì PHÂN TÍCH ưu/nhược rồi HỎI TÔI CHỌN, đừng tự quyết.
 - Nói cho tôi từng bước tư duy trước khi trả lời, và tự nhận xét điểm yếu sau khi trả lời.
 
 Đọc xong, tóm tắt lại cho tôi:
-  (a) 3 việc đang chờ tôi quyết,
+  (a) 4 việc còn treo ở mục 1 (bản 1.8 chưa dán),
   (b) 3 món nợ kỹ thuật nặng nhất ở mục 1a,
 rồi DỪNG chờ tôi.
 
 Việc tôi muốn làm: <ghi việc cụ thể ở đây>
 ```
 
-**Sáu chỗ trong câu mồi trên là cố ý, đừng bỏ:**
+**Bảy chỗ trong câu mồi trên là cố ý, đừng bỏ:**
 
 1. **Chạy kiểm thử trước khi sửa.** Để biết cái gì hỏng là do phiên mới gây ra,
    chứ không phải hỏng sẵn từ trước.
@@ -1282,15 +1288,20 @@ Việc tôi muốn làm: <ghi việc cụ thể ở đây>
 4. **Chỉ rõ thư mục làm việc.** Có 2 thư mục cùng nội dung.
 5. **"Thiếu thì nói là thiếu".** Bảng `TONG_HOP_LO` từng bị đặt theo suy đoán và tới giờ
    vẫn phải làm lại — cái giá của việc đoán đã trả một lần rồi.
-6. **"Viết kiểm thử trước".** Cả bản 1.6 làm theo lối này: viết ca kiểm thử, chạy thấy
-   đỏ, rồi mới sửa mã. Bỏ nó đi là mất luôn cách biết mình đã làm đúng.
+6. **"Viết kiểm thử trước".** Bản 1.6, 1.7 và 1.8 đều làm theo lối này: viết ca kiểm
+   thử, chạy thấy đỏ, rồi mới sửa mã. Bỏ nó đi là mất luôn cách biết mình đã làm đúng.
+7. **"Phân tích rồi hỏi tôi chọn".** Bản 1.8 làm đúng lối này: 4 yêu cầu → phân tích
+   rủi ro → hỏi 7 câu → tôi duyệt → mới viết mã. Nhờ vậy bắt được sớm chuyện "luật
+   đóng lô mới có thể làm KẸT lô mà người nhập đã về nhà", và mở cửa thoát cho quản lý.
 
 ### Vài câu mồi cho việc hay gặp
 
 | Việc | Câu thêm vào dòng cuối |
 |---|---|
-| **Dán 1.6 lên gặp lỗi** | `Tôi dán bản 1.6 lên Apps Script và gặp lỗi này: <dán nguyên văn lỗi>` |
-| **Chạy thật thấy sai** | `Bản 1.6 đã chạy thật. Công nhân báo: <mô tả>. Tìm nguyên nhân, viết kiểm thử tái hiện lỗi trước rồi mới sửa.` |
+| **Dán 1.8 lên gặp lỗi** | `Tôi dán bản 1.8 lên Apps Script và gặp lỗi này: <dán nguyên văn lỗi>` |
+| **Bản 1.8 chạy thật thấy sai** | `Bản 1.8 đã chạy thật. Người vận hành báo: <mô tả>. Tìm nguyên nhân, viết kiểm thử tái hiện lỗi trước rồi mới sửa.` |
+| **Kẹt vì luật đóng lô mới** | `Luật "không đóng góp thì không đóng lô" của bản 1.8 đang gây phiền: <mô tả tình huống>. Phân tích rồi đề xuất cách nới, đừng tự sửa.` |
+| **Xoá nhầm bao hàng loạt** | `Có người xoá nhầm nhiều bao ở lô <mã lô>. Tra sheet LOG tìm dòng XOA_NHIEU_BAO và cho tôi biết mất những bao nào, ai xoá, lúc nào.` |
 | Ghim cột "Mã lô" ở bảng tổng hợp | `Làm nợ kỹ thuật số 6 ở mục 1a: ghim cột Mã lô của bảng tổng hợp để cuộn ngang không mất dấu.` |
 | Đưa nút CHỐT CA lên trên | `Làm nợ kỹ thuật số 7 ở mục 1a: CHỐT CA đang bị đẩy xuống quá sâu ở màn hình nhập liệu.` |
 | Dựng lại kiểm thử giao diện | `Làm nợ kỹ thuật số 1 ở mục 1a: dựng lại bộ kiểm thử giao diện tự động (Playwright hỏng từ bản 1.1, ghi cứng đường dẫn Chromium máy Linux).` |

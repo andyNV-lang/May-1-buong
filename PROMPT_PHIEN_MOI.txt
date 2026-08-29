@@ -1,0 +1,111 @@
+==========================================================
+ CÂU MỒI MỞ ĐẦU PHIÊN TRÒ CHUYỆN MỚI — dự án Máy 1 buồng
+ Cập nhật: 29/08/2026 (sau khi làm xong bản 1.8)
+==========================================================
+
+ CÁCH DÙNG
+ 1. Mở Claude Code NGAY TẠI thư mục:  ~/Desktop/Hỗ trợ nhập liệu
+ 2. Copy TOÀN BỘ khối trong khung dưới, dán vào ô chat.
+ 3. Sửa dòng cuối "Việc tôi muốn làm:" thành việc cụ thể.
+    Không sửa dòng đó thì nó sẽ tự đoán, và thường đoán sai.
+
+ ⚠️ File này là BẢN SAO cho dễ copy.
+    Bản gốc nằm ở TIEN_DO.md mục 6 — sửa thì sửa cả hai chỗ.
+
+────────────────── COPY TỪ ĐÂY ──────────────────
+
+Đọc 3 file này trước khi làm gì:
+  may1buong_appscript/TIEN_DO.md        (đang dở ở đâu — đọc trước, đọc kỹ mục 1a NỢ KỸ THUẬT và mục 1n bản 1.8)
+  may1buong_appscript/0_DOC_TRUOC.md    (lịch sử, lỗi đã sửa, tính năng)
+  KIEN_TRUC_MO_RONG.md                  (nền móng mở rộng sang các máy khác)
+
+⚠️ CHỈ LÀM VIỆC TRONG THƯ MỤC may1buong_appscript/
+Thư mục "may1buong_appscript v1.5" là bản giải nén cũ để xem, ĐỪNG sửa vào đó.
+⚠️ KHÔNG tạo file zip nén dự án nữa. Sửa thẳng vào thư mục, rồi liệt kê file cần dán lại.
+
+Bối cảnh: hệ thống ghi chép sản xuất máy 1 buồng chạy trên Google Apps Script.
+Người nhập liệu dùng CẢ điện thoại Android giá rẻ LẪN iPhone — mọi thay đổi giao
+diện phải tính cho cả hai hệ. Tài khoản Gmail cá nhân miễn phí, ngân sách dưới
+10 USD/tháng. Tôi KHÔNG phải lập trình viên: giải thích bằng tiếng Việt đời thường.
+
+TRẠNG THÁI: bản 1.7 ĐANG CHẠY THẬT trên máy sản xuất (mốc git v1.7).
+Bản 1.8 đã xong code — 4 việc tôi duyệt ngày 29/08/2026 (luật đóng lô · cảnh báo
+trùng mã lô · sửa loại hàng · xoá nhiều bao), 558 kiểm thử xanh, đã thử tay trên
+bản mô phỏng — nhưng CHƯA DÁN LÊN APPS SCRIPT. Chi tiết ở mục 1n.
+
+Cách làm tôi muốn giữ nguyên:
+- Viết kiểm thử TRƯỚC, rồi mới sửa mã.
+- Chạy kiểm thử trước khi sửa bất cứ thứ gì:
+    bash may1buong_appscript/cong_cu/chay_kiemthu.sh     -> phải ra 558 đạt / 0 lỗi
+- Thử tay giao diện trên bản mô phỏng trước khi bảo tôi dán lên Google:
+    python3 may1buong_appscript/cong_cu/tao_mo_phong.py
+    (mở qua http://, và chạy localStorage.clear() trước khi tải lại — xem mục 5)
+- Đo hiệu năng khi đụng đường ghi/đọc:
+    node may1buong_appscript/cong_cu/do_hieu_nang.js 250000
+- Sửa xong + kiểm thử xanh thì COMMIT ngay, message tiếng Việt có dấu.
+  Cập nhật TIEN_DO.md trong CÙNG lần sửa đó — hai phiên ngày 25/08 quên việc này.
+- Nếu thiếu thông tin thì NÓI RÕ LÀ THIẾU, đừng tự suy đoán.
+- Việc nào có nhiều cách làm thì PHÂN TÍCH ưu/nhược rồi HỎI TÔI CHỌN, đừng tự quyết.
+- Nói cho tôi từng bước tư duy trước khi trả lời, và tự nhận xét điểm yếu sau khi trả lời.
+
+Đọc xong, tóm tắt lại cho tôi:
+  (a) 4 việc còn treo ở mục 1 (bản 1.8 chưa dán),
+  (b) 3 món nợ kỹ thuật nặng nhất ở mục 1a,
+rồi DỪNG chờ tôi.
+
+Việc tôi muốn làm: <ghi việc cụ thể ở đây>
+
+────────────────── COPY ĐẾN ĐÂY ──────────────────
+
+
+==========================================================
+ THAY DÒNG CUỐI BẰNG MỘT TRONG NHỮNG CÂU SẴN NÀY
+==========================================================
+
+▸ DÁN BẢN 1.8 LÊN GẶP LỖI (việc gấp nhất hiện nay)
+  Tôi dán bản 1.8 lên Apps Script và gặp lỗi này: <dán nguyên văn lỗi>
+
+▸ BẢN 1.8 ĐÃ CHẠY THẬT, THẤY SAI
+  Bản 1.8 đã chạy thật. Người vận hành báo: <mô tả>.
+  Tìm nguyên nhân, viết kiểm thử tái hiện lỗi trước rồi mới sửa.
+
+▸ LUẬT ĐÓNG LÔ MỚI GÂY PHIỀN
+  Luật "không đóng góp thì không đóng lô" của bản 1.8 đang gây phiền:
+  <mô tả tình huống>. Phân tích rồi đề xuất cách nới, đừng tự sửa.
+
+▸ AI ĐÓ XOÁ NHẦM NHIỀU BAO
+  Có người xoá nhầm nhiều bao ở lô <mã lô>. Tra sheet LOG tìm dòng
+  XOA_NHIEU_BAO và cho tôi biết mất những bao nào, ai xoá, lúc nào.
+
+▸ IN LẠI TỜ HƯỚNG DẪN DÁN TẠI MÁY
+  Xuất lại PDF tờ 3_HUONG_DAN_CONG_NHAN.md theo nội dung mới nhất (bản 1.8
+  thêm 3 mục và sửa một chỗ nói sai từ bản 1.6).
+
+▸ CÓ FILE EXCEL CỦA BỘ PHẬN THỐNG KÊ (việc chờ lâu nhất)
+  Đây là file Excel thật của bộ phận thống kê: <đường dẫn>.
+  Sửa COLS.TONG_HOP_LO và tinhTongHopLo_() cho khớp đúng thứ tự cột của chị ấy.
+
+▸ DỰNG LẠI KIỂM THỬ GIAO DIỆN (nợ kỹ thuật số 1 — nặng nhất)
+  Làm nợ kỹ thuật số 1 ở mục 1a: dựng lại bộ kiểm thử giao diện tự động
+  (Playwright hỏng từ bản 1.1, ghi cứng đường dẫn Chromium máy Linux).
+
+▸ LÀM LƯU TRỮ THEO NĂM
+  Làm lưu trữ lô đã đóng sang sheet BAO_LUU_<năm> để sheet BAO không lớn
+  vô hạn. Viết kiểm thử trước.
+
+▸ THÊM TÍNH NĂNG MỚI BẤT KỲ
+  Tôi muốn thêm: <mô tả>. Phân tích rủi ro và hỏi tôi cho rõ trước,
+  duyệt xong mới viết kiểm thử rồi sửa code.
+
+
+==========================================================
+ NHẮC NHANH — 4 VIỆC ĐANG TREO (chi tiết ở TIEN_DO.md mục 1)
+==========================================================
+ 1. 🔴 Dán bản 1.8 lên Apps Script — 4 file:
+       04_Api.gs · Index.html · Script.html · Style.html
+       (01_Util.gs KHÔNG đổi ở bản 1.8)
+       Rồi Deploy → New version. Người vận hành đóng hẳn app rồi mở lại.
+       KHÔNG phải chạy menu tạo cấu trúc sheet.
+ 2. 🔴 In lại tờ hướng dẫn dán tại máy (3_HUONG_DAN_CONG_NHAN.md).
+ 3. 🟠 Theo dõi tuần đầu luật khối lượng 4.2 — soi bao 10–20 kg đáng lẽ 100–200 kg.
+ 4. 🟠 Nói trước cho người vận hành về luật đóng lô mới, kẻo tưởng app hỏng.
