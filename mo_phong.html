@@ -238,6 +238,68 @@ input[type=number]{-moz-appearance:textfield;}
 .dong-bao.khoa .nhom{background:var(--xam-chu);}
 .dong-bao .khoa-icon{font-size:18px;flex:0 0 auto;color:var(--xam-chu);width:46px;text-align:center;}
 
+/* ---------- Chọn nhiều bao & xoá hàng loạt (bản 1.8) ---------- */
+
+/* Nút bật chế độ chọn, nằm nép bên phải dòng tiêu đề "Bao đã nhập của lô này". */
+.nut-chon-nhieu{
+  float:right;background:#fff;border:2px solid var(--xam-vien);border-radius:9px;
+  padding:6px 11px;font-family:inherit;font-size:14px;font-weight:700;
+  color:var(--den);cursor:pointer;
+}
+
+/* Ô tích trên từng dòng bao. Rộng đúng bằng chỗ nút ✎ vẫn chiếm (46px) để danh sách
+   không nhảy chỗ khi bật/tắt chế độ chọn. Ô tích to 30px — ngón tay cái ngoài xưởng
+   không bấm trúng ô 20px mặc định của trình duyệt. */
+.o-tich-bao{
+  flex:0 0 auto;width:46px;height:46px;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;margin:0;
+}
+.o-tich-bao input[type=checkbox]{
+  width:30px;height:30px;margin:0;accent-color:var(--do,#c62828);
+}
+.dong-bao.da-tich{background:#fdecea;border-color:var(--do,#c62828);}
+
+/* Thanh dính đáy màn hình. z-index dưới toast (200) và màn chờ, trên nội dung trang.
+   Chừa safe-area cho iPhone có thanh vuốt dưới đáy — thiếu dòng đó thì nút XOÁ nằm
+   ngay dưới thanh vuốt, bấm hụt hoặc bấm nhầm. */
+.thanh-chon{
+  position:fixed;left:0;right:0;bottom:0;z-index:150;
+  display:flex;align-items:center;gap:10px;
+  background:#202124;color:#fff;
+  padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));
+  box-shadow:0 -3px 14px rgba(0,0,0,.28);
+}
+.thanh-chon span{flex:1;font-size:15px;font-weight:700;}
+
+/* Thanh dính đáy che mất phần cuối trang. Chừa chỗ cho nó trong lúc đang chọn, nếu
+   không thì cuộn xuống hết vẫn không bấm được nút cuối cùng. */
+body.co-thanh-chon{padding-bottom:88px;}
+.nut-nho{
+  border:none;border-radius:9px;padding:11px 15px;
+  font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;
+}
+.nut-nho.nut-xam{background:#5f6368;color:#fff;}
+.nut-nho.nut-do-dac{background:var(--do,#c62828);color:#fff;}
+.nut-nho:disabled{opacity:.45;}
+
+/* Danh sách xem trước trong hộp xác nhận xoá — người ta phải NHÌN THẤY thứ sắp mất.
+   Có trần chiều cao + cuộn riêng, để chọn 50 bao thì nút xác nhận vẫn còn trên màn. */
+.ds-xem-truoc{
+  max-height:34vh;overflow-y:auto;
+  border:1px solid var(--xam-vien);border-radius:10px;
+  padding:8px 10px;margin:10px 0;background:#fafafa;
+}
+.dong-xem-truoc{
+  font-size:15px;padding:5px 0;border-bottom:1px dashed var(--xam-vien);
+}
+.dong-xem-truoc:last-child{border-bottom:none;}
+
+/* Ô chọn loại trong hộp SỬA bao — nhỏ hơn bộ nút ở màn nhập liệu, vì hộp thoại hẹp
+   và đây không phải thao tác làm hàng trăm lần mỗi ca. */
+.chon-loai-sua{margin-bottom:4px;}
+.chon-loai-sua .nut-loai{padding:9px 4px;}
+.chon-loai-sua .nut-loai b{font-size:24px;}
+
 /* ---------- Thông báo ---------- */
 .loi-inline{
   background:#fce8e6;color:#a50e0e;border-radius:10px;
@@ -582,7 +644,9 @@ input[type=number]{-moz-appearance:textfield;}
     <p class="nhan-lon">Thông tin lô</p>
     <div id="ctThongTin" class="bang-tt"></div>
 
-    <p class="nhan-lon">Bao trong lô <span id="ctDemBao" class="chip">0</span></p>
+    <p class="nhan-lon">Bao trong lô <span id="ctDemBao" class="chip">0</span>
+      <button id="btnCtChonNhieu" class="nut-chon-nhieu" onclick="doiCheDoChon()">☑ Chọn nhiều</button>
+    </p>
     <div id="ctDsBao"></div>
 
     <div id="ctKhuQuanLy" class="an">
@@ -610,6 +674,10 @@ input[type=number]{-moz-appearance:textfield;}
            autocapitalize="characters" spellcheck="false"
            placeholder="VD: T0748LA" oninput="xemTruocKyHieu()">
     <div id="xemKyHieu" class="xem-ky-hieu">Ký hiệu sẽ là: —</div>
+    <!-- Bản 1.8: cảnh báo trùng mã lô. Điện thoại chỉ biết lô ĐANG CHẠY, còn lô ĐÃ
+         ĐÓNG phải hỏi máy chủ — mà trùng lô đã đóng mới là loại nguy hiểm, vì không
+         nhìn thấy nó ở đâu cả. Đây là cảnh báo, KHÔNG khoá nút: máy chủ vẫn chặn thật. -->
+    <div id="canhBaoTrungLo" class="canh-bao-inline an"></div>
 
     <label class="nhan">Tổng số bao đầu vào <span class="tuy-chon">(có thể bỏ trống)</span></label>
     <input id="inSoBaoVao" type="text" inputmode="numeric" pattern="[0-9]*" class="o-nhap" placeholder="VD: 163">
@@ -664,7 +732,10 @@ input[type=number]{-moz-appearance:textfield;}
 
     <div class="phan-cach"></div>
 
-    <p class="nhan-lon">Bao đã nhập của lô này <span id="demBao" class="chip">0</span></p>
+    <p class="nhan-lon">Bao đã nhập của lô này <span id="demBao" class="chip">0</span>
+      <button id="btnChonNhieu" class="nut-chon-nhieu" onclick="doiCheDoChon()">☑ Chọn nhiều</button>
+    </p>
+
     <div id="dsBao"></div>
 
     <div class="phan-cach"></div>
@@ -731,6 +802,18 @@ input[type=number]{-moz-appearance:textfield;}
 <div id="lopPhu" class="lop-phu an" onclick="dongSuaBao(event)">
   <div class="hop-thoai" onclick="event.stopPropagation()">
     <h3 id="tieuDeSua">Sửa bao</h3>
+
+    <!-- Bản 1.8: sửa được cả loại hàng. Đổi loại là chuyển bao sang một dãy số bao
+         khác, nên số bao có thể đụng số đã có bên nhóm mới — máy chủ sẽ báo lỗi và
+         bắt gõ số khác, KHÔNG tự đổi số ngầm (Andy chốt 29/08/2026). -->
+    <label class="nhan">Loại hàng</label>
+    <div class="chon-loai chon-loai-sua">
+      <button type="button" class="nut-loai nut-loai-sua" data-loai="1" onclick="chonLoaiSua('1')"><b>1</b><span id="nhanSuaLoai1">—</span></button>
+      <button type="button" class="nut-loai nut-loai-sua" data-loai="2" onclick="chonLoaiSua('2')"><b>2</b><span id="nhanSuaLoai2">—</span></button>
+      <button type="button" class="nut-loai nut-loai-sua" data-loai="3" onclick="chonLoaiSua('3')"><b>3</b><span id="nhanSuaLoai3">—</span></button>
+    </div>
+    <div id="canhBaoDoiLoai" class="canh-bao-inline an"></div>
+
     <label class="nhan">Số thứ tự bao</label>
     <input id="suaStt" type="text" inputmode="numeric" pattern="[0-9]*" class="o-nhap o-nhap-lon">
     <label class="nhan">Khối lượng (kg)</label>
@@ -909,10 +992,53 @@ input[type=number]{-moz-appearance:textfield;}
       <input type="checkbox" id="tichDongLo" onchange="doiTichDongLo()">
       <span>Tôi đã xem lại số liệu và xác nhận <b>đóng hẳn</b> lô này.</span>
     </label>
+    <!-- Bản 1.8: chỉ hiện khi QUẢN LÝ đóng một lô mình không có bao nào. Máy chủ mới
+         là nơi quyết định lý do có bắt buộc hay không (batLyDo_ trong 04_Api.gs);
+         giao diện chỉ dọn chỗ để gõ. -->
+    <div id="khuLyDoDongLo" class="khu-ly-do an">
+      <label class="nhan">Lý do đóng hộ <span class="bat-buoc">*</span></label>
+      <input id="lyDoDongLo" type="text" class="o-nhap" placeholder="VD: người vận hành đã hết ca, lô cần đóng gấp">
+      <p class="ghi-chu-hop">Bạn không có bao nào trong lô này. Lý do vào nhật ký kèm tên bạn.</p>
+    </div>
     <div id="loiDongLo" class="loi-inline an"></div>
     <button id="btnXacNhanDong" class="nut-lon nut-do-dac" onclick="xacNhanDongLo()" disabled>ĐÓNG LÔ NÀY</button>
     <button class="nut-lon nut-xam" onclick="dongHopDongLo()">Huỷ</button>
   </div>
+</div>
+
+<!-- ══════════════ HỘP THOẠI XOÁ NHIỀU BAO ══════════════ -->
+<div id="lopXoaNhieu" class="lop-phu an" onclick="dongHopXoaNhieu(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3>🗑 Xoá nhiều bao</h3>
+    <div class="canh-bao-do">
+      <b>XOÁ LÀ MẤT HẲN, KHÔNG LẤY LẠI ĐƯỢC.</b>
+      <div id="tomTatXoaNhieu">—</div>
+    </div>
+    <div id="dsXoaNhieu" class="ds-xem-truoc"></div>
+    <div id="khuLyDoXoaNhieu" class="khu-ly-do an">
+      <label class="nhan">Lý do xoá <span class="bat-buoc">*</span></label>
+      <input id="lyDoXoaNhieu" type="text" class="o-nhap" placeholder="VD: cân lại thấy mấy bao này ghi thừa">
+      <p class="ghi-chu-hop">Bắt buộc khi số liệu đã khoá. Lý do vào nhật ký kèm tên bạn.</p>
+    </div>
+
+    <label class="o-tich" for="tichXoaNhieu">
+      <input type="checkbox" id="tichXoaNhieu" onchange="doiTichXoaNhieu()">
+      <span>Tôi đã xem lại danh sách trên và xác nhận <b>xoá hẳn</b> những bao này.</span>
+    </label>
+    <div id="loiXoaNhieu" class="loi-inline an"></div>
+    <button id="btnXacNhanXoaNhieu" class="nut-lon nut-do-dac" onclick="xacNhanXoaNhieu()" disabled>XOÁ NHỮNG BAO NÀY</button>
+    <button class="nut-lon nut-xam" onclick="dongHopXoaNhieu()">Huỷ</button>
+  </div>
+</div>
+
+<!-- ══════════════ THANH CHỌN NHIỀU BAO (bản 1.8) ══════════════
+     Nằm NGOÀI mọi <section> là cố ý: section không hoạt động bị ẩn hẳn, để thanh này
+     bên trong thì nó biến mất theo. Đặt ở đây thì cùng một thanh dùng được cho cả màn
+     hình NHẬP LIỆU lẫn màn hình CHI TIẾT LÔ. -->
+<div id="thanhChonNhieu" class="thanh-chon an">
+  <span id="demDaChon">Chưa chọn bao nào</span>
+  <button class="nut-nho nut-xam" onclick="doiCheDoChon()">Thôi</button>
+  <button id="btnXoaDaChon" class="nut-nho nut-do-dac" onclick="moHopXoaNhieu()" disabled>🗑 XOÁ</button>
 </div>
 
 <!-- ══════════════ THÔNG BÁO NỔI ══════════════ -->
@@ -936,6 +1062,10 @@ Sheet.prototype.getLastColumn=function(){return DB[this.name][0].length;};
 Sheet.prototype.getMaxRows=function(){return 1000;};
 Sheet.prototype.appendRow=function(r){DB[this.name].push(r.slice());};
 Sheet.prototype.deleteRow=function(n){DB[this.name].splice(n-1,1);};
+/* Google Sheets thật có deleteRows(dòng, số dòng) — bản 1.8 dùng nó để xoá
+   nhiều bao trong ít lượt gọi. Thiếu ở đây thì nút XOÁ hàng loạt hỏng trong
+   bản mô phỏng dù máy chủ thật chạy đúng. */
+Sheet.prototype.deleteRows=function(n,soDong){DB[this.name].splice(n-1,soDong);};
 ['setFrozenRows','setRowHeight','setColumnWidth'].forEach(function(m){Sheet.prototype[m]=function(){};});
 Sheet.prototype.getProtections=function(){return [];};
 Sheet.prototype.protect=function(){return {setDescription:function(){return this;},setWarningOnly:function(){return this;}};};
@@ -2762,6 +2892,51 @@ function apiLoDaDong(ve, tuNgay, denNgay) {
  *  2. TẠO LÔ MỚI
  * ============================================================ */
 
+/**
+ * CẢNH BÁO TRÙNG MÃ LÔ NGAY KHI GÕ (bản 1.8 — Andy chốt 29/08/2026).
+ *
+ * Điện thoại chỉ biết MỘT NỬA sự thật: lúc mở app, máy chủ gửi xuống danh sách lô
+ * ĐANG CHẠY, không gửi lô đã đóng. Mà trùng với lô ĐÃ ĐÓNG mới là loại nguy hiểm —
+ * người vận hành không thấy nó ở đâu cả nên không hề ngờ. Vì vậy phải hỏi máy chủ.
+ *
+ * Hàm này CHỈ TRA CỨU, không ghi gì. Nó đọc đúng 3 cột của sheet LO (vài trăm dòng
+ * mỗi năm), không đụng vào sheet BAO — rẻ hơn nhiều so với apiTrangChu.
+ *
+ * ⚠️ Đây là CẢNH BÁO SỚM, KHÔNG phải chốt chặn. apiTaoLo vẫn kiểm tra trùng lần nữa
+ * bên trong khoá ghi, và đó mới là nơi quyết định. Bỏ hàm này đi thì hệ thống vẫn
+ * an toàn, chỉ là người ta biết muộn hơn.
+ */
+function apiKiemTraMaLo(ve, maLoRaw) {
+  try {
+    xacThuc_(ve);
+
+    var maGo = chuanHoaMaLo_(maLoRaw);
+    var maLo = chuanMaLo7_(maGo);
+    if (!maLo) {
+      return ok_({ ma_lo: '', hop_le: false, trung: false, trang_thai: null });
+    }
+
+    var ds = docBang_(SHEETS.LO, ['ma_lo', 'trang_thai', 'tg_mo', 'tg_dong']);
+    for (var i = 0; i < ds.length; i++) {
+      if (chuanHoaMaLo_(ds[i].ma_lo) !== maLo) continue;
+      var tt = String(ds[i].trang_thai).trim().toUpperCase();
+      return ok_({
+        ma_lo: maLo,
+        hop_le: true,
+        trung: true,
+        trang_thai: tt,
+        tg_mo: tgChuoi_(ds[i].tg_mo),
+        tg_dong: tgChuoi_(ds[i].tg_dong)
+      });
+    }
+    return ok_({ ma_lo: maLo, hop_le: true, trung: false, trang_thai: null });
+  } catch (e) {
+    return loi_(e.message === 'PHIEN_HET_HAN'
+      ? 'Phiên đã hết hạn, vui lòng đăng nhập lại.' : e.message,
+      e.message === 'PHIEN_HET_HAN' ? 'PHIEN_HET_HAN' : 'LOI');
+  }
+}
+
 function apiTaoLo(ve, maLoRaw, soBaoVao, ghiChu, klVao) {
   try {
     var nd = xacThuc_(ve);
@@ -3381,14 +3556,18 @@ function kiemTraQuyenSua_(bao, nd) {
  * Soát lý do cho một thao tác VƯỢT QUYỀN của quản lý.
  * @param {boolean} vuotQuyen  thao tác này có phải là vượt quyền thường không
  * @param {*} lyDo             chuỗi người dùng gõ
+ * @param {string=} viec       mô tả việc đang làm, để câu báo lỗi nói đúng chuyện.
+ *   Bỏ trống thì giữ nguyên câu cũ ("sửa số liệu đã khoá") — mọi lời gọi từ bản 1.7
+ *   trở về trước đều không truyền, và câu đó vẫn đúng với chúng.
  * @return {{loi: (Object|null), lyDo: string}}
  */
-function batLyDo_(vuotQuyen, lyDo) {
+function batLyDo_(vuotQuyen, lyDo, viec) {
   var s = String(lyDo === null || lyDo === undefined ? '' : lyDo).trim();
   if (!vuotQuyen) return { loi: null, lyDo: s };
   if (s.length < 3) {
     return {
-      loi: loi_('Phải ghi lý do (ít nhất 3 ký tự) khi sửa số liệu đã khoá.\n' +
+      loi: loi_('Phải ghi lý do (ít nhất 3 ký tự) khi ' +
+                (viec || 'sửa số liệu đã khoá') + '.\n' +
                 'Lý do này vào nhật ký kèm tên bạn.', 'THIEU_LY_DO'),
       lyDo: s
     };
@@ -3397,11 +3576,24 @@ function batLyDo_(vuotQuyen, lyDo) {
 }
 
 /**
- * @param {*=} lyDo  bắt buộc khi quản lý sửa bao đã khoá — xem batLyDo_
+ * @param {*=} lyDo     bắt buộc khi quản lý sửa bao đã khoá — xem batLyDo_
+ * @param {*=} loaiMoi  bản 1.8: loại hàng mới ('1'/'2'/'3').
+ *
+ *   ⚠️ Tham số này nằm CUỐI là cố ý. App bản 1.7 còn đang mở trên máy công nhân chỉ
+ *   gửi 5 tham số; thiếu hẳn thì loại GIỮ NGUYÊN, không mất dữ liệu. Chen nó vào giữa
+ *   là mọi lời gọi cũ lệch tham số — khối lượng nhảy sang ô lý do, im lặng và sai.
  */
-function apiSuaBao(ve, id, sttBaoMoi, klMoi, lyDo) {
+function apiSuaBao(ve, id, sttBaoMoi, klMoi, lyDo, loaiMoi) {
   try {
     var nd = xacThuc_(ve);
+
+    // Không gửi / gửi rỗng = không đổi loại. Gửi lên thì phải là 1, 2 hoặc 3.
+    var coDoiLoai = (loaiMoi !== undefined && loaiMoi !== null &&
+                     String(loaiMoi).trim() !== '');
+    var loaiN = coDoiLoai ? String(loaiMoi).trim() : '';
+    if (coDoiLoai && ['1', '2', '3'].indexOf(loaiN) < 0) {
+      return loi_('Loại hàng phải là 1, 2 hoặc 3.');
+    }
 
     var sttNum = soTu_(sttBaoMoi);
     if (isNaN(sttNum) || sttNum <= 0 || sttNum !== Math.floor(sttNum)) {
@@ -3428,35 +3620,66 @@ function apiSuaBao(ve, id, sttBaoMoi, klMoi, lyDo) {
 
       var lo = timLo_(bao.ma_lo);
 
-      // Chống trùng với bao khác cùng nhóm
+      var kyHieu = String(bao.ky_hieu).trim().toUpperCase();
+      var loaiCu = String(bao.loai).trim();
+      var loaiDich = coDoiLoai ? loaiN : loaiCu;
+      var doiLoai = (loaiDich !== loaiCu);
+
+      /*
+       * Chống trùng phải soi nhóm ĐÍCH, không phải nhóm cũ (bản 1.8).
+       *
+       * Số bao được đánh riêng theo từng nhóm (ký hiệu + loại). Đổi loại 1 -> 2 là
+       * chuyển bao sang một dãy số khác, mà số đó có thể ĐÃ CÓ NGƯỜI DÙNG bên kia.
+       * Soi nhóm cũ thì mọi lần đổi loại đều lọt, sinh ra hai bao trùng số mà không
+       * có gì báo. Andy chốt 29/08/2026: trùng thì BÁO LỖI, máy không tự đổi số.
+       */
       for (var i = 0; i < dsBao.length; i++) {
         var b = dsBao[i];
         if (String(b.id).trim() === String(id).trim()) continue;
-        if (String(b.ky_hieu).trim().toUpperCase() !== String(bao.ky_hieu).trim().toUpperCase()) continue;
-        if (String(b.loai).trim() !== String(bao.loai).trim()) continue;
+        if (String(b.ky_hieu).trim().toUpperCase() !== kyHieu) continue;
+        if (String(b.loai).trim() !== loaiDich) continue;
         if (Number(b.stt_bao) === sttNum) {
-          return loi_('Số bao ' + sttNum + ' đã tồn tại ở nhóm này (lô ' + b.ma_lo + ').', 'TRUNG_SO_BAO');
+          return loi_('Số bao ' + sttNum + ' đã tồn tại ở nhóm ' + kyHieu + loaiDich +
+                      ' (lô ' + b.ma_lo + ').' +
+                      (doiLoai ? '\nĐổi loại thì phải chọn số bao còn trống của nhóm mới.' : ''),
+                      'TRUNG_SO_BAO');
         }
       }
 
-      var cu = 'STT ' + bao.stt_bao + ' | ' + bao.khoi_luong + ' kg';
-      var moi = 'STT ' + sttNum + ' | ' + klNum + ' kg';
+      var cu = kyHieu + loaiCu + ' | STT ' + bao.stt_bao + ' | ' + bao.khoi_luong + ' kg';
+      var moi = kyHieu + loaiDich + ' | STT ' + sttNum + ' | ' + klNum + ' kg';
+
+      // Ba cột xem nhanh phụ thuộc loại / số bao / khối lượng phải đi theo, nếu không
+      // bảng "sạch" dán sang Excel sẽ nói dối lặng lẽ. Dựng bằng chính coXemNhanh_ để
+      // luật đặt tên chỉ nằm ở MỘT chỗ.
+      var xn = coXemNhanh_({
+        ma_lo: bao.ma_lo, ky_hieu: kyHieu, loai: loaiDich,
+        stt_bao: sttNum, khoi_luong: klNum,
+        tg_nhap: bao.tg_nhap, trang_thai: bao.trang_thai
+      });
 
       suaDong_(SHEETS.BAO, bao._row, {
         stt_bao: sttNum,
         khoi_luong: klNum,
+        loai: loaiDich,
         nguoi_sua: nd.ma_nv,
         tg_sua: bayGio_(),
-        // Hai cột xem nhanh phụ thuộc số bao / khối lượng phải đi theo,
-        // nếu không bảng "sạch" dán sang Excel sẽ nói dối lặng lẽ.
-        v_khoi_luong: klNum,
-        v_stt: String(bao.ky_hieu).trim().toUpperCase() + String(bao.loai).trim() + '-' + sttNum
+        v_loai: xn.v_loai,
+        v_khoi_luong: xn.v_khoi_luong,
+        v_stt: xn.v_stt
       });
 
-      // Sửa số bao lên cao hơn thì phải nâng chỉ số theo, nếu không bất biến
-      // "stt_max ≥ mọi số bao đang có" bị phá và đường nhanh sẽ cho lọt số trùng.
-      nangChiSo_(String(bao.ky_hieu).trim().toUpperCase() + String(bao.loai).trim(),
-                 sttNum, 0);
+      /*
+       * Bảng CHI_SO phải theo. Sửa số bao lên cao hơn thì phải nâng chỉ số, nếu không
+       * bất biến "stt_max ≥ mọi số bao đang có" bị phá và đường nhanh của apiLuuBao
+       * sẽ cho lọt số trùng.
+       *
+       * Đổi loại thì bao ĐI KHỎI nhóm cũ và NHẬP VÀO nhóm mới: nhóm mới +1 bao và
+       * phải nâng stt_max theo số bao vừa chuyển sang; nhóm cũ -1 bao nhưng KHÔNG hạ
+       * stt_max (hạ xuống là mở đường cho số trùng — xem nangChiSo_).
+       */
+      nangChiSo_(kyHieu + loaiDich, sttNum, doiLoai ? 1 : 0);
+      if (doiLoai) nangChiSo_(kyHieu + loaiCu, null, -1);
       // Số bao không đổi, chỉ khối lượng đổi -> chỉnh phần chênh lệch vào cột đếm sẵn.
       // lo CÓ THỂ là null: từ bản 1.6, quản lý đi qua được cửa miễn trừ nên sửa được cả
       // bao mồ côi (ma_lo không còn dòng nào bên LO). Lúc đó không có cột đếm nào để cộng,
@@ -3465,14 +3688,19 @@ function apiSuaBao(ve, id, sttBaoMoi, klMoi, lyDo) {
       congDonLo_(lo ? lo._row : 0, 0, klNum - (Number(bao.khoi_luong) || 0), bao.nguoi_nhap);
 
       ghiLog_(nd, vuot ? 'QL_SUA_BAO' : 'SUA_BAO', SHEETS.BAO, id, cu, moi,
-              vuot ? (bao.ma_lo + ' | QUẢN LÝ sửa số liệu ĐÃ KHOÁ | lý do: ' + bl.lyDo)
-                   : (bao.ma_lo + (bl.lyDo ? ' | lý do: ' + bl.lyDo : '')));
-      return ok_({ id: id, stt_bao: sttNum, khoi_luong: klNum, vuot_quyen: vuot });
+              (doiLoai ? 'ĐỔI LOẠI ' + loaiCu + '→' + loaiDich + ' | ' : '') +
+              (vuot ? (bao.ma_lo + ' | QUẢN LÝ sửa số liệu ĐÃ KHOÁ | lý do: ' + bl.lyDo)
+                    : (bao.ma_lo + (bl.lyDo ? ' | lý do: ' + bl.lyDo : ''))));
+      return ok_({ id: id, stt_bao: sttNum, khoi_luong: klNum, loai: loaiDich,
+                   doi_loai: doiLoai, vuot_quyen: vuot });
     });
 
     // Quản lý sửa số liệu đã khoá thì bảng tổng hợp phải đúng NGAY, không đợi
     // nhịp 15 phút — chị thống kê có thể đang mở bảng đó.
-    if (kq && kq.ok && kq.data && kq.data.vuot_quyen) capNhatTongHopLoNgam_();
+    // Đổi loại cũng vậy: tỉ lệ L1/L2/L3 đổi ngay lập tức dù tổng kg không đổi.
+    if (kq && kq.ok && kq.data && (kq.data.vuot_quyen || kq.data.doi_loai)) {
+      capNhatTongHopLoNgam_();
+    }
     return kq;
   } catch (e) {
     return loi_(e.message === 'PHIEN_HET_HAN'
@@ -3515,6 +3743,129 @@ function apiXoaBao(ve, id, lyDo) {
                    : ('Xoá khi chưa chốt ca' + (bl.lyDo ? ' | lý do: ' + bl.lyDo : '')));
 
       return ok_({ id: id, vuot_quyen: vuot });
+    });
+
+    if (kq && kq.ok && kq.data && kq.data.vuot_quyen) capNhatTongHopLoNgam_();
+    return kq;
+  } catch (e) {
+    return loi_(e.message === 'PHIEN_HET_HAN'
+      ? 'Phiên đã hết hạn, vui lòng đăng nhập lại.' : e.message,
+      e.message === 'PHIEN_HET_HAN' ? 'PHIEN_HET_HAN' : 'LOI');
+  }
+}
+
+/*
+ * XOÁ NHIỀU BAO CÙNG LÚC (bản 1.8 — Andy chốt 29/08/2026).
+ *
+ * Đây là thao tác PHÁ DỮ LIỆU mạnh nhất trong hệ thống. Ba chốt chặn đi kèm, đừng gỡ:
+ *   1. ĐƯỢC ĂN CẢ NGÃ VỀ KHÔNG — soát quyền TẤT CẢ trước, sai một cái thì không xoá
+ *      cái nào. Không bao giờ có cảnh "xoá được 3, kẹt 2, không biết cái nào đã mất".
+ *   2. Trần XOA_NHIEU_TOI_DA — chặn ngay trước khi đụng vào sheet.
+ *   3. Màn hình không cho tích vào bao đã khoá, nhưng máy chủ VẪN soát lại từng bao.
+ *      Ẩn nút không bao giờ được coi là phân quyền.
+ */
+var XOA_NHIEU_TOI_DA = 50;
+
+/**
+ * @param {Array<string>} dsId  danh sách id bao cần xoá
+ * @param {*=} lyDo  bắt buộc khi quản lý xoá bao đã khoá — xem batLyDo_
+ */
+function apiXoaNhieuBao(ve, dsId, lyDo) {
+  try {
+    var nd = xacThuc_(ve);
+
+    // Bỏ id rỗng và id lặp. Gửi cùng một bao hai lần là chuyện thật khi mạng chập
+    // chờn hoặc ngón tay tích trượt — nó không được biến thành "xoá lây bao khác".
+    var ids = [], daCo = {};
+    (dsId || []).forEach(function (x) {
+      var k = String(x === null || x === undefined ? '' : x).trim();
+      if (!k || daCo[k]) return;
+      daCo[k] = true;
+      ids.push(k);
+    });
+
+    if (!ids.length) return loi_('Chưa chọn bao nào để xoá.', 'KHONG_CO_GI');
+    if (ids.length > XOA_NHIEU_TOI_DA) {
+      return loi_('Mỗi lần chỉ xoá được tối đa ' + XOA_NHIEU_TOI_DA + ' bao.\n' +
+                  'Bạn đang chọn ' + ids.length + ' bao — bỏ bớt rồi làm thành nhiều lần.',
+                  'QUA_NHIEU');
+    }
+
+    var kq = trongKhoa_(function () {
+      var dsBao = docBang_(SHEETS.BAO, COT_TOI_TG_NHAP);
+
+      /* ---- Soát HẾT trước khi xoá bất cứ dòng nào ---- */
+      var chon = [], vuot = false;
+      for (var i = 0; i < ids.length; i++) {
+        var bao = timBaoTheoId_(dsBao, ids[i]);
+        var loiQuyen = kiemTraQuyenSua_(bao, nd);
+        if (loiQuyen) {
+          return loi_('Không xoá được bao thứ ' + (i + 1) + ' trong danh sách: ' + loiQuyen +
+                      '\n\nKHÔNG bao nào bị xoá. Bỏ bao đó ra rồi làm lại.',
+                      'KHONG_DUOC_XOA');
+        }
+        if (lyDoKhongSuaDuoc_(bao, nd) !== null) vuot = true;
+        chon.push(bao);
+      }
+
+      var bl = batLyDo_(vuot, lyDo, 'xoá số liệu đã khoá');
+      if (bl.loi) return bl.loi;
+
+      /* ---- Gom số liệu cần trừ TRƯỚC khi xoá (xoá xong là hết đọc được) ---- */
+      var theoLo = {}, theoNhom = {}, mota = [], tongKl = 0;
+      chon.forEach(function (b) {
+        var maLo = String(b.ma_lo).trim();
+        if (!theoLo[maLo]) theoLo[maLo] = { bao: 0, kl: 0 };
+        theoLo[maLo].bao++;
+        theoLo[maLo].kl += Number(b.khoi_luong) || 0;
+        tongKl += Number(b.khoi_luong) || 0;
+
+        var nhom = String(b.ky_hieu).trim().toUpperCase() + String(b.loai).trim();
+        theoNhom[nhom] = (theoNhom[nhom] || 0) + 1;
+
+        mota.push(maLo + ' | ' + nhom + ' | STT ' + b.stt_bao + ' | ' + b.khoi_luong + ' kg');
+      });
+
+      /*
+       * ⚠️ XOÁ TỪ DƯỚI LÊN. Xoá một dòng làm MỌI dòng phía dưới dịch lên một bậc, nên
+       * xoá từ trên xuống là xoá nhầm sang bao khác — và không có gì báo cho biết.
+       *
+       * Gom các dòng liền nhau thành từng dải rồi xoá mỗi dải một lượt, đúng lối
+       * datTrangThaiBao_ đã làm. Bao vừa nhập nằm liền nhau ở cuối sheet nên thường
+       * chỉ ra 1–2 dải.
+       */
+      var rows = chon.map(function (b) { return b._row; })
+                     .sort(function (a, b) { return a - b; });
+      var dai = [], k = 0;
+      while (k < rows.length) {
+        var dau = rows[k], cuoi = dau;
+        while (k + 1 < rows.length && rows[k + 1] === cuoi + 1) { k++; cuoi = rows[k]; }
+        dai.push([dau, cuoi - dau + 1]);
+        k++;
+      }
+      var sh = sheet_(SHEETS.BAO);
+      for (var d = dai.length - 1; d >= 0; d--) sh.deleteRows(dai[d][0], dai[d][1]);
+
+      // Chỉ trừ số lượng. KHÔNG hạ stt_max — xem nangChiSo_.
+      Object.keys(theoNhom).forEach(function (n) { nangChiSo_(n, null, -theoNhom[n]); });
+      Object.keys(theoLo).forEach(function (m) {
+        var lo = timLo_(m);
+        congDonLo_(lo ? lo._row : 0, -theoLo[m].bao, -theoLo[m].kl);
+      });
+
+      /*
+       * MỘT dòng nhật ký cho cả loạt, liệt kê đầy đủ từng bao. Ghi 50 dòng riêng là 50
+       * lượt ghi nằm TRONG khoá — hai người kia phải đứng chờ suốt thời gian đó. Vẫn
+       * truy được từng bao, chỉ là nằm chung một dòng.
+       */
+      ghiLog_(nd, vuot ? 'QL_XOA_NHIEU_BAO' : 'XOA_NHIEU_BAO', SHEETS.BAO,
+              chon.length + ' bao', mota.join(' ; '), '',
+              (vuot ? 'QUẢN LÝ xoá hàng loạt bao ĐÃ KHOÁ | lý do: ' + bl.lyDo
+                    : 'Xoá hàng loạt khi chưa chốt ca' +
+                      (bl.lyDo ? ' | lý do: ' + bl.lyDo : '')));
+
+      return ok_({ da_xoa: chon.length, tong_kl: lamTronKl_(tongKl),
+                   ds_id: ids, vuot_quyen: vuot });
     });
 
     if (kq && kq.ok && kq.data && kq.data.vuot_quyen) capNhatTongHopLoNgam_();
@@ -4176,7 +4527,10 @@ function apiMoLaiLo(ve, maLoRaw, xacNhan, lyDo) {
  *
  * @param {*} xacNhan true / 'XAC_NHAN' (app 1.6), hoặc đúng mã lô (app 1.5)
  */
-function apiDongLo(ve, maLoRaw, xacNhan) {
+/**
+ * @param {*=} lyDo  bắt buộc khi QUẢN LÝ đóng một lô mình không có bao nào — xem batLyDo_
+ */
+function apiDongLo(ve, maLoRaw, xacNhan, lyDo) {
   try {
     var nd = xacThuc_(ve);
     var maLo = chuanHoaMaLo_(maLoRaw);
@@ -4197,15 +4551,51 @@ function apiDongLo(ve, maLoRaw, xacNhan) {
       var dsBao = docBang_(SHEETS.BAO,
         ['ma_lo', 'khoi_luong', 'trang_thai', 'nguoi_nhap']);
 
-      // Không cho đóng lô khi NGƯỜI KHÁC còn bao chưa chốt —
-      // tránh khoá mất phần đang nhập dở của đồng nghiệp.
+      /*
+       * Một lượt quét duy nhất, lấy đủ bốn thứ cần biết về lô này.
+       *
+       * baoCuaToi phải đếm BAO THẬT ĐANG CÒN, tuyệt đối không dùng cột ds_nguoi_nhap
+       * bên sheet LO: cột đó không bao giờ xoá tên ai kể cả khi bao của họ đã bị xoá
+       * sạch (cố ý — xem themVaoDsNguoi_). Dùng nó là hỏng đúng vế "nhập thêm xong
+       * lại xoá đi" mà luật bản 1.8 sinh ra để chặn.
+       */
       var nguoiKhacConTreo = {};
+      var tongKl = 0, soBao = 0, baoCuaToi = 0, canKhoa = [];
       dsBao.forEach(function (b) {
         if (chuanHoaMaLo_(b.ma_lo) !== maLo) return;
-        if (String(b.trang_thai).trim().toUpperCase() !== BAO_TRANG_THAI.DANG_NHAP) return;
+        soBao++;
+        tongKl += Number(b.khoi_luong) || 0;
         var ma = String(b.nguoi_nhap).trim();
-        if (ma.toUpperCase() !== nd.ma_nv.toUpperCase()) nguoiKhacConTreo[ma] = true;
+        var laCuaToi = (ma.toUpperCase() === nd.ma_nv.toUpperCase());
+        if (laCuaToi) baoCuaToi++;
+        if (String(b.trang_thai).trim().toUpperCase() === BAO_TRANG_THAI.DANG_NHAP) {
+          canKhoa.push(b._row);
+          if (!laCuaToi) nguoiKhacConTreo[ma] = true;
+        }
       });
+
+      /*
+       * BẢN 1.8 — Andy chốt 29/08/2026: không đóng góp gì thì không được đóng lô.
+       *
+       * "Có đóng góp" = còn ít nhất 1 bao do chính mình nhập trong lô này, bất kể
+       * nhập hôm nào và đã chốt ca hay chưa. Nhập rồi xoá sạch thì hết quyền.
+       *
+       * Hai cửa thoát, thiếu một cái là có lô KHÔNG AI ĐÓNG ĐƯỢC:
+       *   1. Lô chưa có bao nào (mở nhầm) -> ai cũng đóng được, chẳng có gì để mất.
+       *   2. Quản lý vượt được, nhưng BẮT gõ lý do và ghi nhật ký bằng QL_DONG_LO.
+       *      Đây là đường duy nhất đóng được lô mà người nhập đã về nhà.
+       */
+      var vuot = (soBao > 0 && baoCuaToi === 0);
+      if (vuot && nd.vai_tro !== VAI_TRO.QUAN_LY) {
+        return loi_('Bạn chưa nhập bao nào trong lô ' + maLo + ' nên không đóng lô này được.\n' +
+                    'Người có nhập bao trong lô mới đóng được, hoặc nhờ quản lý.',
+                    'KHONG_DONG_GOP');
+      }
+      var bl = batLyDo_(vuot, lyDo, 'đóng một lô bạn không có bao nào trong đó');
+      if (bl.loi) return bl.loi;
+
+      // Không cho đóng lô khi NGƯỜI KHÁC còn bao chưa chốt —
+      // tránh khoá mất phần đang nhập dở của đồng nghiệp.
       var dsTen = Object.keys(nguoiKhacConTreo).map(function (m) { return tenTheoMa_(m); });
       if (dsTen.length) {
         return loi_('Chưa đóng lô được: ' + dsTen.join(', ') +
@@ -4213,15 +4603,6 @@ function apiDongLo(ve, maLoRaw, xacNhan) {
       }
 
       // Chốt luôn mọi bao còn treo trong lô này (đến đây chỉ còn bao của chính mình)
-      var tongKl = 0, soBao = 0, canKhoa = [];
-      dsBao.forEach(function (b) {
-        if (chuanHoaMaLo_(b.ma_lo) !== maLo) return;
-        soBao++;
-        tongKl += Number(b.khoi_luong) || 0;
-        if (String(b.trang_thai).trim().toUpperCase() === BAO_TRANG_THAI.DANG_NHAP) {
-          canKhoa.push(b._row);
-        }
-      });
       var demChot = datTrangThaiBao_(canKhoa, BAO_TRANG_THAI.DA_CHOT);
 
       suaDong_(SHEETS.LO, lo._row, {
@@ -4230,10 +4611,13 @@ function apiDongLo(ve, maLoRaw, xacNhan) {
         tg_dong: bayGio_()
       });
 
-      ghiLog_(nd, 'DONG_LO', SHEETS.LO, maLo, LO_TRANG_THAI.DANG_CHAY, LO_TRANG_THAI.DA_DONG,
-              soBao + ' bao | ' + lamTronKl_(tongKl) + ' kg | chốt thêm ' + demChot + ' bao');
+      ghiLog_(nd, vuot ? 'QL_DONG_LO' : 'DONG_LO',
+              SHEETS.LO, maLo, LO_TRANG_THAI.DANG_CHAY, LO_TRANG_THAI.DA_DONG,
+              soBao + ' bao | ' + lamTronKl_(tongKl) + ' kg | chốt thêm ' + demChot + ' bao' +
+              (vuot ? ' | QUẢN LÝ đóng lô KHÔNG có bao nào của mình | lý do: ' + bl.lyDo : ''));
 
-      return ok_({ ma_lo: maLo, so_bao: soBao, tong_kl: lamTronKl_(tongKl) });
+      return ok_({ ma_lo: maLo, so_bao: soBao, tong_kl: lamTronKl_(tongKl),
+                   vuot_quyen: vuot });
     });
 
     if (kq && kq.ok) capNhatTongHopLoNgam_();   // ngoài khoá ghi — xem apiChotCa
@@ -4573,7 +4957,10 @@ window.google = { script: { run: (function(){
      'apiGhiBaoLoi',
      // Bản 1.6 — đợt C. Quên nối vào đây là nút bấm báo "Mất mạng" dù mã thật chạy
      // đúng, đúng cái bẫy đã ghi ở mục 1d của TIEN_DO.md.
-     'apiLoDaDong','apiSuaLo','apiMoLaiLo'].forEach(function(ten){
+     'apiLoDaDong','apiSuaLo','apiMoLaiLo',
+     // Bản 1.8 — cùng cái bẫy đó, lần thứ hai: quên nối thì cảnh báo trùng mã lô im
+     // lặng và nút xoá nhiều bao báo "Mất mạng", dù máy chủ chạy đúng.
+     'apiKiemTraMaLo','apiXoaNhieuBao'].forEach(function(ten){
       o[ten] = function(){
         var args = Array.prototype.slice.call(arguments);
         setTimeout(function(){
@@ -4615,6 +5002,10 @@ var S = {
   goiYStt: {},
   loaiDangChon: null,
   baoDangSua: null,
+  loaiSuaGoc: null,        // loại của bao TRƯỚC khi sửa — để biết có đổi loại không
+  loaiSuaDangChon: null,   // loại đang chọn trong hộp sửa bao (bản 1.8)
+  cheDoChon: false,        // đang bật chế độ chọn nhiều bao? (bản 1.8)
+  daChon: {},              // id bao -> true, các bao đang được tích
   ketQua: null,
   duocSuaLo: false,
   laQuanLy: false,
@@ -5084,6 +5475,11 @@ function dangXuat(imLang) {
    ============================================================ */
 
 function chuyenManHinh(ten) {
+  /* Bản 1.8: rời khỏi màn hình có danh sách bao thì tắt luôn chế độ chọn nhiều.
+     Thanh chọn dính đáy màn hình nằm NGOÀI mọi section (xem Index.html), nên để sót
+     là nó treo lại trên màn hình khác kèm một danh sách đã chọn không còn nghĩa gì. */
+  if (ten !== 'NhapBao' && ten !== 'ChiTietLo') thoatCheDoChon();
+
   ['DangNhap', 'ChonLo', 'TaoLo', 'NhapBao', 'ThongKe', 'LoDaDong', 'ChiTietLo'].forEach(function (m) {
     an('mh' + m);
   });
@@ -5172,6 +5568,7 @@ function moFormTaoLo() {
   $('inGhiChuLo').value = '';
   anLoi('loiTaoLo');
   echoKlVao('inKlVaoMoi', 'echoKlVaoMoi');
+  anCanhBaoTrung();
   xemTruocKyHieu();
   setTimeout(function () { $('inMaLo').focus(); }, 100);
 }
@@ -5242,6 +5639,7 @@ function xemTruocKyHieu() {
   if (!v) {
     o.className = 'xem-ky-hieu';
     o.textContent = 'Ký hiệu sẽ là: —';
+    anCanhBaoTrung();
     return;
   }
   // Bản 1.7: hiện thẳng mã ĐẦY ĐỦ máy sẽ ghi, không chỉ ký hiệu A/B.
@@ -5257,6 +5655,63 @@ function xemTruocKyHieu() {
                     S.cauHinh.TIEN_TO_B + '" + 4 số + 2 chữ. VD ' +
                     S.cauHinh.TIEN_TO_A + '0753' + (S.cauHinh.MA_LO_HAU_TO || 'LA');
   }
+  hoiTrungMaLo(day);
+}
+
+/* ============================================================
+   CẢNH BÁO TRÙNG MÃ LÔ (bản 1.8 — Andy chốt 29/08/2026)
+   ============================================================
+
+   Vì sao phải hỏi máy chủ chứ không tự soi danh sách trong máy:
+   lúc mở app, máy chủ chỉ gửi xuống lô ĐANG CHẠY (S.dsLo). Lô ĐÃ ĐÓNG không có ở
+   đây — mà gõ trùng một mã lô đã đóng mới là tình huống nguy hiểm nhất, vì người
+   vận hành không nhìn thấy lô đó ở bất cứ màn hình nào nên không hề ngờ.
+
+   Ba nguyên tắc, đừng gỡ:
+   1. Có ĐỢI TAY DỪNG (_hoTrung) — gõ 7 ký tự mà bắn 7 lượt gọi mạng là phá app.
+   2. Có ĐẾM LƯỢT (_luotTrung) — mạng chậm thì câu trả lời của mã cũ có thể về SAU
+      câu trả lời của mã mới, và ghi đè lên nó. Trả lời lỗi thời thì bỏ.
+   3. KHÔNG khoá nút TẠO. Đây là cảnh báo sớm; apiTaoLo vẫn chặn thật bên trong khoá
+      ghi. Mất mạng thì im lặng, mọi thứ chạy y như bản 1.7. */
+var _hoTrung = null, _luotTrung = 0, _maDaHoi = '';
+
+function anCanhBaoTrung() {
+  var e = $('canhBaoTrungLo');
+  if (e) { e.textContent = ''; e.classList.add('an'); }
+  _maDaHoi = '';
+}
+
+function hoiTrungMaLo(maDay) {
+  if (_hoTrung) clearTimeout(_hoTrung);
+  if (!maDay) { anCanhBaoTrung(); return; }
+  if (maDay === _maDaHoi) return;      // đã hỏi rồi, giữ nguyên câu trả lời đang hiện
+  anCanhBaoTrung();
+
+  var luot = ++_luotTrung;
+  _hoTrung = setTimeout(function () {
+    goi('apiKiemTraMaLo', [S.ve, maDay])
+      .then(function (kq) {
+        if (luot !== _luotTrung) return;          // trả lời lỗi thời -> bỏ
+        if (!kq || !kq.ok || !kq.data) return;
+        if (($('inMaLo').value || '').trim().toUpperCase() === '') return;
+        _maDaHoi = maDay;
+        var e = $('canhBaoTrungLo');
+        if (!e) return;
+        if (!kq.data.trung) { e.textContent = ''; e.classList.add('an'); return; }
+
+        if (kq.data.trang_thai === 'DA_DONG') {
+          e.textContent = '⚠️ Mã ' + kq.data.ma_lo + ' ĐÃ ĐÓNG' +
+            (kq.data.tg_dong ? ' ngày ' + String(kq.data.tg_dong).substring(0, 10) : '') +
+            ' — không tạo lại được. Báo bộ phận thống kê nếu cần mở lại.';
+        } else {
+          e.textContent = '⚠️ Mã ' + kq.data.ma_lo + ' ĐANG CHẠY' +
+            (kq.data.tg_mo ? ' (mở ' + String(kq.data.tg_mo).substring(0, 10) + ')' : '') +
+            ' — hãy chọn lô đó ở danh sách thay vì tạo mới.';
+        }
+        e.classList.remove('an');
+      })
+      .catch(function () { /* mất mạng: im lặng, máy chủ vẫn chặn lúc bấm TẠO */ });
+  }, 600);
 }
 
 function taoLo() {
@@ -5415,6 +5870,17 @@ function taiLaiLo(maLo, imLang) {
 
       S.lo = kq.data.lo;
       S.dsBao = kq.data.ds_bao;
+
+      // Bao đã bị xoá / đã chốt thì bỏ khỏi danh sách đang tích, nếu không thanh đếm
+      // sẽ nói một con số không còn thật.
+      if (S.cheDoChon) {
+        var conSong = {};
+        S.dsBao.forEach(function (b) {
+          if (b.sua_duoc && S.daChon[String(b.id)]) conSong[String(b.id)] = true;
+        });
+        S.daChon = conSong;
+        capNhatDemChon();
+      }
       S.goiYStt = kq.data.goi_y_stt;
       S.duocSuaLo = !!kq.data.duoc_sua_lo;
       S.laQuanLy = !!kq.data.la_quan_ly;
@@ -5456,7 +5922,28 @@ function taiLaiLo(maLo, imLang) {
 function htmlDongBao(b, i) {
   var khoa = !b.sua_duoc;
   var moi = (S.vuaLuu && S.vuaLuu[String(b.id)]) ? ' vua-luu' : '';
+  var daTich = !!(S.daChon && S.daChon[String(b.id)]);
+
+  /*
+   * Bản 1.8: ở chế độ chọn nhiều, nút ✎ nhường chỗ cho ô tích.
+   * Bao đã khoá 🔒 KHÔNG có ô tích — không bao giờ chọn phải bao không xoá được, nên
+   * người ta không mất công tích rồi mới bị máy chủ từ chối cả loạt. Máy chủ vẫn soát
+   * lại từng bao (apiXoaNhieuBao): ẩn nút không bao giờ được coi là phân quyền.
+   */
+  var oPhai;
+  if (S.cheDoChon) {
+    oPhai = khoa
+      ? '<div class="khoa-icon">🔒</div>'
+      : '<label class="o-tich-bao"><input type="checkbox"' + (daTich ? ' checked' : '') +
+        ' onchange="tichBao(this, \'' + escapeHtml(String(b.id)) + '\')"></label>';
+  } else {
+    oPhai = khoa
+      ? '<div class="khoa-icon">🔒</div>'
+      : '<button class="sua" onclick="moSuaBao(' + i + ')">✎</button>';
+  }
+
   return '<div class="dong-bao' + (khoa ? ' khoa' : '') + moi +
+         (daTich ? ' da-tich' : '') +
          '" data-loai="' + escapeHtml(b.loai) + '">' +
            '<div class="nhom">' + escapeHtml(String(b.ky_hieu) + String(b.loai)) + '</div>' +
            '<div class="giua"><div class="stt">Bao ' + escapeHtml(b.stt_bao) + '</div>' +
@@ -5464,10 +5951,144 @@ function htmlDongBao(b, i) {
              escapeHtml(String(b.tg_nhap).substring(5, 16)) +
              (b.trang_thai === 'DA_CHOT' ? ' · đã chốt' : '') + '</div></div>' +
            '<div class="kl">' + escapeHtml(b.khoi_luong) + '</div>' +
-           (khoa
-              ? '<div class="khoa-icon">🔒</div>'
-              : '<button class="sua" onclick="moSuaBao(' + i + ')">✎</button>') +
+           oPhai +
          '</div>';
+}
+
+/* ============================================================
+   CHỌN NHIỀU BAO & XOÁ HÀNG LOẠT (bản 1.8 — Andy chốt 29/08/2026)
+   ============================================================
+
+   Đây là thao tác phá dữ liệu mạnh nhất trong app. Bốn hàng rào, đừng gỡ cái nào:
+     1. Phải bật chế độ chọn mới thấy ô tích — không có nút xoá nào nằm sẵn chờ bấm nhầm.
+     2. Bao đã khoá không tích được.
+     3. Hộp xác nhận in RÕ từng bao sắp mất, kèm ô tích, nút chỉ sáng sau khi tích.
+     4. Máy chủ soát lại tất cả và theo lối ĐƯỢC ĂN CẢ NGÃ VỀ KHÔNG.
+   ============================================================ */
+
+function veLaiDsBao() {
+  if (S.manHinh === 'ChiTietLo') veChiTietLo(); else veDanhSachBao();
+}
+
+function doiCheDoChon() {
+  S.cheDoChon = !S.cheDoChon;
+  S.daChon = {};
+  if (S.cheDoChon) hien('thanhChonNhieu'); else an('thanhChonNhieu');
+  document.body.classList.toggle('co-thanh-chon', S.cheDoChon);
+  ['btnChonNhieu', 'btnCtChonNhieu'].forEach(function (id) {
+    var e = $(id);
+    if (e) e.textContent = S.cheDoChon ? '✕ Thôi chọn' : '☑ Chọn nhiều';
+  });
+  capNhatDemChon();
+  veLaiDsBao();
+}
+
+function thoatCheDoChon() {
+  if (!S.cheDoChon) return;
+  S.cheDoChon = false;
+  S.daChon = {};
+  an('thanhChonNhieu');
+  document.body.classList.remove('co-thanh-chon');
+  ['btnChonNhieu', 'btnCtChonNhieu'].forEach(function (id) {
+    var e = $(id);
+    if (e) e.textContent = '☑ Chọn nhiều';
+  });
+}
+
+function tichBao(o, id) {
+  if (o.checked) S.daChon[String(id)] = true;
+  else delete S.daChon[String(id)];
+  var hang = o.parentNode && o.parentNode.parentNode;
+  if (hang) { if (o.checked) hang.classList.add('da-tich'); else hang.classList.remove('da-tich'); }
+  capNhatDemChon();
+}
+
+function dsIdDaChon() {
+  return Object.keys(S.daChon || {});
+}
+
+function capNhatDemChon() {
+  var ds = dsIdDaChon();
+  var kl = 0;
+  (S.dsBao || []).forEach(function (b) {
+    if (S.daChon[String(b.id)]) kl += Number(b.khoi_luong) || 0;
+  });
+  var e = $('demDaChon');
+  if (e) {
+    e.textContent = ds.length
+      ? ('Đã chọn ' + ds.length + ' bao · ' + tron2(kl) + ' kg')
+      : 'Chưa chọn bao nào';
+  }
+  var n = $('btnXoaDaChon');
+  if (n) n.disabled = (ds.length === 0);
+}
+
+function moHopXoaNhieu() {
+  var ds = dsIdDaChon();
+  if (!ds.length) { toast('Chưa chọn bao nào', 'do'); return; }
+  if (ds.length > 50) {
+    toast('Mỗi lần chỉ xoá được tối đa 50 bao — bỏ bớt rồi làm nhiều lần', 'do');
+    return;
+  }
+
+  var kl = 0, dong = '', coKhoa = false;
+  (S.dsBao || []).forEach(function (b) {
+    if (!S.daChon[String(b.id)]) return;
+    kl += Number(b.khoi_luong) || 0;
+    if (b.trang_thai === 'DA_CHOT') coKhoa = true;
+    dong += '<div class="dong-xem-truoc">' +
+              escapeHtml(String(b.ky_hieu) + String(b.loai)) + ' · bao ' +
+              escapeHtml(b.stt_bao) + ' · ' + escapeHtml(b.khoi_luong) + ' kg' +
+            '</div>';
+  });
+
+  $('tomTatXoaNhieu').textContent = 'Sắp xoá ' + ds.length + ' bao · ' + tron2(kl) + ' kg.';
+  $('dsXoaNhieu').innerHTML = dong;
+  $('lyDoXoaNhieu').value = '';
+  // Ô lý do chỉ có nghĩa với quản lý xoá số liệu đã khoá. Máy chủ mới là nơi bắt buộc.
+  if (S.laQuanLy && coKhoa) hien('khuLyDoXoaNhieu'); else an('khuLyDoXoaNhieu');
+  $('tichXoaNhieu').checked = false;
+  $('btnXacNhanXoaNhieu').disabled = true;
+  anLoi('loiXoaNhieu');
+  hien('lopXoaNhieu');
+}
+
+function dongHopXoaNhieu(e) {
+  if (e && e.target && e.target.id !== 'lopXoaNhieu') return;
+  an('lopXoaNhieu');
+}
+
+function doiTichXoaNhieu() {
+  var t = $('tichXoaNhieu').checked;
+  $('btnXacNhanXoaNhieu').disabled = !t;
+  if (t) anLoi('loiXoaNhieu');
+}
+
+function xacNhanXoaNhieu() {
+  var ds = dsIdDaChon();
+  if (!ds.length) return;
+  anLoi('loiXoaNhieu');
+  if (!$('tichXoaNhieu').checked) {
+    hienLoi('loiXoaNhieu', 'Hãy tích vào ô xác nhận trước khi xoá.');
+    rung([60, 50, 60]);
+    return;
+  }
+
+  cho(true);
+  goi('apiXoaNhieuBao', [S.ve, ds, $('lyDoXoaNhieu').value])
+    .then(function (kq) {
+      cho(false);
+      if (kiemTraPhien(kq)) return;
+      if (!kq || !kq.ok) { hienLoi('loiXoaNhieu', kq ? kq.error : 'Lỗi'); return; }
+      an('lopXoaNhieu');
+      thoatCheDoChon();
+      toast('✔ Đã xoá ' + kq.data.da_xoa + ' bao · ' + kq.data.tong_kl + ' kg', 'xanh');
+      taiLaiLo(S.lo.ma_lo, true);
+    })
+    .catch(function () {
+      cho(false);
+      hienLoi('loiXoaNhieu', 'Mất mạng — xoá được khi có mạng trở lại.');
+    });
 }
 
 /*
@@ -5841,6 +6462,15 @@ function moSuaBao(viTri) {
   $('suaStt').value = bao.stt_bao;
   $('suaKl').value = bao.khoi_luong;
 
+  // Bản 1.8: ô chọn loại. Nhãn hiện đúng ký hiệu của lô (A1/A2/A3 hoặc B1/B2/B3).
+  S.loaiSuaGoc = String(bao.loai);
+  S.loaiSuaDangChon = String(bao.loai);
+  ['1', '2', '3'].forEach(function (l) {
+    var e = $('nhanSuaLoai' + l);
+    if (e) e.textContent = String(bao.ky_hieu) + l;
+  });
+  capNhatNutLoaiSua();
+
   /* Bản 1.6: quản lý sửa/xoá được cả số liệu đã khoá, nhưng máy chủ bắt gõ lý do.
      Ô này chỉ hiện với quản lý — công nhân không bao giờ thấy. Máy chủ mới là nơi
      quyết định lý do có bắt buộc hay không (batLyDo_), giao diện chỉ dọn chỗ để gõ. */
@@ -5855,6 +6485,41 @@ function dongSuaBao(e) {
   if (e && e.target && e.target.id !== 'lopPhu') return;
   an('lopPhu');
   S.baoDangSua = null;
+}
+
+/*
+ * Chọn loại trong hộp SỬA bao (bản 1.8).
+ *
+ * Đổi loại là chuyển bao sang một dãy số bao khác — số bao đang gõ có thể đã có người
+ * dùng bên nhóm mới. Màn hình nói trước điều đó; máy chủ mới là nơi chặn thật, và nó
+ * BÁO LỖI bắt gõ số khác chứ không tự đổi số ngầm (Andy chốt 29/08/2026).
+ */
+function chonLoaiSua(l) {
+  S.loaiSuaDangChon = String(l);
+  rung(20);
+  capNhatNutLoaiSua();
+  anLoi('loiSua');
+}
+
+function capNhatNutLoaiSua() {
+  var ds = document.querySelectorAll('.nut-loai-sua');
+  for (var i = 0; i < ds.length; i++) {
+    if (ds[i].getAttribute('data-loai') === String(S.loaiSuaDangChon)) ds[i].classList.add('chon');
+    else ds[i].classList.remove('chon');
+  }
+  var cb = $('canhBaoDoiLoai');
+  if (!cb) return;
+  var bao = S.baoDangSua;
+  if (bao && String(S.loaiSuaDangChon) !== String(S.loaiSuaGoc)) {
+    cb.textContent = '⚠️ Đổi loại ' + bao.ky_hieu + S.loaiSuaGoc + ' → ' +
+                     bao.ky_hieu + S.loaiSuaDangChon +
+                     '. Số bao được đánh riêng cho từng loại — nếu số ' + bao.stt_bao +
+                     ' đã có ở nhóm mới thì phải gõ số khác.';
+    cb.classList.remove('an');
+  } else {
+    cb.textContent = '';
+    cb.classList.add('an');
+  }
 }
 
 function luuSuaBao() {
@@ -5874,7 +6539,9 @@ function luuSuaBao() {
   }
 
   cho(true);
-  goi('apiSuaBao', [S.ve, S.baoDangSua.id, sttN, klN, $('lyDoBao').value])
+  // Tham số loại đi CUỐI — xem ghi chú ở apiSuaBao trong 04_Api.gs.
+  goi('apiSuaBao', [S.ve, S.baoDangSua.id, sttN, klN, $('lyDoBao').value,
+                    S.loaiSuaDangChon])
     .then(function (kq) {
       cho(false);
       if (kiemTraPhien(kq)) return;
@@ -6033,6 +6700,20 @@ function dongLo() {
     : ('Lô ' + S.lo.ma_lo);
   $('tichDongLo').checked = false;
   $('btnXacNhanDong').disabled = true;
+  $('lyDoDongLo').value = '';
+
+  /*
+   * Bản 1.8: chỉ QUẢN LÝ mới có đường đóng một lô mình không có bao nào, và phải gõ
+   * lý do. Ô này hiện sẵn cho quản lý khi đúng là họ không có bao trong lô — máy chủ
+   * mới là nơi bắt buộc (batLyDo_), giao diện chỉ dọn chỗ để gõ.
+   */
+  var coBaoCuaToi = (S.dsBao || []).some(function (b) {
+    return String(b.nguoi_nhap || '').toUpperCase() ===
+           String(S.nguoiDung && S.nguoiDung.ma_nv || '').toUpperCase();
+  });
+  if (S.laQuanLy && (S.dsBao || []).length && !coBaoCuaToi) hien('khuLyDoDongLo');
+  else an('khuLyDoDongLo');
+
   anLoi('loiDongLo');
   hien('lopDongLo');
 }
@@ -6058,11 +6739,19 @@ function xacNhanDongLo() {
   }
 
   cho(true);
-  goi('apiDongLo', [S.ve, S.lo.ma_lo, 'XAC_NHAN'])
+  goi('apiDongLo', [S.ve, S.lo.ma_lo, 'XAC_NHAN', $('lyDoDongLo').value])
     .then(function (kq) {
       cho(false);
       if (kiemTraPhien(kq)) return;
-      if (!kq || !kq.ok) { hienLoi('loiDongLo', kq ? kq.error : 'Lỗi'); return; }
+      if (!kq || !kq.ok) {
+        // Bản 1.8: quản lý bị đòi lý do thì mở sẵn ô lý do ra cho gõ, đừng bắt mò.
+        if (kq && kq.code === 'THIEU_LY_DO') {
+          hien('khuLyDoDongLo');
+          setTimeout(function () { $('lyDoDongLo').focus(); }, 60);
+        }
+        hienLoi('loiDongLo', kq ? kq.error : 'Lỗi');
+        return;
+      }
       an('lopDongLo');
       toast('✔ Đã đóng lô — ' + kq.data.so_bao + ' bao, ' + kq.data.tong_kl + ' kg', 'xanh');
       S.phien = taoPhienMoi();

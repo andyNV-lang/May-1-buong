@@ -99,7 +99,9 @@
     <p class="nhan-lon">Thông tin lô</p>
     <div id="ctThongTin" class="bang-tt"></div>
 
-    <p class="nhan-lon">Bao trong lô <span id="ctDemBao" class="chip">0</span></p>
+    <p class="nhan-lon">Bao trong lô <span id="ctDemBao" class="chip">0</span>
+      <button id="btnCtChonNhieu" class="nut-chon-nhieu" onclick="doiCheDoChon()">☑ Chọn nhiều</button>
+    </p>
     <div id="ctDsBao"></div>
 
     <div id="ctKhuQuanLy" class="an">
@@ -127,6 +129,10 @@
            autocapitalize="characters" spellcheck="false"
            placeholder="VD: T0748LA" oninput="xemTruocKyHieu()">
     <div id="xemKyHieu" class="xem-ky-hieu">Ký hiệu sẽ là: —</div>
+    <!-- Bản 1.8: cảnh báo trùng mã lô. Điện thoại chỉ biết lô ĐANG CHẠY, còn lô ĐÃ
+         ĐÓNG phải hỏi máy chủ — mà trùng lô đã đóng mới là loại nguy hiểm, vì không
+         nhìn thấy nó ở đâu cả. Đây là cảnh báo, KHÔNG khoá nút: máy chủ vẫn chặn thật. -->
+    <div id="canhBaoTrungLo" class="canh-bao-inline an"></div>
 
     <label class="nhan">Tổng số bao đầu vào <span class="tuy-chon">(có thể bỏ trống)</span></label>
     <input id="inSoBaoVao" type="text" inputmode="numeric" pattern="[0-9]*" class="o-nhap" placeholder="VD: 163">
@@ -181,7 +187,10 @@
 
     <div class="phan-cach"></div>
 
-    <p class="nhan-lon">Bao đã nhập của lô này <span id="demBao" class="chip">0</span></p>
+    <p class="nhan-lon">Bao đã nhập của lô này <span id="demBao" class="chip">0</span>
+      <button id="btnChonNhieu" class="nut-chon-nhieu" onclick="doiCheDoChon()">☑ Chọn nhiều</button>
+    </p>
+
     <div id="dsBao"></div>
 
     <div class="phan-cach"></div>
@@ -248,6 +257,18 @@
 <div id="lopPhu" class="lop-phu an" onclick="dongSuaBao(event)">
   <div class="hop-thoai" onclick="event.stopPropagation()">
     <h3 id="tieuDeSua">Sửa bao</h3>
+
+    <!-- Bản 1.8: sửa được cả loại hàng. Đổi loại là chuyển bao sang một dãy số bao
+         khác, nên số bao có thể đụng số đã có bên nhóm mới — máy chủ sẽ báo lỗi và
+         bắt gõ số khác, KHÔNG tự đổi số ngầm (Andy chốt 29/08/2026). -->
+    <label class="nhan">Loại hàng</label>
+    <div class="chon-loai chon-loai-sua">
+      <button type="button" class="nut-loai nut-loai-sua" data-loai="1" onclick="chonLoaiSua('1')"><b>1</b><span id="nhanSuaLoai1">—</span></button>
+      <button type="button" class="nut-loai nut-loai-sua" data-loai="2" onclick="chonLoaiSua('2')"><b>2</b><span id="nhanSuaLoai2">—</span></button>
+      <button type="button" class="nut-loai nut-loai-sua" data-loai="3" onclick="chonLoaiSua('3')"><b>3</b><span id="nhanSuaLoai3">—</span></button>
+    </div>
+    <div id="canhBaoDoiLoai" class="canh-bao-inline an"></div>
+
     <label class="nhan">Số thứ tự bao</label>
     <input id="suaStt" type="text" inputmode="numeric" pattern="[0-9]*" class="o-nhap o-nhap-lon">
     <label class="nhan">Khối lượng (kg)</label>
@@ -426,10 +447,53 @@
       <input type="checkbox" id="tichDongLo" onchange="doiTichDongLo()">
       <span>Tôi đã xem lại số liệu và xác nhận <b>đóng hẳn</b> lô này.</span>
     </label>
+    <!-- Bản 1.8: chỉ hiện khi QUẢN LÝ đóng một lô mình không có bao nào. Máy chủ mới
+         là nơi quyết định lý do có bắt buộc hay không (batLyDo_ trong 04_Api.gs);
+         giao diện chỉ dọn chỗ để gõ. -->
+    <div id="khuLyDoDongLo" class="khu-ly-do an">
+      <label class="nhan">Lý do đóng hộ <span class="bat-buoc">*</span></label>
+      <input id="lyDoDongLo" type="text" class="o-nhap" placeholder="VD: người vận hành đã hết ca, lô cần đóng gấp">
+      <p class="ghi-chu-hop">Bạn không có bao nào trong lô này. Lý do vào nhật ký kèm tên bạn.</p>
+    </div>
     <div id="loiDongLo" class="loi-inline an"></div>
     <button id="btnXacNhanDong" class="nut-lon nut-do-dac" onclick="xacNhanDongLo()" disabled>ĐÓNG LÔ NÀY</button>
     <button class="nut-lon nut-xam" onclick="dongHopDongLo()">Huỷ</button>
   </div>
+</div>
+
+<!-- ══════════════ HỘP THOẠI XOÁ NHIỀU BAO ══════════════ -->
+<div id="lopXoaNhieu" class="lop-phu an" onclick="dongHopXoaNhieu(event)">
+  <div class="hop-thoai" onclick="event.stopPropagation()">
+    <h3>🗑 Xoá nhiều bao</h3>
+    <div class="canh-bao-do">
+      <b>XOÁ LÀ MẤT HẲN, KHÔNG LẤY LẠI ĐƯỢC.</b>
+      <div id="tomTatXoaNhieu">—</div>
+    </div>
+    <div id="dsXoaNhieu" class="ds-xem-truoc"></div>
+    <div id="khuLyDoXoaNhieu" class="khu-ly-do an">
+      <label class="nhan">Lý do xoá <span class="bat-buoc">*</span></label>
+      <input id="lyDoXoaNhieu" type="text" class="o-nhap" placeholder="VD: cân lại thấy mấy bao này ghi thừa">
+      <p class="ghi-chu-hop">Bắt buộc khi số liệu đã khoá. Lý do vào nhật ký kèm tên bạn.</p>
+    </div>
+
+    <label class="o-tich" for="tichXoaNhieu">
+      <input type="checkbox" id="tichXoaNhieu" onchange="doiTichXoaNhieu()">
+      <span>Tôi đã xem lại danh sách trên và xác nhận <b>xoá hẳn</b> những bao này.</span>
+    </label>
+    <div id="loiXoaNhieu" class="loi-inline an"></div>
+    <button id="btnXacNhanXoaNhieu" class="nut-lon nut-do-dac" onclick="xacNhanXoaNhieu()" disabled>XOÁ NHỮNG BAO NÀY</button>
+    <button class="nut-lon nut-xam" onclick="dongHopXoaNhieu()">Huỷ</button>
+  </div>
+</div>
+
+<!-- ══════════════ THANH CHỌN NHIỀU BAO (bản 1.8) ══════════════
+     Nằm NGOÀI mọi <section> là cố ý: section không hoạt động bị ẩn hẳn, để thanh này
+     bên trong thì nó biến mất theo. Đặt ở đây thì cùng một thanh dùng được cho cả màn
+     hình NHẬP LIỆU lẫn màn hình CHI TIẾT LÔ. -->
+<div id="thanhChonNhieu" class="thanh-chon an">
+  <span id="demDaChon">Chưa chọn bao nào</span>
+  <button class="nut-nho nut-xam" onclick="doiCheDoChon()">Thôi</button>
+  <button id="btnXoaDaChon" class="nut-nho nut-do-dac" onclick="moHopXoaNhieu()" disabled>🗑 XOÁ</button>
 </div>
 
 <!-- ══════════════ THÔNG BÁO NỔI ══════════════ -->

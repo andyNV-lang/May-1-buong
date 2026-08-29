@@ -232,6 +232,68 @@ input[type=number]{-moz-appearance:textfield;}
 .dong-bao.khoa .nhom{background:var(--xam-chu);}
 .dong-bao .khoa-icon{font-size:18px;flex:0 0 auto;color:var(--xam-chu);width:46px;text-align:center;}
 
+/* ---------- Chọn nhiều bao & xoá hàng loạt (bản 1.8) ---------- */
+
+/* Nút bật chế độ chọn, nằm nép bên phải dòng tiêu đề "Bao đã nhập của lô này". */
+.nut-chon-nhieu{
+  float:right;background:#fff;border:2px solid var(--xam-vien);border-radius:9px;
+  padding:6px 11px;font-family:inherit;font-size:14px;font-weight:700;
+  color:var(--den);cursor:pointer;
+}
+
+/* Ô tích trên từng dòng bao. Rộng đúng bằng chỗ nút ✎ vẫn chiếm (46px) để danh sách
+   không nhảy chỗ khi bật/tắt chế độ chọn. Ô tích to 30px — ngón tay cái ngoài xưởng
+   không bấm trúng ô 20px mặc định của trình duyệt. */
+.o-tich-bao{
+  flex:0 0 auto;width:46px;height:46px;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;margin:0;
+}
+.o-tich-bao input[type=checkbox]{
+  width:30px;height:30px;margin:0;accent-color:var(--do,#c62828);
+}
+.dong-bao.da-tich{background:#fdecea;border-color:var(--do,#c62828);}
+
+/* Thanh dính đáy màn hình. z-index dưới toast (200) và màn chờ, trên nội dung trang.
+   Chừa safe-area cho iPhone có thanh vuốt dưới đáy — thiếu dòng đó thì nút XOÁ nằm
+   ngay dưới thanh vuốt, bấm hụt hoặc bấm nhầm. */
+.thanh-chon{
+  position:fixed;left:0;right:0;bottom:0;z-index:150;
+  display:flex;align-items:center;gap:10px;
+  background:#202124;color:#fff;
+  padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));
+  box-shadow:0 -3px 14px rgba(0,0,0,.28);
+}
+.thanh-chon span{flex:1;font-size:15px;font-weight:700;}
+
+/* Thanh dính đáy che mất phần cuối trang. Chừa chỗ cho nó trong lúc đang chọn, nếu
+   không thì cuộn xuống hết vẫn không bấm được nút cuối cùng. */
+body.co-thanh-chon{padding-bottom:88px;}
+.nut-nho{
+  border:none;border-radius:9px;padding:11px 15px;
+  font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;
+}
+.nut-nho.nut-xam{background:#5f6368;color:#fff;}
+.nut-nho.nut-do-dac{background:var(--do,#c62828);color:#fff;}
+.nut-nho:disabled{opacity:.45;}
+
+/* Danh sách xem trước trong hộp xác nhận xoá — người ta phải NHÌN THẤY thứ sắp mất.
+   Có trần chiều cao + cuộn riêng, để chọn 50 bao thì nút xác nhận vẫn còn trên màn. */
+.ds-xem-truoc{
+  max-height:34vh;overflow-y:auto;
+  border:1px solid var(--xam-vien);border-radius:10px;
+  padding:8px 10px;margin:10px 0;background:#fafafa;
+}
+.dong-xem-truoc{
+  font-size:15px;padding:5px 0;border-bottom:1px dashed var(--xam-vien);
+}
+.dong-xem-truoc:last-child{border-bottom:none;}
+
+/* Ô chọn loại trong hộp SỬA bao — nhỏ hơn bộ nút ở màn nhập liệu, vì hộp thoại hẹp
+   và đây không phải thao tác làm hàng trăm lần mỗi ca. */
+.chon-loai-sua{margin-bottom:4px;}
+.chon-loai-sua .nut-loai{padding:9px 4px;}
+.chon-loai-sua .nut-loai b{font-size:24px;}
+
 /* ---------- Thông báo ---------- */
 .loi-inline{
   background:#fce8e6;color:#a50e0e;border-radius:10px;

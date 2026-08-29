@@ -29,6 +29,16 @@ Chọn **tên của mình** → nhập **4 số PIN**.
 > 👉 Gõ xong **nhìn dòng chữ xanh ngay dưới ô**: *✓ Máy hiểu: T0753LA*.
 > Chữ đỏ ✕ nghĩa là mã sai khuôn — sửa lại rồi mới tạo được lô.
 
+> ⚠️ **MÃ LÔ ĐÃ CÓ NGƯỜI DÙNG — máy báo ngay khi gõ.** Gõ xong đợi một nhịp, nếu
+> hiện dòng vàng thì đọc kỹ:
+>
+> - *"Mã T0753LA **ĐANG CHẠY**"* → lô đó có sẵn rồi. **Quay ra danh sách chọn lô đó**,
+>   đừng tạo mới.
+> - *"Mã T0753LA **ĐÃ ĐÓNG** ngày…"* → mã này dùng rồi, **không tạo lại được**.
+>   Kiểm tra lại tem, hoặc báo bộ phận thống kê.
+>
+> Không thấy dòng vàng nào = mã còn trống, cứ tạo.
+
 > ⚖️ **Khối lượng đầu vào** là số cân cả lô trước khi chạy máy. Chưa biết thì để trống,
 > nhập bổ sung sau ở màn hình **XEM TRƯỚC KẾT QUẢ**. Không có số này thì máy **không tính
 > được tỉ lệ thu hồi**.
@@ -122,6 +132,26 @@ Bấm nút **✎** ở dòng bao cần sửa (trong danh sách phía dưới).
 
 Bao đã khoá hiện biểu tượng 🔒 — báo quản lý nếu cần sửa.
 
+**Sửa được ba thứ:** **loại hàng** (1 / 2 / 3), **số thứ tự bao**, **khối lượng**.
+
+> ⚠️ **ĐỔI LOẠI THÌ COI CHỪNG SỐ BAO.** Số bao được đánh **riêng cho từng loại**
+> (A1 có bao số 701, A2 cũng có thể có bao số 701 — hai bao khác nhau).
+> Đổi bao A1-701 sang loại 2 mà nhóm A2 **đã có** bao 701 rồi thì máy **báo đỏ và
+> không cho lưu** — phải gõ số bao khác. Máy **không tự đổi số giúp**, vì số trên
+> giấy tờ phải khớp số ghi trên bao thật.
+
+### 🗑 XOÁ NHIỀU BAO CÙNG LÚC
+
+1. Bấm **☑ Chọn nhiều** (góc phải, ngay trên danh sách bao).
+2. **Tích vào những bao cần xoá.** Bao đã khoá 🔒 **không tích được** — đúng như vậy.
+3. Bấm nút đỏ **🗑 XOÁ** ở thanh đen dưới đáy màn hình.
+4. Hộp thoại **liệt kê từng bao sắp mất** — đọc lại một lượt, rồi mới tích ô xác nhận.
+
+> 🔴 **XOÁ LÀ MẤT HẲN, KHÔNG LẤY LẠI ĐƯỢC.** Đọc kỹ danh sách trong hộp thoại
+> trước khi tích. Mỗi lần xoá tối đa **50 bao**.
+> Nếu trong danh sách lỡ có một bao không được phép xoá thì **máy không xoá bao nào cả** —
+> bỏ bao đó ra rồi làm lại.
+
 ---
 
 ## ⑤b GÕ SAI MÃ LÔ, HOẶC CẦN LÀM LẠI CẢ LÔ
@@ -190,14 +220,19 @@ Màn hình này cho xem **tỉ lệ thu hồi từng loại** và **tỉ lệ ha
 Chỉ bấm khi lô **đã chạy xong hoàn toàn**, không còn bao nào nữa.
 Đóng rồi thì không ai thêm bao vào lô đó được.
 
-> 🔑 **Máy sẽ bắt gõ lại mã lô để xác nhận** — giống như khi xoá lô.
+> 🔑 **Máy in rõ mã lô và số liệu, bắt tích vào ô xác nhận** rồi nút mới sáng lên.
 > Đóng lô là khoá **vĩnh viễn**, mở lại phải nhờ quản lý, nên không thể chỉ là một cú bấm.
+
+> 🚫 **CHỈ NGƯỜI CÓ NHẬP BAO TRONG LÔ MỚI ĐÓNG ĐƯỢC LÔ ĐÓ.**
+> Nếu máy báo *"Bạn chưa nhập bao nào trong lô này"* thì đúng là như vậy —
+> **nhờ người đã nhập bao trong lô bấm đóng**, hoặc gọi quản lý.
+> Lô **chưa có bao nào** (mở nhầm) thì ai cũng đóng được.
 
 > Nếu lô còn chạy sang ca sau → **chỉ bấm CHỐT CA**, ĐỪNG bấm ĐÓNG LÔ.
 
 ---
 
-## ⑨ NĂM ĐIỀU CẦN NHỚ
+## ⑨ SÁU ĐIỀU CẦN NHỚ
 
 1. **Mất mạng vẫn nhập được.** Cứ nhập bình thường, đừng gõ lại. Nhưng phải mở
    app lại **trên chính điện thoại này** khi có mạng để dữ liệu được gửi lên.
@@ -206,6 +241,7 @@ Chỉ bấm khi lô **đã chạy xong hoàn toàn**, không còn bao nào nữa
 3. **Không nhập hộ người khác.** Hệ thống ghi lại tên người nhập từng bao.
 4. **Kiểm tra số bao trên tem trước khi bấm LƯU.**
 5. **Chốt ca xong mới ra về.**
+6. **Xoá nhiều bao là mất hẳn** — đọc lại danh sách trong hộp thoại trước khi tích.
 
 ---
 

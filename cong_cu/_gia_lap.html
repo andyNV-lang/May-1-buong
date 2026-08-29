@@ -15,6 +15,10 @@ Sheet.prototype.getLastColumn=function(){return DB[this.name][0].length;};
 Sheet.prototype.getMaxRows=function(){return 1000;};
 Sheet.prototype.appendRow=function(r){DB[this.name].push(r.slice());};
 Sheet.prototype.deleteRow=function(n){DB[this.name].splice(n-1,1);};
+/* Google Sheets thật có deleteRows(dòng, số dòng) — bản 1.8 dùng nó để xoá
+   nhiều bao trong ít lượt gọi. Thiếu ở đây thì nút XOÁ hàng loạt hỏng trong
+   bản mô phỏng dù máy chủ thật chạy đúng. */
+Sheet.prototype.deleteRows=function(n,soDong){DB[this.name].splice(n-1,soDong);};
 ['setFrozenRows','setRowHeight','setColumnWidth'].forEach(function(m){Sheet.prototype[m]=function(){};});
 Sheet.prototype.getProtections=function(){return [];};
 Sheet.prototype.protect=function(){return {setDescription:function(){return this;},setWarningOnly:function(){return this;}};};

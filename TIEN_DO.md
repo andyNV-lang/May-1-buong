@@ -1,6 +1,6 @@
 # TIẾN ĐỘ & BÀN GIAO — Máy 1 buồng
 
-**Cập nhật: 29/08/2026 · bản 1.7 ĐANG CHẠY THẬT trên Apps Script · mốc git `v1.7`**
+**Cập nhật: 29/08/2026 · bản 1.8 ĐÃ XONG, CHƯA DÁN LÊN GOOGLE · bản 1.7 vẫn đang chạy thật**
 
 File này dành cho việc **tiếp tục công việc ở một phiên trò chuyện mới**.
 Nó KHÔNG lặp lại nội dung đã có ở `0_DOC_TRUOC.md` (lịch sử phiên bản, danh sách lỗi đã sửa,
@@ -23,29 +23,27 @@ mô tả tính năng) — đọc file đó trước, rồi đọc file này đ�
 
 | Hạng mục | Tình trạng |
 |---|---|
-| Phiên bản | **1.7 — Gói 1 (giao diện) + Gói 2 (luật nhập liệu)**, xây trên nền 1.6 đủ 6/6 yêu cầu. Mốc git **`v1.7`** — *"Bản chuẩn chạy ngày 25/08"* |
-| Đã deploy lên Google chưa | ✅ **BẢN 1.7 ĐANG CHẠY THẬT.** Andy dán lên Apps Script và xác nhận *"chạy rất ngon"* ngày 25/08/2026. Trước đó bản 1.6 cũng đã chạy thật ổn định, Andy + người vận hành + quản lý nhập thử nhiều lô, không thấy lỗi |
+| Phiên bản | **1.8 — 4 việc Andy duyệt ngày 29/08/2026** (xem mục **1n**), xây trên nền 1.7. **Chưa có mốc git riêng.** Bản đang chạy thật vẫn là **`v1.7`** |
+| Đã deploy lên Google chưa | ⏳ **BẢN 1.8 CHƯA DÁN.** Bản **1.7** vẫn là bản đang chạy trên máy sản xuất (Andy xác nhận *"chạy rất ngon"* 25/08/2026). Danh sách file cần dán ở mục **1n** |
 | PIN của `QL01` | ✅ **Andy đã đổi** (xác nhận 25/08/2026) |
-| Kiểm thử logic | **482 đạt / 0 lỗi** — chạy `bash cong_cu/chay_kiemthu.sh` (thêm 51 ca ở mục 30 cho Gói 2) |
+| Kiểm thử logic | **558 đạt / 0 lỗi** — chạy `bash cong_cu/chay_kiemthu.sh` (thêm 76 ca ở mục 31–34 cho bản 1.8) |
 | Kiểm thử giao diện (Playwright) | ❌ **Chưa chạy lại được** từ bản 1.1. File `9_KIEMTHU_GIAODIEN.js.txt` ghi cứng đường dẫn Chromium của máy Linux (`/opt/pw-browsers/…`) |
 | Thử tay giao diện | ✅ **Đã bấm tay qua trình duyệt** — 12 luồng bản 1.5 (mục 1d), các luồng của từng đợt 1.6 (mục 1e–1h), và 8 luồng của Gói 1 bản 1.7 (mục 1j) |
 | Số file đã đổi ở bản 1.6 | **9/11** — chỉ `03_Auth.gs` và `appsscript.json` giữ nguyên |
 | Nhịp sản xuất thật | Andy xác nhận 21/08/2026: **200–500 bao/ngày, thiết kế an toàn cho 1000 bao/ngày**. Bao nặng **1–200 kg** |
 | Git / GitHub | ✅ **Có từ 25/08/2026** — `github.com/andyNV-lang/May-1-buong`, nhánh `main` + `dev`, mốc `v1.6.0` → `v1.6.3`. Xem mục **4b** |
 
-### ✅ BẢN 1.7 ĐÃ DÁN VÀ ĐANG CHẠY — còn 2 việc treo
-
-Không còn việc "dán bản mới" nào. Mốc git `v1.7` là bản đang chạy trên máy sản xuất.
+### ⏳ BẢN 1.8 XONG CODE — VIỆC TIẾP THEO LÀ DÁN LÊN GOOGLE
 
 | # | Việc còn treo | Mức |
 |---|---|---|
-| 1 | **In lại `3_HUONG_DAN_CONG_NHAN.md` dán tại máy.** Tờ này có 2 mục MỚI: cách gõ tắt mã lô, và luật gõ khối lượng. **Chưa có xác nhận Andy đã in lại.** Với luật 4.2, tờ giấy này là **hàng rào duy nhất**: bao từ 100 kg trở lên mà gõ thiếu dấu phẩy sẽ bị ghi nhỏ đi 10 lần, và không có gì báo | 🔴 cao |
-| 2 | **Theo dõi tuần đầu chạy luật 4.2.** Sau vài ngày, lọc sheet `BAO` xem có bao nào khối lượng nằm quanh 10–20 kg mà đáng lẽ phải 100–200 kg không. Đó là dấu hiệu người vận hành gõ thiếu dấu phẩy | 🟠 vừa |
+| 1 | **DÁN BẢN 1.8 LÊN APPS SCRIPT — 5 file** (`04_Api.gs`, `Index.html`, `Script.html`, `Style.html`, và `01_Util.gs` nếu chưa khớp). Rồi **Deploy → New version**, người vận hành **đóng hẳn app rồi mở lại**. **Không** phải chạy menu tạo cấu trúc sheet — bản 1.8 không thêm cột nào. Chi tiết mục **1n** | 🔴 cao |
+| 2 | **In lại `3_HUONG_DAN_CONG_NHAN.md` dán tại máy.** Tờ này nay có **3 mục mới của bản 1.8** (cảnh báo trùng mã lô · sửa loại hàng · xoá nhiều bao) cộng **luật đóng lô mới**, và đã sửa một chỗ **nói sai từ bản 1.6** (mục ⑧ vẫn ghi "bắt gõ lại mã lô" trong khi thực tế là ô tích). Vẫn còn 2 mục của bản 1.7: gõ tắt mã lô và luật gõ khối lượng — với luật 4.2 tờ giấy này là **hàng rào duy nhất** | 🔴 cao |
+| 3 | **Theo dõi tuần đầu chạy luật 4.2.** Sau vài ngày, lọc sheet `BAO` xem có bao nào khối lượng nằm quanh 10–20 kg mà đáng lẽ phải 100–200 kg không. Đó là dấu hiệu người vận hành gõ thiếu dấu phẩy | 🟠 vừa |
+| 4 | **Nói trước cho người vận hành về luật đóng lô mới.** Từ bản 1.8, ai không có bao trong lô thì **không đóng được lô đó**. Không báo trước thì giữa ca sẽ có người tưởng app hỏng | 🟠 vừa |
 
-**Nếu cần dán lại vì lý do khác**, danh sách 7 file ở mục **1k**. Không phải chạy menu
-tạo cấu trúc sheet — bản 1.7 không thêm cột nào.
-
-Chi tiết: bản 1.7 — Gói 1 ở mục **1j**, Gói 2 ở mục **1k**. Bản 1.6: mục **1e** (đợt A) · **1f** (B) · **1g** (C) · **1h** (D) · **1i** (lỗi vá 25/08).
+Chi tiết: bản 1.8 ở mục **1n**. Bản 1.7 — Gói 1 ở mục **1j**, Gói 2 ở mục **1k**.
+Bản 1.6: mục **1e** (đợt A) · **1f** (B) · **1g** (C) · **1h** (D) · **1i** (lỗi vá 25/08).
 
 ---
 
@@ -56,20 +54,23 @@ không phải tự phát hiện lại, và để Andy biết mình đang chấp 
 
 | # | Nợ | Mức |
 |---|---|---|
-| 1 | **Phần chạy trên điện thoại KHÔNG có kiểm thử tự động.** 431 ca đều là phía máy chủ. Bộ kiểm thử giao diện Playwright hỏng từ bản 1.1. Mọi màn hình chỉ được chứng minh bằng tay trên `mo_phong.html` | 🔴 cao — bản 1.6 thêm 2 màn hình, 4 hộp thoại, và một nút XOÁ |
+| 1 | **Phần chạy trên điện thoại KHÔNG có kiểm thử tự động.** 558 ca đều là phía máy chủ. Bộ kiểm thử giao diện Playwright hỏng từ bản 1.1. Mọi màn hình chỉ được chứng minh bằng tay trên `mo_phong.html` | 🔴 cao — **nặng thêm ở bản 1.8**: thêm chế độ chọn nhiều, một hộp thoại xoá hàng loạt, và ô chọn loại trong hộp sửa bao |
 | 2 | **Công thức tỉ lệ tồn tại ở HAI nơi, hai ngôn ngữ**: `tinhTiLe_`/`canhBaoHaoHut_` (`05_Report.gs`) và `capNhatKetQuaTaiCho`/`canhBaoBuiHaoHut` (`Script.html`). Sửa một bên quên bên kia thì hai màn hình nói hai con số khác nhau — công nhân sẽ không báo | 🔴 cao |
 | 3 | **Bốn bảng đếm sẵn có thể lệch dữ liệu gốc**: `so_bao_ra`, `kl_ra`, `CHI_SO`, `ds_nguoi_nhap`, cộng 6 cột xem nhanh P–U. `tuKiemTra` canh được 3 cái đầu và 200 dòng cuối của P–U; **`ds_nguoi_nhap` chưa được canh** | 🟠 vừa |
-| 4 | **Quyền `QUAN_LY` gần như không còn giới hạn kỹ thuật** — xoá được lô đã đóng của bất kỳ ai, sửa được mọi bao đã chốt. Chốt chặn còn lại chỉ là **nhật ký**, mà nhật ký chỉ ghi lại chứ không ngăn. Cửa vào là **một mã PIN 4 số** | 🟠 vừa — Andy đã biết và chấp nhận |
+| 4 | **Quyền `QUAN_LY` gần như không còn giới hạn kỹ thuật** — xoá được lô đã đóng của bất kỳ ai, sửa được mọi bao đã chốt, **và từ bản 1.8: đóng được lô mình không có bao nào, xoá được 50 bao đã khoá trong một lần bấm**. Chốt chặn còn lại chỉ là **nhật ký**, mà nhật ký chỉ ghi lại chứ không ngăn. Cửa vào là **một mã PIN 4 số** | 🟠 vừa — Andy đã biết và chấp nhận |
 | 5 | **Menu "Điền 6 cột xem nhanh" chưa thử ở quy mô thật.** Đường chia mẻ + mốc nhớ viết cho 250.000 dòng nhưng chỉ chạy trên vài chục dòng — nhánh "hết giờ, lưu mốc, chạy lại" **chưa từng thực sự xảy ra** | 🟡 thấp |
 | 6 | **Bảng tổng hợp 19 cột trên điện thoại: cuộn sang phải là mất cột "Mã lô"** (tiêu đề dính, cột đầu chưa dính). Ghim cột đầu là ~10 dòng CSS | 🟡 thấp |
 | 7 | ~~**Nút CHỐT CA bị đẩy xuống sâu hơn** ở bản 1.6~~ → **đỡ một phần ở bản 1.7**: bảng tỉ lệ với người vận hành rút từ 6 dòng còn 3, nút CHỐT CA lên cao hơn. Với Thống kê / Quản lý thì vẫn như cũ (họ cần bảng đầy đủ) | 🟢 đã đỡ — Andy bấm thử rồi nói tiếp |
-| 10 | **Luật đọc khối lượng và luật mã lô nay tồn tại ở HAI NƠI, hai ngôn ngữ**: `klBaoTu_`/`chuanMaLo7_` (`01_Util.gs`) và `klBaoTu`/`chuanMaLo7` (`Script.html`). Cùng loại nợ với số 2 — sửa một bên quên bên kia thì màn hình nói một đằng, sheet ghi một nẻo | 🟠 vừa |
+| 10 | **Luật đọc khối lượng và luật mã lô nay tồn tại ở HAI NƠI, hai ngôn ngữ**: `klBaoTu_`/`chuanMaLo7_` (`01_Util.gs`) và `klBaoTu`/`chuanMaLo7` (`Script.html`). Cùng loại nợ với số 2 — sửa một bên quên bên kia thì màn hình nói một đằng, sheet ghi một nẻo. **Bản 1.8 làm chỗ này dày thêm**: cảnh báo trùng mã lô cũng dựa vào `chuanMaLo7` bản khách | 🟠 vừa |
 | 9 | **Gom bao theo ca dựa vào cặp (`phien`, `trang_thai`), không có mã ca thật.** Chốt ca HAI LẦN trong cùng một lần đăng nhập, cùng một lô → hai khối gộp làm một. Chữa gốc là ghi mốc thời gian chốt lên từng bao, tức thêm cột ở sheet `BAO`. Xem mục **1j** | 🟡 thấp |
 | 8 | **Lỗi `apiSuaBao` sửa ngày 25/08 KHÔNG có ca kiểm thử nào canh.** Sửa đúng 1 dòng mã, không ca nào tái hiện được lỗi cũ — ai viết lại chỗ đó là lỗi quay về lặng lẽ, mà đường lỗi này **không để lại dấu vết trong nhật ký**. Xem mục **1i** | 🟠 vừa |
 
 | 11 | **Có sẵn cơ chế Enter → thêm dòng mà KHÔNG AI BIẾT** (`Script.html` ~1230). Không ghi ở tờ hướng dẫn, không ghi ở tài liệu, không ca kiểm thử nào canh, **chết hẳn trên iPhone** (bàn phím số iOS không có phím Return), Android thì tuỳ bàn phím. Tính năng chạy ngầm, hai hệ máy hành xử khác nhau. Xem mục **1m** | 🟠 vừa |
 | 12 | **Bấm nhầm nút thêm dòng làm KẸT nút LƯU BAO.** Dòng mới được tự điền sẵn số bao (~788) nhưng `luuBao()` chỉ bỏ qua dòng trống CẢ HAI ô (~1095) → dòng thừa có số bao thiếu kg → báo lỗi, **không lưu được** cho tới khi tự tìm ra và bấm `✕`. Người nhập liệu giữa ca sẽ không hiểu vì sao. Chưa có ca kiểm thử. Xem mục **1m** | 🔴 cao |
 | 13 | **Nút `LƯU BAO` bị che khi bàn phím mở trên iPhone** — ảnh chụp 29/08 xác nhận. Đáy màn hình bị viên thuốc `script.google.com` + thanh `⌃ ⌄ ✓` của hệ điều hành đè lên. Xem mục **1m** | 🟠 vừa |
+
+| 14 | **Trần 50 bao mỗi lần xoá là con số chọn theo cảm tính**, chưa đo thật. Xoá 50 bao rải rác ở 50 chỗ khác nhau trên sheet là 50 lượt `deleteRows` nằm **trong khoá ghi** — hai người kia đứng chờ. Trường hợp thật gần như luôn là bao liền nhau (1–2 dải), nhưng **nhánh xấu nhất chưa từng chạy thử** | 🟡 thấp |
+| 15 | **Cảnh báo trùng mã lô thêm 1 lượt gọi mạng cho mỗi lần gõ xong mã lô.** Rẻ (đọc 3 cột sheet `LO`, vài trăm dòng) và có đợi tay dừng 600 ms, nhưng **chưa đo ở nhịp thật**. Mất mạng thì nó im lặng — đúng thiết kế, `apiTaoLo` vẫn chặn | 🟡 thấp |
 
 **Chưa đo lại hiệu năng cho kịch bản mới của đợt C** (quản lý mở nhiều lô liên tiếp,
 mỗi lần `apiMoLo` quét cả sheet `BAO`).
@@ -482,6 +483,170 @@ Dán lại **9 file**:
 
 ⚠️ **Trước khi dán: đổi mã PIN của `QL01`** — bản 1.6 cho vai `QUAN_LY` xoá được số liệu
 đã chốt, mà PIN 4 số hiện tại đã lộ trong một ảnh chụp gửi qua mạng.
+
+---
+
+## 1n. BẢN 1.8 — 4 VIỆC ANDY DUYỆT NGÀY 29/08/2026
+
+Andy đưa 4 yêu cầu, tôi phân tích rủi ro và hỏi 7 câu trước khi làm, Andy duyệt hết.
+Làm cả 4 trong một gói (Andy chọn), theo đúng lối cũ: **viết kiểm thử trước, chạy thấy
+đỏ, rồi mới sửa mã**.
+
+### Việc 1 — Không đóng góp thì không đóng lô
+
+Muốn đóng lô phải còn **ít nhất 1 bao do chính mình nhập trong lô đó**, bất kể nhập
+hôm nào và đã chốt ca hay chưa. Nhập rồi xoá sạch thì hết quyền.
+
+**Hai cửa thoát — thiếu một cái là có lô KHÔNG AI ĐÓNG ĐƯỢC:**
+
+| Cửa | Ai qua được |
+|---|---|
+| Lô **chưa có bao nào** (mở nhầm) | ai cũng đóng được, chẳng có gì để mất |
+| **Quản lý** | đóng được mọi lô, nhưng **BẮT gõ lý do**, nhật ký ghi `QL_DONG_LO` |
+
+Người vận hành **và thống kê** đều bị luật này chặn. Mã lỗi mới: `KHONG_DONG_GOP`.
+
+⚠️ **Đếm bao THẬT trên sheet BAO, tuyệt đối không dùng cột `ds_nguoi_nhap`.** Cột đó
+cố ý **không bao giờ xoá tên ai** kể cả khi bao của họ đã bị xoá sạch (xem
+`themVaoDsNguoi_`). Dùng nó là hỏng đúng vế *"nhập thêm xong lại xoá đi"* mà luật này
+sinh ra để chặn. Có ca kiểm thử canh riêng chuyện đó (31.5).
+
+Không tốn thêm lượt đọc nào: `apiDongLo` vốn đã quét sheet BAO sẵn. Bản 1.8 gộp ba
+vòng lặp cũ thành **một lượt quét duy nhất**.
+
+### Việc 2 — Cảnh báo trùng mã lô ngay khi gõ
+
+Hàm máy chủ mới **`apiKiemTraMaLo`**, chỉ đọc 3 cột của sheet LO, **không ghi gì**.
+
+**Vì sao phải hỏi máy chủ chứ không tự soi danh sách trong máy:** lúc mở app, máy chủ
+chỉ gửi xuống lô **ĐANG CHẠY** (`ds_lo`). Lô **ĐÃ ĐÓNG** không có ở đó — mà trùng với
+lô đã đóng mới là loại nguy hiểm nhất, vì người vận hành không thấy lô đó ở bất cứ màn
+hình nào nên không hề ngờ. Andy chọn phương án "bắt cả lô đã đóng".
+
+**Ba nguyên tắc trong `hoiTrungMaLo` (Script.html), đừng gỡ:**
+1. **Đợi tay dừng 600 ms** — gõ 7 ký tự mà bắn 7 lượt gọi mạng là phá app.
+2. **Đếm lượt** — mạng chậm thì câu trả lời của mã cũ có thể về SAU mã mới và ghi đè
+   lên nó. Trả lời lỗi thời thì bỏ.
+3. **KHÔNG khoá nút TẠO.** Đây là cảnh báo sớm; `apiTaoLo` vẫn chặn thật bên trong
+   khoá ghi. Mất mạng thì im lặng, mọi thứ chạy y như bản 1.7.
+
+### Việc 3 — Sửa được cả loại hàng
+
+Ô chọn Loại 1/2/3 thêm vào hộp sửa bao đang có. Ai sửa được bao thì sửa được loại;
+quản lý sửa được cả bao đã khoá, bắt gõ lý do — y như số bao và khối lượng.
+
+`apiSuaBao` nhận thêm tham số **`loaiMoi` ở CUỐI**. Nằm cuối là cố ý: app bản 1.7 còn
+đang mở trên máy công nhân chỉ gửi 5 tham số, thiếu hẳn thì loại **giữ nguyên**. Chen
+vào giữa là mọi lời gọi cũ lệch tham số — khối lượng nhảy sang ô lý do, **im lặng và sai**.
+
+**Năm chỗ phải đi theo khi đổi loại** (mỗi chỗ có ca kiểm thử canh):
+
+| Chỗ | Nếu quên thì sao |
+|---|---|
+| Chống trùng số bao | Số bao đánh riêng theo nhóm (ký hiệu + loại). Soi nhóm **cũ** thì mọi lần đổi loại đều lọt → **hai bao trùng số**, không gì báo |
+| Bảng `CHI_SO` | Nhóm cũ **−1 bao**, nhóm mới **+1 bao** và **nâng `stt_max`**. Quên nâng → đường nhanh của `apiLuuBao` cho lọt số trùng ở lần nhập sau |
+| Cột xem nhanh `v_loai`, `v_stt` | Bảng dán sang Excel **nói dối lặng lẽ** — đúng loại lỗi đã xảy ra ngày 25/08 |
+| Bảng tổng hợp | Tỉ lệ L1/L2/L3 đổi **ngay**, dù tổng kg của lô không đổi |
+| Nhật ký | Ghi `ĐỔI LOẠI 1→3` kèm nhóm cũ → nhóm mới ở hai cột giá trị |
+
+Ba cột xem nhanh dựng bằng chính `coXemNhanh_` để luật đặt tên chỉ nằm ở **một chỗ**.
+
+**Trùng số bao ở nhóm mới → BÁO LỖI, bắt gõ số khác.** Andy chốt: máy **không tự đổi
+số ngầm**, vì số trên sổ sách phải khớp số ghi trên bao thật.
+
+### Việc 4 — Xoá nhiều bao cùng lúc
+
+Hàm máy chủ mới **`apiXoaNhieuBao(ve, dsId, lyDo)`**, trần **`XOA_NHIEU_TOI_DA = 50`**.
+
+**Bốn hàng rào, đừng gỡ cái nào:**
+1. Phải bật **☑ Chọn nhiều** mới thấy ô tích — không có nút xoá nào nằm sẵn chờ bấm nhầm.
+2. **Bao đã khoá 🔒 không có ô tích.**
+3. Hộp xác nhận **liệt kê từng bao sắp mất**, kèm ô tích, nút chỉ sáng sau khi tích.
+4. Máy chủ soát lại **tất cả** và theo lối **ĐƯỢC ĂN CẢ NGÃ VỀ KHÔNG** — sai một bao
+   thì không xoá bao nào. Không bao giờ có cảnh *"xoá được 3, kẹt 2, không biết cái nào
+   đã mất"*.
+
+⚠️ **XOÁ TỪ DƯỚI LÊN.** Xoá một dòng làm mọi dòng phía dưới **dịch lên một bậc**, nên
+xoá từ trên xuống là xoá nhầm sang bao khác — và không có gì báo. Các dòng liền nhau
+được gom thành dải rồi xoá mỗi dải một lượt bằng `deleteRows`, đúng lối
+`datTrangThaiBao_`. Bao vừa nhập nằm liền nhau ở cuối sheet nên thường chỉ ra 1–2 dải.
+
+**Nhật ký: MỘT dòng cho cả loạt**, liệt kê đầy đủ từng bao (mã lô · nhóm · STT · kg).
+Ghi 50 dòng riêng là 50 lượt ghi nằm **trong khoá** — hai người kia phải đứng chờ suốt
+thời gian đó. Vẫn truy được từng bao, chỉ là nằm chung một dòng. Hành động:
+`XOA_NHIEU_BAO` / `QL_XOA_NHIEU_BAO`.
+
+Id gửi lặp trong cùng một danh sách bị lọc — tích trượt hoặc mạng chập chờn không được
+biến thành "xoá lây bao khác".
+
+### Một hành vi CŨ đã bị đổi có chủ ý — đừng tưởng là lỗi
+
+Bản 1.5 có quyết định *"phương án (b): người KHÁC vẫn đóng được lô, miễn gõ đúng mã"*.
+**Bản 1.8 siết lại**: người khác chỉ đóng được nếu **có bao của mình trong lô**.
+Ca kiểm thử cũ ở mục 20 đã được viết lại cho đúng sự thật mới, và ca canh chiều ngược
+lại nằm ở mục 31. Bảy ca kiểm thử cũ phải sửa vì lý do này — tất cả đều là **cùng một
+thay đổi hành vi**, không phải bảy lỗi khác nhau.
+
+### `batLyDo_` nay nói đúng việc đang làm
+
+Trước 1.8 câu báo luôn là *"khi sửa số liệu đã khoá"*. Đóng lô mà báo vậy thì người
+vận hành không hiểu (*"tôi có sửa gì đâu"*). Thêm tham số `viec` tuỳ chọn; bỏ trống thì
+giữ nguyên câu cũ, nên mọi lời gọi từ 1.7 trở về trước không đổi gì.
+
+### Kiểm thử
+
+**558 đạt / 0 lỗi** (thêm 76 ca ở mục 31–34). Viết kiểm thử TRƯỚC — lần chạy đầu đỏ 12 ca.
+
+**Hai ca đỏ là kiểm thử của tôi sai, không phải mã sai:**
+1. Tôi viết `gõ tắt "T8201" → T8201AA`, quên rằng hậu tố mặc định là **`LA`** nên nó
+   ra `T8201LA`. Đã đổi ca sang lô tạo bằng chính đường gõ tắt.
+2. Tôi đọc trường `x.kl` trong bảng tỉ lệ, tên thật là **`x.tong_kl`**.
+
+Bộ giả lập được bổ sung **`deleteRows(dòng, số dòng)`** — Google Sheets thật có hàm
+này, thiếu ở bộ giả lập thì kiểm thử không chạy đúng đường mã mà máy chủ thật sẽ đi.
+
+### Thử tay trên bản mô phỏng — đã làm
+
+| Thử gì | Kết quả |
+|---|---|
+| Gõ `T753` (mã chưa ai dùng) → **không** cảnh báo gì | ✅ |
+| Tạo lô rồi gõ lại `T753` → *"⚠️ Mã T0753LA ĐANG CHẠY (mở 2026-08-29)…"* | ✅ |
+| Đóng lô rồi gõ lại → *"⚠️ Mã T0760LA ĐÃ ĐÓNG ngày 2026-08-29…"* | ✅ |
+| Gõ `T77` (sai khuôn) → chỉ báo sai khuôn, **không** báo trùng bừa | ✅ |
+| Hộp sửa bao hiện ô Loại với nhãn đúng **A1 / A2 / A3**, loại hiện tại được tô | ✅ |
+| Đổi bao A1-701 sang loại 2 → thành **A2**, bảng tỉ lệ đổi ngay (A1 4 bao / A2 1 bao) | ✅ |
+| Đổi bao A1-702 sang loại 2 **giữ số 701** → *"Số bao 701 đã tồn tại ở nhóm A2…"*, bao **không** bị đổi | ✅ |
+| Bật **☑ Chọn nhiều** → nút ✎ biến hết, hiện 5 ô tích, thanh đen dính đáy | ✅ |
+| Tích 3 bao → *"Đã chọn 3 bao · 157 kg"*, nút XOÁ sáng lên | ✅ |
+| Bấm XOÁ khi **chưa tích** ô xác nhận → *"Hãy tích vào ô xác nhận trước khi xoá"* | ✅ |
+| Xoá 3 bao → **đúng 3 bao đó** mất, 2 bao còn lại nguyên vẹn (xoá dòng không lệch) | ✅ |
+| Cột đếm của lô về đúng **2 bao / 108 kg**; nhật ký **1 dòng** liệt kê đủ 3 bao | ✅ |
+| `dungLaiChiSo_()` đối chiếu sau khi đổi loại + xoá nhiều → **không nhóm nào lệch** | ✅ |
+| Bao **đã chốt ca** ở chế độ chọn → hiện 🔒, **không có ô tích** | ✅ |
+| **Thống kê** đóng lô không có bao của mình → bị chặn, lô vẫn ĐANG CHẠY | ✅ |
+| **Quản lý** đóng lô đó: chưa gõ lý do → bị chặn; gõ lý do → đóng được, nhật ký `QL_DONG_LO` | ✅ |
+| Câu báo thiếu lý do nói **đúng việc**: *"khi đóng một lô bạn không có bao nào trong đó"* vs *"khi xoá số liệu đã khoá"* | ✅ |
+| Bật chế độ chọn → `body` được chừa **88px** đệm đáy, tắt thì trả về 40px | ✅ |
+| Nút **☑ Chọn nhiều** chạy cả ở màn hình **CHI TIẾT LÔ** (quản lý thấy đủ 3 ô tích) | ✅ |
+
+**Một lỗi thật do bản mô phỏng bắt được:** hai hàm mới chưa được nối vào danh sách
+`google.script.run` giả lập (`cong_cu/_du_lieu_mau.html`) → cảnh báo trùng im lặng và
+nút xoá nhiều báo "Mất mạng", dù máy chủ chạy đúng. **Đúng cái bẫy TIEN_DO.md đã ghi ở
+mục 1d, lần thứ hai.** Đã nối `apiKiemTraMaLo` và `apiXoaNhieuBao`.
+
+### Dán lên Google
+
+Dán lại **4 file chắc chắn đổi**: `04_Api.gs`, `Index.html`, `Script.html`, `Style.html`.
+`01_Util.gs` **không đổi ở bản 1.8** — nếu trên Apps Script vẫn là bản 1.7 thì giữ nguyên.
+
+Giữ nguyên: `00_Config`, `02_Setup`, `03_Auth`, `05_Report`, `06_WebApp`, `appsscript.json`.
+
+**KHÔNG cần chạy menu tạo cấu trúc sheet** — bản 1.8 không thêm cột nào.
+Vẫn phải **Deploy → New version**, và người vận hành **đóng hẳn app rồi mở lại**.
+
+⚠️ **App bản 1.7 còn đang mở vẫn chạy được** (tham số `loaiMoi` và `lyDo` đều nằm cuối,
+thiếu thì bỏ qua) — nhưng sẽ **không có** ô chọn loại, không có nút chọn nhiều, và
+**không có cảnh báo trùng mã lô**. Phải đóng mở lại app mới thấy.
 
 ---
 

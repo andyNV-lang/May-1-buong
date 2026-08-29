@@ -56,7 +56,10 @@ window.google = { script: { run: (function(){
      'apiGhiBaoLoi',
      // Bản 1.6 — đợt C. Quên nối vào đây là nút bấm báo "Mất mạng" dù mã thật chạy
      // đúng, đúng cái bẫy đã ghi ở mục 1d của TIEN_DO.md.
-     'apiLoDaDong','apiSuaLo','apiMoLaiLo'].forEach(function(ten){
+     'apiLoDaDong','apiSuaLo','apiMoLaiLo',
+     // Bản 1.8 — cùng cái bẫy đó, lần thứ hai: quên nối thì cảnh báo trùng mã lô im
+     // lặng và nút xoá nhiều bao báo "Mất mạng", dù máy chủ chạy đúng.
+     'apiKiemTraMaLo','apiXoaNhieuBao'].forEach(function(ten){
       o[ten] = function(){
         var args = Array.prototype.slice.call(arguments);
         setTimeout(function(){
