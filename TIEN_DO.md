@@ -1,6 +1,6 @@
 # TIẾN ĐỘ & BÀN GIAO — Máy 1 buồng
 
-**Cập nhật: 25/08/2026 · bản 1.7 ĐANG CHẠY THẬT trên Apps Script · mốc git `v1.7`**
+**Cập nhật: 29/08/2026 · bản 1.7 ĐANG CHẠY THẬT trên Apps Script · mốc git `v1.7`**
 
 File này dành cho việc **tiếp tục công việc ở một phiên trò chuyện mới**.
 Nó KHÔNG lặp lại nội dung đã có ở `0_DOC_TRUOC.md` (lịch sử phiên bản, danh sách lỗi đã sửa,
@@ -66,6 +66,10 @@ không phải tự phát hiện lại, và để Andy biết mình đang chấp 
 | 10 | **Luật đọc khối lượng và luật mã lô nay tồn tại ở HAI NƠI, hai ngôn ngữ**: `klBaoTu_`/`chuanMaLo7_` (`01_Util.gs`) và `klBaoTu`/`chuanMaLo7` (`Script.html`). Cùng loại nợ với số 2 — sửa một bên quên bên kia thì màn hình nói một đằng, sheet ghi một nẻo | 🟠 vừa |
 | 9 | **Gom bao theo ca dựa vào cặp (`phien`, `trang_thai`), không có mã ca thật.** Chốt ca HAI LẦN trong cùng một lần đăng nhập, cùng một lô → hai khối gộp làm một. Chữa gốc là ghi mốc thời gian chốt lên từng bao, tức thêm cột ở sheet `BAO`. Xem mục **1j** | 🟡 thấp |
 | 8 | **Lỗi `apiSuaBao` sửa ngày 25/08 KHÔNG có ca kiểm thử nào canh.** Sửa đúng 1 dòng mã, không ca nào tái hiện được lỗi cũ — ai viết lại chỗ đó là lỗi quay về lặng lẽ, mà đường lỗi này **không để lại dấu vết trong nhật ký**. Xem mục **1i** | 🟠 vừa |
+
+| 11 | **Có sẵn cơ chế Enter → thêm dòng mà KHÔNG AI BIẾT** (`Script.html` ~1230). Không ghi ở tờ hướng dẫn, không ghi ở tài liệu, không ca kiểm thử nào canh, **chết hẳn trên iPhone** (bàn phím số iOS không có phím Return), Android thì tuỳ bàn phím. Tính năng chạy ngầm, hai hệ máy hành xử khác nhau. Xem mục **1m** | 🟠 vừa |
+| 12 | **Bấm nhầm nút thêm dòng làm KẸT nút LƯU BAO.** Dòng mới được tự điền sẵn số bao (~788) nhưng `luuBao()` chỉ bỏ qua dòng trống CẢ HAI ô (~1095) → dòng thừa có số bao thiếu kg → báo lỗi, **không lưu được** cho tới khi tự tìm ra và bấm `✕`. Người nhập liệu giữa ca sẽ không hiểu vì sao. Chưa có ca kiểm thử. Xem mục **1m** | 🔴 cao |
+| 13 | **Nút `LƯU BAO` bị che khi bàn phím mở trên iPhone** — ảnh chụp 29/08 xác nhận. Đáy màn hình bị viên thuốc `script.google.com` + thanh `⌃ ⌄ ✓` của hệ điều hành đè lên. Xem mục **1m** | 🟠 vừa |
 
 **Chưa đo lại hiệu năng cho kịch bản mới của đợt C** (quản lý mở nhiều lô liên tiếp,
 mỗi lần `apiMoLo` quét cả sheet `BAO`).
@@ -696,6 +700,98 @@ và cột đếm của lô không bị bỏ lại nửa vời.
 
 ---
 
+## 1m. Ý tưởng "NÚT BẤM NHANH THÊM BAO" — Andy HUỶ ngày 29/08/2026
+
+**Kết luận: KHÔNG LÀM. Không sửa một dòng mã nào.** Ghi lại đầy đủ để phiên sau
+**đừng đề xuất lại từ đầu** — và vì quá trình khảo sát đào ra 3 phát hiện đáng giá
+về mã nguồn đang chạy, độc lập với ý tưởng đã huỷ.
+
+### Andy muốn gì
+
+Người nhập liệu có một nút bấm nhanh để thêm bao, khỏi mất thời gian với tay bấm
+nút `＋ THÊM 1 DÒNG`. Yêu cầu: chạy ổn định trên **cả iPhone lẫn Android**.
+
+### 🔴 Phát hiện 1 — Cơ chế đó ĐÃ CÓ SẴN trong mã, nhưng chết trên iPhone
+
+`Script.html` (~dòng 1230) đã có sẵn: **đang ở ô kg mà bấm Enter → thêm 1 dòng mới,
+số bao tự tăng, con trỏ nhảy sang ô kg dòng mới.** Đủ 20 dòng thì Enter = LƯU BAO.
+
+Nhưng nó **đang ở trạng thái tệ nhất: có mà như không.**
+
+| | |
+|---|---|
+| Trên iPhone | ❌ **Chết hẳn** — bàn phím số của iOS không có phím Return |
+| Trên Android | ❓ Tuỳ ứng dụng bàn phím (Gboard / Samsung / Laban Key) |
+| Tờ hướng dẫn công nhân | ❌ Không một chữ nào |
+| `TIEN_DO.md` / `0_DOC_TRUOC.md` | ❌ Không nhắc — chỉ tìm ra bằng cách đọc mã |
+| Ca kiểm thử canh | ❌ Không có. 482 ca đều là phía máy chủ |
+| Andy có biết không | ❌ **Không.** Andy xác nhận 29/08: chưa ai biết, kể cả Andy |
+
+➡️ Ghi thành **nợ số 11** ở mục 1a.
+
+### 🔴 Phát hiện 2 — XƯỞNG DÙNG CẢ iPHONE, không chỉ Android
+
+Andy xác nhận ngày 29/08/2026: người nhập liệu dùng **cả Android giá rẻ lẫn iPhone**,
+**không có thiết bị gắn thêm** (không cân nối máy, không máy quét, không bàn phím rời).
+
+⚠️ **`claude.md` đang ghi "Công nhân dùng điện thoại Android giá rẻ" — CÂU ĐÓ THIẾU.**
+Mọi quyết định về giao diện từ nay phải tính cho **hai hệ**, không phải một.
+
+### 🔴 Phát hiện 3 — Bấm nhầm nút thêm dòng làm KẸT nút LƯU BAO
+
+Đây là lỗ hổng **đang tồn tại trong bản 1.7**, không phải rủi ro của ý tưởng đã huỷ:
+
+- `themDongNhap()` (`Script.html` ~788) **tự điền sẵn số bao** cho dòng mới.
+- `luuBao()` (`Script.html` ~1095) chỉ bỏ qua dòng nào **trống CẢ HAI ô**.
+
+Ghép lại: **lỡ tay thêm một dòng → dòng đó có số bao, thiếu kg → không được bỏ qua →
+báo lỗi "Dòng N: chưa nhập khối lượng" → LƯU BAO không ăn** cho tới khi người nhập liệu
+tự tìm ra dòng thừa và bấm `✕`.
+
+Người nhập liệu giữa ca gặp cảnh này sẽ không hiểu vì sao máy không chịu lưu.
+**Chưa có ca kiểm thử nào canh.** Đây là việc đáng làm độc lập với ý tưởng đã huỷ.
+
+### Đọc được gì từ ảnh chụp màn hình Andy gửi (29/08)
+
+Andy gửi ảnh màn hình nhập bao, bàn phím đang mở, ô **Số bao** đang được chọn:
+
+1. **Bàn phím không có phím Enter** — hàng cuối chỉ có ô trống · `0` · `⌫`. Xác nhận bằng mắt.
+2. **Gần như chắc là iPhone** — có chữ cái nhỏ dưới chữ số (`2 ABC`, `7 PQRS`), đặc trưng iOS.
+   *(Chưa xác nhận trình duyệt: thanh `⌃ ⌄ ✓` không giống Safari, giống Chrome trên iOS hơn.)*
+3. **Đáy màn hình đã bị chiếm 4 tầng**: viên thuốc `script.google.com` · thanh `⌃ ⌄ ✓`
+   của hệ điều hành · dải gợi ý gõ · bàn phím.
+4. 🔴 **Nút `LƯU BAO` ĐANG BỊ CHE** khi bàn phím mở. Đây là chuyện có thật trên bản 1.7
+   đang chạy, chưa ai xử lý.
+
+### Bốn phương án đã cân, và vì sao đều không được chọn
+
+| | Phương án | Vì sao loại |
+|---|---|---|
+| A | Thanh nút dính nổi trên bàn phím | App chạy trong **khung nhúng (iframe)** của Apps Script — không chắc đọc được chiều cao bàn phím. Phải giành đáy màn hình với hệ điều hành. **Không kiểm chứng được nếu không thử trên máy thật** |
+| A2 | Mượn mũi tên `⌄` của hệ điều hành làm nút "bao tiếp" | Ý tưởng hay, đẻ ra từ ảnh chụp. Nhưng cũng treo trên câu hỏi "khung nhúng có cho xuyên qua không" — chưa trả lời được |
+| B | Nút `＋` nhỏ trong dòng đang gõ | Chắc chắn chạy mọi máy, rẻ nhất. Nhưng nằm cạnh nút `✕` xoá dòng → bấm nhầm mất dữ liệu vừa gõ |
+| C | Máy tự thêm dòng khi gõ xong | Máy phải **đoán** lúc nào người ta gõ xong. Ngập ngừng một giây là đẻ dòng rác |
+| D | Đổi ô kg sang bàn phím chữ để có Enter | 🔴 **Cấm.** Đụng thẳng vào luật 4.2 — đúng chỗ đẻ ra lỗi đắt nhất hệ thống (ghi nhỏ đi 10 lần) |
+
+### Cách thử an toàn đã thiết kế — chưa dùng, giữ lại cho lần sau
+
+Nếu về sau có ai đụng lại vào giao diện nhập liệu, **dùng lại quy trình này**:
+
+1. **Trang đo thử độc lập** — dự án Apps Script MỚI, **không nối bảng tính nào**,
+   link riêng. Trả lời câu hỏi kỹ thuật trước khi đụng vào mã thật. Rủi ro bằng 0.
+2. **Làm trên nhánh `dev`**, dán vào **BẢN SAO của bảng tính** + dự án Apps Script riêng.
+   ⚠️ **TUYỆT ĐỐI KHÔNG dùng "triển khai thử" của Apps Script** — nó chạy mã mới nhưng
+   **ghi thẳng vào bảng tính thật đang chạy sản xuất**.
+3. **Công tắc tắt trong bảng cấu hình** — thêm khoá kiểu `NUT_NHANH` = `BAT`/`TAT`
+   (cơ chế có sẵn: `00_Config.gs` ~200, giá trị đã gửi xuống điện thoại ở `04_Api.gs` ~26).
+   Ra xưởng thấy dở thì **sửa một ô trong bảng tính là xong**, khỏi dán lại 7 file.
+   Với thay đổi giao diện — thứ **không ca kiểm thử nào canh được** — cái công tắc này
+   đáng giá hơn nhiều lần công làm ra nó.
+4. Chạy `bash cong_cu/chay_kiemthu.sh` → bấm tay trên **cả hai hệ máy** → cập nhật file
+   này → gộp `main` → đánh mốc.
+
+---
+
 ## 1d. Thử tay giao diện bản 1.5 — đã làm ngày 22/08/2026
 
 Chạy trên `mo_phong.html` (giao diện thật + logic máy chủ thật), khổ màn hình điện thoại.
@@ -771,6 +867,7 @@ Ghi để phiên sau biết **thứ tự nhân quả**, không phải để khoe
 | **25/08 chiều** | **Làm GÓI 2 (luật nhập liệu)**: mã lô 7 ký tự tự điền, luật số cuối thành thập phân. Viết kiểm thử trước, thấy đỏ rồi mới sửa mã. Andy xác nhận **đã đổi PIN của QL01** | **482 kiểm thử** · mục **1k** · nợ số 10 |
 | **25/08 chiều** | **Làm GÓI 1 (giao diện)**: đổi cách gọi vai trò, ẩn chi tiết loại theo vai, gom bao theo ca | **bản 1.7 Gói 1** · mục **1j** · 431 kiểm thử vẫn xanh (không ca nào canh được gói này) |
 | **25/08 chiều** | **Rà lại git + vá tài liệu.** Chạy lại kiểm thử để lấy bằng chứng cho mốc, gắn `v1.6.3` kèm ghi chú xác minh, đẩy mốc lên GitHub | **431 đạt / 0 lỗi** · vá lại chính file này cho khớp mã nguồn (mục 1i, 4b, nợ số 8) |
+| **29/08** | **Andy đề xuất "nút bấm nhanh thêm bao", yêu cầu phân tích trước khi làm.** Khảo sát mã + đọc ảnh chụp màn hình iPhone Andy gửi. **Andy huỷ ý tưởng sau khi nghe phân tích** | **Không sửa dòng mã nào.** Đào ra nợ **11, 12, 13** · mục **1m** · xác nhận xưởng dùng **cả iPhone** |
 
 ### Ba việc phiên 21/08 cố tình KHÔNG làm — đừng tưởng là bỏ sót
 
@@ -925,6 +1022,10 @@ Mã nguồn nay nằm trong **git**, đẩy lên `github.com/andyNV-lang/May-1-b
 
 **Luật đã chốt (xem `README.md`):** chỉ gộp vào `main` khi kiểm thử xanh; `main` **luôn**
 là bản dán lên Apps Script được ngay. Nhánh `dev` để làm hằng ngày.
+
+⚠️ **Nhánh `dev` đang ĐI SAU `main` 4 lần sửa** (kiểm tra 29/08/2026) — nó vẫn dừng ở bản 1.6,
+**chưa có bản 1.7**. Ai vào `dev` làm việc là bắt đầu từ mã cũ, gộp ngược lại có thể xoá mất
+bản 1.7. **Kéo `dev` lên bằng `main` trước khi dùng.** Andy chưa duyệt việc đẩy lên GitHub.
 
 Xem lại một mốc cũ mà không làm hỏng gì đang có:
 

@@ -2,9 +2,11 @@
 
 ## Bối cảnh
 Hệ thống ghi chép sản xuất máy 1 buồng, chạy trên Google Apps
-Script. Công nhân dùng điện thoại Android giá rẻ. Người chủ dự
-án (Andy) KHÔNG phải lập trình viên — mọi giải thích phải bằng
-tiếng Việt, dùng từ đời thường.
+Script. Người nhập liệu dùng **cả điện thoại Android giá rẻ LẪN
+iPhone** (Andy xác nhận 29/08/2026), không có thiết bị gắn thêm.
+Mọi thay đổi giao diện phải tính cho CẢ HAI hệ — iPhone và Android
+bày bàn phím khác nhau. Người chủ dự án (Andy) KHÔNG phải lập
+trình viên — mọi giải thích phải bằng tiếng Việt, dùng từ đời thường.
 
 ## Nguồn sự thật
 - TIEN_DO.md là nguồn sự thật DUY NHẤT về trạng thái dự án.
